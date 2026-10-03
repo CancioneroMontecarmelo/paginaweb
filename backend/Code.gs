@@ -46,6 +46,7 @@ function doGet(e) {
   try {
     if (p.accion === 'listar') return json_(listar_(p));
     if (p.accion === 'ver') return verHtml_(p.id);
+    if (p.accion === 'estadoCorreo') return json_({ ok: true, cuotaCorreo: MailApp.getRemainingDailyQuota() });
     return json_({ ok: true, app: 'MonteCarmelo', version: 1 });
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
@@ -365,6 +366,7 @@ function correo_(para, asunto, cuerpo) {
     return true;
   } catch (err) {
     console.warn('Correo no enviado: ' + err);
+    try { auditar_({ tipo: 'correo_fallido', email: para, error: String(err.message || err) }); } catch (_) {}
     return false;
   }
 }
@@ -722,4 +724,28 @@ function prepararPrimeraVez() {
   leerUsuarios_();
   secreto_();
   console.log('Listo. Carpeta raíz: ' + raiz_().getUrl());
+}
+
+// Ejecutar desde el editor de Apps Script si el correo de «¿Primera vez…?» no llega: la clave temporal
+// aparece en el registro de ejecución (solo lo ve el dueño del script) y sirve 2 horas.
+function claveTemporalAdmin() {
+  var temp = claveTemporal_();
+  conCandado_(function () {
+    var lista = leerUsuarios_();
+    var u = lista.filter(function (v) { return normEmail_(v.email) === normEmail_(CORREO_PARROQUIA); })[0];
+    if (!u) { u = JSON.parse(JSON.stringify(ADMIN_SEMILLA)); lista.push(u); }
+    u.activo = true;
+    u.hashRecuperacion = hashClave_(temp);
+    u.recuperacionVence = Date.now() + 2 * 3600 * 1000;
+    guardarUsuarios_(lista);
+  });
+  auditar_({ tipo: 'recuperacion_editor', email: CORREO_PARROQUIA });
+  console.log('Clave temporal para ' + CORREO_PARROQUIA + ': ' + temp + '  (sirve 2 horas)');
+  try {
+    console.log('Correos disponibles hoy: ' + MailApp.getRemainingDailyQuota());
+    MailApp.sendEmail(CORREO_PARROQUIA, 'Prueba de correo — Monte Carmelo', 'Si ves este correo, el envío funciona.');
+    console.log('Correo de prueba enviado a ' + CORREO_PARROQUIA);
+  } catch (err) {
+    console.log('El envío de correo falla: ' + err);
+  }
 }
