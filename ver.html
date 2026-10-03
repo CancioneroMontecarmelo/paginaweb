@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cancionero — Monte Carmelo</title>
+  <link rel="stylesheet" href="./css/site.css">
+</head>
+<body>
+  <main class="pagina">
+    <p class="subtitulo" id="estado">Cargando el cancionero…</p>
+    <p><a href="./inicio.html">← Volver al inicio</a></p>
+  </main>
+  <script src="./js/config.js"></script>
+  <script>
+    // El Apps Script entrega la página del cancionero (guardada en el Drive) como texto: aquí se muestra tal cual
+    (async () => {
+      const estado = document.getElementById("estado");
+      const id = new URLSearchParams(location.search).get("id");
+      const api = (window.MONTECARMELO_CONFIG || {}).apiUrl;
+      if (!api) { estado.textContent = "El Drive de la parroquia todavía no está conectado."; return; }
+      if (!id) { estado.textContent = "Falta indicar qué cancionero abrir."; return; }
+      try {
+        const res = await fetch(api + "?accion=ver&id=" + encodeURIComponent(id));
+        const html = await res.text();
+        if (!/<html[\s>]/i.test(html)) throw new Error(html.slice(0, 200) || "respuesta vacía");
+        document.open();
+        document.write(html);
+        document.close();
+      } catch (e) {
+        estado.textContent = "No se pudo abrir el cancionero: " + e.message;
+      }
+    })();
+  </script>
+</body>
+</html>

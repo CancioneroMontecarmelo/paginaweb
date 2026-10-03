@@ -599,11 +599,21 @@ function abrir_(d) {
   return { cancionero: c.entrada, archivos: listarArchivos_(c.carpeta, '', []) };
 }
 
+function dentroDeCancioneros_(f) {
+  var base = carpetaRuta_(raiz_(), ['Cancioneros']).getId();
+  var padres = f.getParents();
+  for (var n = 0; padres.hasNext() && n < 8; n++) {
+    var p = padres.next();
+    if (p.getId() === base) return true;
+    padres = p.getParents();
+  }
+  return false;
+}
+
 function archivo_(d) {
   usuarioDeToken_(d.token);
   var f = DriveApp.getFileById(d.id);
-  var padres = f.getParents();
-  if (!padres.hasNext()) throw new Error('Archivo sin carpeta');
+  if (!dentroDeCancioneros_(f)) throw new Error('Ese archivo no pertenece a un cancionero');
   return { base64: Utilities.base64Encode(f.getBlob().getBytes()), mime: f.getMimeType(), nombre: f.getName() };
 }
 

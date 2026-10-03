@@ -10,10 +10,12 @@
  *  - colaborador    → colaborador autorizado
  *
  * Contraseñas: SHA-256(salt + clave) — nunca se guarda la clave en claro.
- * Persistencia dinámica: localStorage (solicitudes, usuarios aceptados, auditoría).
- * Semilla: usuarios.json
+ * Con apiUrl en config.js todo pasa por el Apps Script (backend/Code.gs): usuarios, solicitudes y
+ * auditoría quedan en el Drive de la parroquia y la sesión lleva un token firmado.
+ * Sin apiUrl (modo local de prueba): localStorage + semilla usuarios.json.
  */
 
+import "./config.js";
 import { COMUNIDADES } from "./comunidades.js";
 
 export const SALT = "montecarmelo-v1";
@@ -45,6 +47,39 @@ export const ADMIN_GENERAL_SEED = {
 };
 
 let cacheBase = null;
+
+const apiUrl = () => (window.MONTECARMELO_CONFIG || {}).apiUrl || "";
+export const usaBackend = () => !!apiUrl();
+
+export async function llamarApi(accion, datos) {
+  let r;
+  try {
+    const res = await fetch(apiUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ accion, ...(datos || {}) })
+    });
+    r = await res.json();
+  } catch (_) {
+    throw new Error("No se pudo conectar con el servidor de la parroquia. Revisá tu conexión a internet.");
+  }
+  if (!r.ok) {
+    if (/sesi[oó]n (inv[aá]lida|venci[oó])/i.test(r.error || "")) localStorage.removeItem(CLAVE_SESION);
+    throw new Error(r.error || "El servidor de la parroquia no respondió");
+  }
+  return r;
+}
+
+const token = () => (sesionActual() || {}).token || "";
+
+function tokenVigente(t) {
+  try {
+    const p = String(t).split(".")[0].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(p + "=".repeat((4 - (p.length % 4)) % 4))).exp > Date.now();
+  } catch (_) {
+    return false;
+  }
+}
 
 export function rutaBaseAuth() {
   const path = location.pathname.replace(/\\/g, "/");
@@ -120,6 +155,7 @@ function claveTemporal() {
 
 /** Lista unificada: Marcos + JSON + localStorage (local gana por email). */
 export async function listarUsuarios() {
+  if (usaBackend()) return (await llamarApi("listarUsuarios", { token: token() })).usuarios;
   const base = await cargarSemillaJson();
   const local = leerLS(CLAVE_USUARIOS, []);
   const mapa = new Map();
@@ -195,17 +231,23 @@ export function registrarAuditoria(evento) {
   escribirLS(CLAVE_AUDITORIA, log.slice(0, 500));
 }
 
-export function leerAuditoria(limite) {
+export async function leerAuditoria(limite) {
+  if (usaBackend()) return (await llamarApi("auditoria", { token: token(), limite: limite || 50 })).auditoria;
   const log = leerLS(CLAVE_AUDITORIA, []);
   return typeof limite === "number" ? log.slice(0, limite) : log;
 }
 
+/** La sesión se comparte con el editor (editor/js/nube.js), por eso vive en localStorage. */
 export function sesionActual() {
   try {
-    const raw = sessionStorage.getItem(CLAVE_SESION);
+    const raw = localStorage.getItem(CLAVE_SESION);
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (!s || !s.email || !s.rol) return null;
+    if (usaBackend() && !tokenVigente(s.token)) {
+      localStorage.removeItem(CLAVE_SESION);
+      return null;
+    }
     return s;
   } catch (_) {
     return null;
@@ -213,12 +255,12 @@ export function sesionActual() {
 }
 
 export function guardarSesion(sesion) {
-  sessionStorage.setItem(CLAVE_SESION, JSON.stringify(sesion));
+  localStorage.setItem(CLAVE_SESION, JSON.stringify(sesion));
 }
 
 export function cerrarSesion() {
   const s = sesionActual();
-  if (s) {
+  if (s && !usaBackend()) {
     registrarAuditoria({
       tipo: "salida",
       email: s.email,
@@ -226,7 +268,7 @@ export function cerrarSesion() {
       rol: s.rol
     });
   }
-  sessionStorage.removeItem(CLAVE_SESION);
+  localStorage.removeItem(CLAVE_SESION);
 }
 
 export function esResponsableSitio(s) {
@@ -260,8 +302,14 @@ export function puedeEditar(comunidadSlug) {
  */
 export async function iniciarSesion({ nombres, apellidos, email, clave }) {
   const correo = normalizarEmail(email);
-  const lista = await listarUsuarios();
   const hash = await hashClave(clave);
+  if (usaBackend()) {
+    const r = await llamarApi("login", { email: correo, hash, nombres, apellidos });
+    const sesion = { ...r.sesion, token: r.token, desde: Date.now() };
+    guardarSesion(sesion);
+    return sesion;
+  }
+  const lista = await listarUsuarios();
   let encontrado = lista.find((u) => normalizarEmail(u.email) === correo && u.hash === hash);
 
   if (!encontrado && nombres && apellidos) {
@@ -321,6 +369,11 @@ export async function iniciarSesion({ nombres, apellidos, email, clave }) {
 }
 
 export function listarSolicitudes() {
+  if (usaBackend()) {
+    return llamarApi("listarSolicitudes", { token: token() }).then((r) =>
+      r.solicitudes.sort((a, b) => String(b.creado || "").localeCompare(String(a.creado || "")))
+    );
+  }
   return leerLS(CLAVE_SOLICITUDES, []).sort((a, b) =>
     String(b.creado || "").localeCompare(String(a.creado || ""))
   );
@@ -345,6 +398,11 @@ export async function solicitarAcceso(datos) {
   const comunidad = String(datos.comunidad || "").trim();
   if (!comunidad) throw new Error("Elegí la comunidad");
   const rolPedido = datos.rolPedido === "sacerdote" ? "sacerdote" : datos.rolPedido === "editor" ? "editor" : "admin";
+
+  if (usaBackend()) {
+    const r = await llamarApi("solicitarAcceso", { ...datos, email, nombres, apellidos, comunidad, rolPedido });
+    return { solicitud: r.solicitud, codigo: null, correoParroquia: CORREO_PARROQUIA };
+  }
 
   const existentes = await listarUsuarios();
   if (existentes.some((u) => normalizarEmail(u.email) === email && u.activo !== false)) {
@@ -392,6 +450,7 @@ export async function solicitarAcceso(datos) {
 }
 
 export function obtenerCodigoSolicitud(id) {
+  if (usaBackend()) return null;
   const bag = leerLS(CLAVE_CODIGOS, {});
   const item = bag[id];
   if (!item || (item.expira && item.expira < Date.now())) return null;
@@ -406,6 +465,14 @@ export async function aceptarSolicitud(idSolicitud, codigoIngresado, opts) {
   opts = opts || {};
   if (!esResponsableSitio()) {
     throw new Error("Solo el administrador general o el segundo responsable pueden aceptar.");
+  }
+  if (usaBackend()) {
+    return llamarApi("aceptarSolicitud", {
+      token: token(),
+      id: idSolicitud,
+      codigo: String(codigoIngresado || "").trim(),
+      rol: opts.rol
+    });
   }
   const lista = listarSolicitudes();
   const sol = lista.find((s) => s.id === idSolicitud);
@@ -471,6 +538,7 @@ export async function aceptarSolicitud(idSolicitud, codigoIngresado, opts) {
 
 export async function rechazarSolicitud(idSolicitud, motivo) {
   if (!esResponsableSitio()) throw new Error("Sin permiso");
+  if (usaBackend()) return llamarApi("rechazarSolicitud", { token: token(), id: idSolicitud, motivo });
   const lista = listarSolicitudes();
   const sol = lista.find((s) => s.id === idSolicitud);
   if (!sol || sol.estado !== "pendiente") throw new Error("Solicitud no encontrada");
@@ -502,6 +570,7 @@ export async function darDeBaja(emailObjetivo, motivo) {
   if (email === normalizarEmail(ADMIN_GENERAL_SEED.email) && !propio) {
     throw new Error("No se puede dar de baja al administrador general desde otra cuenta");
   }
+  if (usaBackend()) return (await llamarApi("darDeBaja", { token: token(), email, motivo })).usuario;
 
   const usuarios = await listarUsuarios();
   const u = usuarios.find((x) => normalizarEmail(x.email) === email);
@@ -529,6 +598,7 @@ export async function nombrarSegundoAdmin(emailObjetivo) {
     throw new Error("Solo el administrador general puede nombrar al segundo responsable");
   }
   const email = normalizarEmail(emailObjetivo);
+  if (usaBackend()) return (await llamarApi("nombrarSegundo", { token: token(), email })).usuario;
   const usuarios = await listarUsuarios();
   const u = usuarios.find((x) => normalizarEmail(x.email) === email && x.activo !== false);
   if (!u) throw new Error("Usuario no encontrado o inactivo");
@@ -553,6 +623,15 @@ export async function cambiarClavePropia(claveActual, claveNueva) {
   if (!s) throw new Error("Sin sesión");
   if (String(claveNueva || "").length < 8) {
     throw new Error("La nueva clave debe tener al menos 8 caracteres");
+  }
+  if (usaBackend()) {
+    const r = await llamarApi("cambiarClave", {
+      token: s.token,
+      hashActual: await hashClave(claveActual),
+      hashNuevo: await hashClave(claveNueva)
+    });
+    guardarSesion({ ...s, ...r.sesion, token: s.token });
+    return true;
   }
   const usuarios = await listarUsuarios();
   const email = normalizarEmail(s.email);

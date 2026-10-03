@@ -158,6 +158,7 @@
       comunidadesOpciones,
       leerAuditoria,
       descargarUsuariosJson,
+      usaBackend,
       CORREO_PARROQUIA
     } from "./js/auth.js";
     import {
@@ -168,6 +169,8 @@
     } from "./js/auth-correo.js";
 
     initNavSitio();
+    const servidor = usaBackend();
+    document.getElementById("btn-exportar").hidden = servidor;
 
     const tabs = document.querySelectorAll(".tab-auth");
     const paneles = {
@@ -294,6 +297,15 @@
           motivo: document.getElementById("sol-motivo").value
         };
         const r = await solicitarAcceso(datos);
+        if (servidor) {
+          ok.hidden = false;
+          ok.textContent =
+            "Solicitud enviada. La parroquia recibió un correo con tu solicitud y te escribiremos a " +
+            datos.email +
+            " cuando sea aceptada.";
+          e.target.reset();
+          return;
+        }
         await avisarSolicitudAParroquia({
           nombre: datos.nombres + " " + datos.apellidos,
           email: datos.email,
@@ -331,7 +343,7 @@
         ") · " +
         s.email;
 
-      const sols = listarSolicitudes().filter((x) => x.estado === "pendiente");
+      const sols = (await listarSolicitudes()).filter((x) => x.estado === "pendiente");
       const box = document.getElementById("lista-solicitudes");
       box.replaceChildren();
       if (!sols.length) {
@@ -340,7 +352,8 @@
         for (const sol of sols) {
           const art = document.createElement("article");
           art.className = "noticia";
-          const codigo = obtenerCodigoSolicitud(sol.id) || "(ver correo)";
+          const codigoLocal = obtenerCodigoSolicitud(sol.id);
+          const codigo = codigoLocal || "(ver el correo de la parroquia)";
           art.innerHTML =
             "<h2>" +
             sol.nombre +
@@ -370,7 +383,18 @@
           btnOk.textContent = "Aceptar";
           btnOk.addEventListener("click", async () => {
             try {
-              const r = await aceptarSolicitud(sol.id, inp.value || codigo);
+              const r = await aceptarSolicitud(sol.id, inp.value || codigoLocal || "");
+              if (servidor) {
+                alert(
+                  "Aceptado. Clave temporal: " +
+                    r.claveTemporal +
+                    (r.correoEnviado
+                      ? "\nSe la enviamos por correo a " + r.usuario.email + "."
+                      : "\nNo se pudo enviar el correo: comunicásela a " + r.usuario.email + ".")
+                );
+                refrescarPanel();
+                return;
+              }
               await avisarAceptacion({
                 nombre: r.usuario.nombre,
                 email: r.usuario.email,
@@ -395,7 +419,11 @@
           btnNo.textContent = "Rechazar";
           btnNo.addEventListener("click", async () => {
             const m = prompt("Motivo del rechazo (opcional)") || "";
-            await rechazarSolicitud(sol.id, m);
+            try {
+              await rechazarSolicitud(sol.id, m);
+            } catch (err) {
+              alert(err.message || "Error");
+            }
             refrescarPanel();
           });
           fila.append(inp, btnOk, btnNo);
@@ -430,7 +458,17 @@
           b.addEventListener("click", async () => {
             const motivo = prompt("Motivo de la baja") || "Baja administrativa";
             if (!confirm("¿Dar de baja a " + u.nombre + "?")) return;
-            const baja = await darDeBaja(u.email, motivo);
+            let baja;
+            try {
+              baja = await darDeBaja(u.email, motivo);
+            } catch (err) {
+              alert(err.message || "Error");
+              return;
+            }
+            if (servidor) {
+              refrescarPanel();
+              return;
+            }
             await avisarBaja({
               nombre: baja.nombre,
               email: baja.email,
@@ -445,7 +483,7 @@
       });
       lu.appendChild(ul);
 
-      const aud = leerAuditoria(40);
+      const aud = await leerAuditoria(40);
       const la = document.getElementById("lista-auditoria");
       la.replaceChildren();
       aud.forEach((a) => {

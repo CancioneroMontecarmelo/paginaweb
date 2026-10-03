@@ -218,39 +218,48 @@ export async function iniciarListaCancioneros(opts) {
   if (!el) return;
   const comu = comunidadPorSlug(opts.slug);
   if (!comu) return;
-  const manifiestoUrl = rutaBase() + "Cancioneros/indice.json";
+  const api = (window.MONTECARMELO_CONFIG || {}).apiUrl;
   let entradas = [];
-  try {
-    const res = await fetch(manifiestoUrl, { cache: "no-store" });
-    if (res.ok) {
-      const data = await res.json();
-      entradas = (data.cancioneros || []).filter((c) => c.comunidadSlug === opts.slug);
+  let aviso = "Aún no hay cancioneros publicados. Los directores los guardan desde el editor con «Guardar en Drive».";
+  if (!api) {
+    aviso = "El Drive de la parroquia todavía no está conectado.";
+  } else {
+    try {
+      const r = await (await fetch(api + "?accion=listar&comunidad=" + encodeURIComponent(opts.slug))).json();
+      entradas = r.cancioneros || [];
+    } catch (_) {
+      aviso = "No se pudo consultar el Drive de la parroquia. Probá recargar la página.";
     }
-  } catch (_) {}
+  }
   el.replaceChildren();
   if (!entradas.length) {
     const p = document.createElement("p");
     p.className = "subtitulo";
-    p.textContent =
-      "Aún no hay cancioneros publicados. Los directores los guardan desde el editor en Cancioneros/" +
-      comu.carpetaCancioneros +
-      "/.";
+    p.textContent = aviso;
     el.appendChild(p);
     return;
   }
+  const editable = puedeEditar(opts.slug);
   const ul = document.createElement("ul");
   ul.className = "lista-cancioneros";
   entradas.forEach((c) => {
     const li = document.createElement("li");
     const a = document.createElement("a");
-    const jsonPath = rutaBase() + "Cancioneros/" + encodeURI(c.archivo);
-    a.href = rutaBase() + "Mp3editag/atril.html?cancionero=" + encodeURIComponent(jsonPath);
-    a.textContent = c.nombre || c.titulo || "Cancionero";
+    a.href = rutaBase() + "ver.html?id=" + encodeURIComponent(c.htmlId);
+    a.textContent = c.titulo || "Cancionero";
     const meta = document.createElement("span");
     meta.className = "meta";
-    meta.textContent = (c.fecha || "") + (c.comentario ? " · " + c.comentario : "");
+    meta.textContent = [c.fecha, c.canciones ? c.canciones + " canciones" : "", c.comentario].filter(Boolean).join(" · ");
     a.appendChild(meta);
     li.appendChild(a);
+    if (editable) {
+      const ed = document.createElement("a");
+      ed.className = "btn btn-secundario";
+      ed.style.marginTop = "0.35rem";
+      ed.href = rutaBase() + "editor/?drive=" + encodeURIComponent(c.folderId);
+      ed.textContent = "Editar";
+      li.appendChild(ed);
+    }
     ul.appendChild(li);
   });
   el.appendChild(ul);
