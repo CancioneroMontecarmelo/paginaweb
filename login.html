@@ -53,6 +53,21 @@
         <p class="msg-error" id="msg-login" hidden></p>
       </form>
 
+      <details class="caja-auth" id="caja-recuperar">
+        <summary>¿Primera vez u olvidaste tu clave?</summary>
+        <p class="aviso">Escribí el correo de tu cuenta: te enviaremos una clave temporal (sirve 2 horas).
+          Al entrar con ella el sitio te pedirá crear tu clave definitiva.</p>
+        <form class="form-noticia" id="form-recuperar">
+          <label for="rec-email">Correo electrónico</label>
+          <input id="rec-email" type="email" autocomplete="email" required>
+          <div class="acciones-form">
+            <button type="submit" class="btn btn-secundario">Enviarme una clave temporal</button>
+          </div>
+          <p class="msg-error" id="msg-rec" hidden></p>
+          <p class="msg-ok" id="msg-rec-ok" hidden></p>
+        </form>
+      </details>
+
       <div id="caja-cambiar-clave" hidden>
         <h2 class="auth-h2">Creá tu clave definitiva</h2>
         <p class="aviso">Es tu primer ingreso (o te pidieron renovar la clave). Mínimo 8 caracteres.</p>
@@ -111,6 +126,34 @@
       <h2 class="auth-h2">Solicitudes pendientes</h2>
       <div id="lista-solicitudes"></div>
 
+      <div id="sec-crear">
+      <h2 class="auth-h2">Crear usuario</h2>
+      <p class="aviso">Para dar acceso sin esperar una solicitud. La persona recibe por correo una clave temporal
+        y al entrar crea la suya.</p>
+      <form class="form-noticia caja-auth" id="form-crear">
+        <label for="crear-nombres">Nombres</label>
+        <input id="crear-nombres" required>
+        <label for="crear-apellidos">Apellidos</label>
+        <input id="crear-apellidos" required>
+        <label for="crear-email">Correo electrónico</label>
+        <input id="crear-email" type="email" required>
+        <label for="crear-rol">Rol</label>
+        <select id="crear-rol">
+          <option value="admin">Administrador de comunidad</option>
+          <option value="editor" selected>Editor</option>
+          <option value="sacerdote">Sacerdote (párroco)</option>
+          <option value="colaborador">Colaborador</option>
+        </select>
+        <label for="crear-comunidad">Comunidad</label>
+        <select id="crear-comunidad" required></select>
+        <div class="acciones-form">
+          <button type="submit" class="btn btn-primario">Crear usuario</button>
+        </div>
+        <p class="msg-error" id="msg-crear" hidden></p>
+        <p class="msg-ok" id="msg-crear-ok" hidden></p>
+      </form>
+      </div>
+
       <h2 class="auth-h2">Usuarios activos</h2>
       <div id="lista-usuarios"></div>
 
@@ -159,6 +202,8 @@
       leerAuditoria,
       descargarUsuariosJson,
       usaBackend,
+      recuperarClave,
+      crearUsuario,
       CORREO_PARROQUIA
     } from "./js/auth.js";
     import {
@@ -171,6 +216,14 @@
     initNavSitio();
     const servidor = usaBackend();
     document.getElementById("btn-exportar").hidden = servidor;
+    document.getElementById("caja-recuperar").hidden = !servidor;
+    document.getElementById("sec-crear").hidden = !servidor;
+
+    function modoCambiarClave(si) {
+      document.getElementById("form-login").hidden = si;
+      document.getElementById("caja-recuperar").hidden = si || !servidor;
+      document.getElementById("caja-cambiar-clave").hidden = !si;
+    }
 
     const tabs = document.querySelectorAll(".tab-auth");
     const paneles = {
@@ -194,19 +247,72 @@
       })
     );
 
-    const selCom = document.getElementById("sol-comunidad");
-    comunidadesOpciones().forEach((c) => {
-      const o = document.createElement("option");
-      o.value = c.slug;
-      o.textContent = c.nombre;
-      selCom.appendChild(o);
+    for (const sel of [document.getElementById("sol-comunidad"), document.getElementById("crear-comunidad")]) {
+      comunidadesOpciones().forEach((c) => {
+        const o = document.createElement("option");
+        o.value = c.slug;
+        o.textContent = c.nombre;
+        sel.appendChild(o);
+      });
+    }
+
+    document.getElementById("form-recuperar").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("msg-rec");
+      const ok = document.getElementById("msg-rec-ok");
+      const btn = e.target.querySelector("button");
+      msg.hidden = true;
+      ok.hidden = true;
+      btn.disabled = true;
+      try {
+        const email = document.getElementById("rec-email").value;
+        await recuperarClave(email);
+        ok.hidden = false;
+        ok.textContent =
+          "Si " + email + " tiene una cuenta, en unos minutos le llegará la clave temporal (revisá también Spam). " +
+          "Después entrá arriba con tu correo y esa clave.";
+      } catch (err) {
+        msg.hidden = false;
+        msg.textContent = err.message || "No se pudo enviar";
+      }
+      btn.disabled = false;
+    });
+
+    document.getElementById("form-crear").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("msg-crear");
+      const ok = document.getElementById("msg-crear-ok");
+      const btn = e.target.querySelector("button");
+      msg.hidden = true;
+      ok.hidden = true;
+      btn.disabled = true;
+      try {
+        const r = await crearUsuario({
+          nombres: document.getElementById("crear-nombres").value,
+          apellidos: document.getElementById("crear-apellidos").value,
+          email: document.getElementById("crear-email").value,
+          rol: document.getElementById("crear-rol").value,
+          comunidad: document.getElementById("crear-comunidad").value
+        });
+        ok.hidden = false;
+        ok.textContent =
+          "Cuenta creada para " + r.usuario.nombre + ". Clave temporal: " + r.claveTemporal +
+          (r.correoEnviado
+            ? " (se la enviamos por correo a " + r.usuario.email + ")."
+            : " — no se pudo enviar el correo: comunicásela a " + r.usuario.email + ".");
+        e.target.reset();
+        refrescarPanel();
+      } catch (err) {
+        msg.hidden = false;
+        msg.textContent = err.message || "No se pudo crear";
+      }
+      btn.disabled = false;
     });
 
     function trasLogin(s) {
       document.getElementById("tab-panel").hidden = !esResponsableSitio(s);
       if (s.debeCambiarClave) {
-        document.getElementById("form-login").hidden = true;
-        document.getElementById("caja-cambiar-clave").hidden = false;
+        modoCambiarClave(true);
         mostrarTab("entrar");
         return;
       }
@@ -223,8 +329,7 @@
     if (s0) {
       document.getElementById("tab-panel").hidden = !esResponsableSitio(s0);
       if (s0.debeCambiarClave) {
-        document.getElementById("form-login").hidden = true;
-        document.getElementById("caja-cambiar-clave").hidden = false;
+        modoCambiarClave(true);
       } else if (esResponsableSitio(s0)) {
         mostrarTab("panel");
         refrescarPanel();
@@ -269,8 +374,7 @@
         setTimeout(() => {
           const s = sesionActual();
           if (esResponsableSitio(s)) {
-            document.getElementById("caja-cambiar-clave").hidden = true;
-            document.getElementById("form-login").hidden = false;
+            modoCambiarClave(false);
             mostrarTab("panel");
             refrescarPanel();
           } else location.href = "./noticias.html";

@@ -74,6 +74,8 @@ var ACCIONES = {
   login: login_,
   sesion: function (d) { return { sesion: sesionPublica_(usuarioDeToken_(d.token)) }; },
   cambiarClave: cambiarClave_,
+  recuperarClave: recuperarClave_,
+  crearUsuario: crearUsuario_,
   solicitarAcceso: solicitarAcceso_,
   listarSolicitudes: listarSolicitudes_,
   aceptarSolicitud: aceptarSolicitud_,
@@ -258,9 +260,16 @@ function auditar_(evento) {
   });
 }
 
+// Clave temporal pedida con «¿Primera vez u olvidaste tu clave?»: sirve 2 horas y no reemplaza a la
+// clave actual (así nadie puede dejar a otro sin acceso pidiendo recuperaciones).
+function usaRecuperacion_(u, hash) {
+  return !!u.hashRecuperacion && u.recuperacionVence > Date.now() && u.hashRecuperacion === String(hash || '');
+}
+
 function login_(d) {
   var u = buscarUsuario_(d.email);
-  if (!u || u.hash !== String(d.hash || '')) {
+  var temporal = !!u && u.hash !== String(d.hash || '') && usaRecuperacion_(u, d.hash);
+  if (!u || (u.hash !== String(d.hash || '') && !temporal)) {
     auditar_({ tipo: 'login_fallido', email: normEmail_(d.email), nombres: d.nombres || '', apellidos: d.apellidos || '' });
     throw new Error('Datos incorrectos. Revisá correo y clave.');
   }
@@ -268,8 +277,10 @@ function login_(d) {
     auditar_({ tipo: 'login_baja', email: u.email, nombre: u.nombre });
     throw new Error('Esta cuenta está dada de baja. Contactá a la parroquia.');
   }
-  auditar_({ tipo: 'entrada', email: u.email, nombre: u.nombre, rol: u.rol, comunidad: u.comunidad });
-  return { token: crearToken_(u), sesion: sesionPublica_(u) };
+  auditar_({ tipo: temporal ? 'entrada_clave_temporal' : 'entrada', email: u.email, nombre: u.nombre, rol: u.rol, comunidad: u.comunidad });
+  var sesion = sesionPublica_(u);
+  if (temporal) sesion.debeCambiarClave = true;
+  return { token: crearToken_(u), sesion: sesion };
 }
 
 function cambiarClave_(d) {
@@ -278,9 +289,11 @@ function cambiarClave_(d) {
   return conCandado_(function () {
     var lista = leerUsuarios_();
     var x = lista.filter(function (v) { return normEmail_(v.email) === normEmail_(u.email); })[0];
-    if (x.hash !== d.hashActual) throw new Error('Clave actual incorrecta');
+    if (x.hash !== d.hashActual && !usaRecuperacion_(x, d.hashActual)) throw new Error('Clave actual o temporal incorrecta');
     x.hash = d.hashNuevo;
     x.debeCambiarClave = false;
+    delete x.hashRecuperacion;
+    delete x.recuperacionVence;
     guardarUsuarios_(lista);
     auditar_({ tipo: 'cambio_clave', email: x.email, nombre: x.nombre });
     return { sesion: sesionPublica_(x) };
@@ -406,6 +419,69 @@ function listarSolicitudes_(d) {
 
 function claveTemporal_() {
   return 'Mc' + Math.random().toString(36).slice(2, 6) + Math.floor(1000 + Math.random() * 9000);
+}
+
+// Siempre responde lo mismo, exista o no el correo (no revela quién está registrado)
+function recuperarClave_(d) {
+  var email = normEmail_(d.email);
+  if (!email || email.indexOf('@') < 0) throw new Error('Indicá un correo electrónico válido');
+  conCandado_(function () {
+    var lista = leerUsuarios_();
+    var u = lista.filter(function (v) { return normEmail_(v.email) === email && v.activo !== false; })[0];
+    if (!u) {
+      auditar_({ tipo: 'recuperacion_desconocido', email: email });
+      return;
+    }
+    if (u.recuperacionPedida && Date.now() - u.recuperacionPedida < 60 * 1000) return;
+    var temp = claveTemporal_();
+    u.hashRecuperacion = hashClave_(temp);
+    u.recuperacionVence = Date.now() + 2 * 3600 * 1000;
+    u.recuperacionPedida = Date.now();
+    guardarUsuarios_(lista);
+    auditar_({ tipo: 'recuperacion', email: u.email, nombre: u.nombre });
+    correo_(u.email, 'Tu clave temporal — Parroquia Monte Carmelo',
+      'Hola ' + u.nombre + ',\n\nPediste entrar al sitio de la Parroquia Nuestra Señora del Monte Carmelo.\n\n' +
+      'Clave temporal: ' + temp + '\n\nSirve durante 2 horas. Entrá en Identificarse con tu correo y esta clave: ' +
+      'el sitio te pedirá crear tu clave definitiva.\n\nSi no lo pediste, ignorá este correo: tu clave actual sigue funcionando.');
+  });
+  return {};
+}
+
+var ROLES_ASIGNABLES = ['admin', 'editor', 'sacerdote', 'colaborador'];
+
+function crearUsuario_(d) {
+  var yo = usuarioDeToken_(d.token);
+  exigirResponsable_(yo);
+  var email = normEmail_(d.email);
+  if (!email || email.indexOf('@') < 0) throw new Error('Indicá un correo electrónico válido');
+  var nombres = String(d.nombres || '').trim();
+  var apellidos = String(d.apellidos || '').trim();
+  if (!nombres || !apellidos) throw new Error('Indicá nombres y apellidos');
+  var rol = ROLES_ASIGNABLES.indexOf(d.rol) >= 0 ? d.rol : 'editor';
+  var comunidad = String(d.comunidad || '').trim();
+  if (comunidad !== 'parroquia' && !COMUNIDADES[comunidad]) throw new Error('Elegí la comunidad');
+  return conCandado_(function () {
+    var lista = leerUsuarios_();
+    var previo = lista.filter(function (u) { return normEmail_(u.email) === email; })[0];
+    if (previo && previo.activo !== false) throw new Error('Ese correo ya tiene una cuenta activa');
+    var temp = claveTemporal_();
+    var usuario = {
+      id: 'u-' + Date.now(),
+      usuario: slug_(nombres + '.' + apellidos).replace(/-/g, '.'),
+      nombres: nombres, apellidos: apellidos, nombre: nombres + ' ' + apellidos, email: email,
+      rol: rol, comunidad: comunidad, hash: hashClave_(temp), activo: true, debeCambiarClave: true,
+      creado: ahora_(), aceptadoPor: yo.email
+    };
+    lista = lista.filter(function (u) { return normEmail_(u.email) !== email; });
+    lista.push(usuario);
+    guardarUsuarios_(lista);
+    auditar_({ tipo: 'alta_directa', email: email, nombre: usuario.nombre, rol: rol, comunidad: comunidad, por: yo.email });
+    var enviado = correo_(email, 'Tu cuenta en el sitio — Parroquia Monte Carmelo',
+      'Hola ' + usuario.nombre + ',\n\n' + yo.nombre + ' te creó una cuenta en el sitio de la Parroquia Nuestra Señora del Monte Carmelo como ' +
+      rol + ' (' + (COMUNIDADES[comunidad] || 'Parroquia') + ').\n\nCorreo: ' + email + '\nClave temporal: ' + temp +
+      '\n\nAl entrar por primera vez en Identificarse el sitio te pedirá crear tu clave definitiva.');
+    return { usuario: sesionPublica_(usuario), claveTemporal: temp, correoEnviado: enviado };
+  });
 }
 
 function aceptarSolicitud_(d) {

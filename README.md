@@ -15,6 +15,11 @@ en el Google Drive de `cancionerolitugico@gmail.com` a través de un Apps Script
 - Claves guardadas como hash SHA-256 (nunca en claro); la sesión dura 12 horas
 - Cada entrada queda en el registro de auditoría del panel
 
+- **Primera vez / clave olvidada:** Identificarse → «¿Primera vez u olvidaste tu clave?» → se envía por correo
+  una clave temporal (2 horas). Al entrar con ella el sitio pide crear la clave definitiva.
+- **Crear usuario:** en el Panel, el responsable carga nombre, correo, rol y comunidad; la persona recibe una
+  clave temporal por correo (y el panel la muestra por si el correo no llega).
+
 Con el Apps Script conectado, los usuarios viven en `MonteCarmelo/sistema/usuarios.json` del Drive (privado).
 Sin conectar (`apiUrl` vacío en `js/config.js`) el sitio funciona en **modo local de prueba**: usuarios en
 `usuarios.json` + el navegador.

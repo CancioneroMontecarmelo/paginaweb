@@ -368,6 +368,21 @@ export async function iniciarSesion({ nombres, apellidos, email, clave }) {
   return sesion;
 }
 
+/** «¿Primera vez u olvidaste tu clave?»: el servidor envía una clave temporal por correo. */
+export async function recuperarClave(email) {
+  if (!usaBackend()) {
+    throw new Error("La recuperación por correo necesita el servidor de la parroquia (apiUrl en js/config.js).");
+  }
+  await llamarApi("recuperarClave", { email: normalizarEmail(email) });
+}
+
+/** Alta directa por un responsable: crea la cuenta y envía la clave temporal por correo. */
+export async function crearUsuario(datos) {
+  if (!esResponsableSitio()) throw new Error("Solo el administrador general o el segundo responsable pueden crear usuarios.");
+  if (!usaBackend()) throw new Error("Crear usuarios necesita el servidor de la parroquia (apiUrl en js/config.js).");
+  return llamarApi("crearUsuario", { token: token(), ...datos, email: normalizarEmail(datos.email) });
+}
+
 export function listarSolicitudes() {
   if (usaBackend()) {
     return llamarApi("listarSolicitudes", { token: token() }).then((r) =>
