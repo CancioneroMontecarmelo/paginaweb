@@ -1,0 +1,14 @@
+{
+  "comunidad": "parroquia",
+  "actualizado": "2026-08-20T12:00:00.000Z",
+  "items": [
+    {
+      "id": "n-inicio",
+      "titulo": "Bienvenidos al sitio parroquial",
+      "fecha": "2026-08-20",
+      "etiquetas": ["aviso"],
+      "cuerpo": "Desde aquí compartimos noticias de la parroquia y de cada comunidad, y los cancioneros de las próximas celebraciones.\n\nLos directores de coro publican lo que se cantará; los editores actualizan avisos, cumpleaños e encargos litúrgicos.",
+      "autor": "Admin parroquial"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "comunidad": "san-pablo-apostol",
+  "actualizado": "2026-08-20T12:00:00.000Z",
+  "items": [
+    {
+      "id": "n-sanpablo-1",
+      "titulo": "Encargos litúrgicos — San Pablo Apóstol",
+      "fecha": "2026-08-18",
+      "etiquetas": ["fiesta", "misa"],
+      "cuerpo": "Publicaremos aquí las misas, procesiones y fiestas a cargo del coro de San Pablo Apóstol.",
+      "autor": "Admin San Pablo"
+    }
+  ]
+}

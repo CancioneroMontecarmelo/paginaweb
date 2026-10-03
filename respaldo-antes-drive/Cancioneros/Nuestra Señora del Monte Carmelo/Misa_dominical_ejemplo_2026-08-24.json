@@ -1,0 +1,15 @@
+{
+  "tipo": "mp3editag-playlist",
+  "v": 5,
+  "titulo": "Misa dominical de ejemplo",
+  "comunidad": "Nuestra Señora del Monte Carmelo",
+  "comunidadSlug": "monte-carmelo",
+  "nombre": "Misa dominical de ejemplo",
+  "fecha": "2026-08-24",
+  "comentarioAtril": "Entrada y comunión. Capo según el director.",
+  "capo": "2",
+  "afinacion": "estándar",
+  "carpetas": ["audios"],
+  "ayuda": "Rutas relativas a la carpeta audios del sitio. Abrí audios en el editor para enlazar los MP3.",
+  "items": []
+}

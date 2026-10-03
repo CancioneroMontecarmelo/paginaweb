@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capilla María de Nazaret — Monte Carmelo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <nav class="nav-sitio" aria-label="Principal">
+    <a class="nav-marca" href="../inicio.html">Monte Carmelo</a>
+    <button type="button" class="nav-toggle" aria-label="Menú">Menú</button>
+    <ul class="nav-links">
+      <li><a href="../inicio.html">Inicio</a></li>
+      <li><a href="../editor/">Editor</a></li>
+      <li><a href="../noticias.html">Noticias</a></li>
+      <li><a href="../login.html" data-nav-sesion>Identificarse</a></li>
+    </ul>
+  </nav>
+
+  <main class="pagina pagina-ancha">
+    <h1>Capilla María de Nazaret</h1>
+    <p class="subtitulo">Noticias, encargos litúrgicos y cancioneros de la próxima celebración.</p>
+    <p class="sesion-bar" id="sesion-bar" hidden></p>
+
+    <h2 style="font-family:var(--fuente-display);color:var(--verde);font-size:1.35rem;margin:2rem 0 0.75rem">Próximos cancioneros</h2>
+    <div id="lista-cancioneros"></div>
+
+    <h2 style="font-family:var(--fuente-display);color:var(--verde);font-size:1.35rem;margin:2rem 0 0.75rem">Noticias</h2>
+    <div id="lista-noticias"></div>
+
+    <section class="panel-edicion" id="panel-edicion" hidden>
+      <h2 style="font-family:var(--fuente-display);color:var(--terracota);font-size:1.35rem;margin:0 0 1rem">Publicar noticia</h2>
+      <form class="form-noticia" id="form-noticia">
+        <label for="campo-titulo">Título</label>
+        <input id="campo-titulo" required>
+        <label for="campo-fecha">Fecha</label>
+        <input id="campo-fecha" type="date">
+        <label for="campo-etiquetas">Etiquetas (coro, cumpleaños, fiesta, misa…)</label>
+        <input id="campo-etiquetas" placeholder="coro, fiesta">
+        <label for="campo-cuerpo">Texto</label>
+        <textarea id="campo-cuerpo"></textarea>
+        <div class="zona-drop" id="zona-drop-noticia">Arrastrá un archivo .txt para cargar el cuerpo de la noticia</div>
+        <div class="acciones-form">
+          <button type="submit" class="btn btn-primario">Publicar</button>
+          <a class="btn btn-secundario" href="../editor/">Abrir editor de cancioneros</a>
+        </div>
+        <p id="msg-publicar" hidden></p>
+      </form>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p><a href="../inicio.html">← Inicio</a></p>
+  </footer>
+
+  <script type="module">
+    import { initNavSitio } from "../js/auth.js";
+    import { iniciarPaginaNoticias, iniciarListaCancioneros } from "../js/noticias.js";
+    initNavSitio();
+    iniciarPaginaNoticias({
+      slug: "maria-de-nazaret",
+      archivo: "maria-de-nazaret.json",
+      nombreArchivo: "maria-de-nazaret.json"
+    });
+    iniciarListaCancioneros({ slug: "maria-de-nazaret" });
+    const f = document.getElementById("campo-fecha");
+    if (f && !f.value) f.value = new Date().toISOString().slice(0, 10);
+  </script>
+</body>
+</html>

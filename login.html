@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Identificarse — Monte Carmelo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/site.css">
+</head>
+<body>
+  <nav class="nav-sitio" aria-label="Principal">
+    <a class="nav-marca" href="./inicio.html">Monte Carmelo</a>
+    <button type="button" class="nav-toggle" aria-label="Menú">Menú</button>
+    <ul class="nav-links">
+      <li><a href="./inicio.html">Inicio</a></li>
+      <li><a href="./editor/">Editor</a></li>
+      <li><a href="./noticias.html">Noticias</a></li>
+      <li><a href="./login.html" aria-current="page" data-nav-sesion>Identificarse</a></li>
+    </ul>
+  </nav>
+
+  <main class="pagina pagina-ancha">
+    <h1>Identificarse</h1>
+    <p class="subtitulo">Administradores, sacerdote, editores y colaboradores. Cada ingreso queda registrado.</p>
+
+    <div class="tabs-auth" role="tablist">
+      <button type="button" class="tab-auth activa" data-tab="entrar">Entrar</button>
+      <button type="button" class="tab-auth" data-tab="solicitar">Solicitar acceso</button>
+      <button type="button" class="tab-auth" data-tab="panel" id="tab-panel" hidden>Panel responsables</button>
+    </div>
+
+    <!-- ENTRAR -->
+    <section class="panel-auth" id="panel-entrar">
+      <p class="aviso">Ingresá con tu nombre, apellido, correo y clave.</p>
+      <form class="form-noticia caja-auth" id="form-login">
+        <label for="login-nombres">Nombres</label>
+        <input id="login-nombres" autocomplete="given-name" required>
+
+        <label for="login-apellidos">Apellidos</label>
+        <input id="login-apellidos" autocomplete="family-name" required>
+
+        <label for="login-email">Correo electrónico</label>
+        <input id="login-email" type="email" autocomplete="email" required>
+
+        <label for="login-clave">Clave</label>
+        <input id="login-clave" type="password" autocomplete="current-password" required>
+
+        <div class="acciones-form">
+          <button type="submit" class="btn btn-primario">Entrar</button>
+        </div>
+        <p class="msg-error" id="msg-login" hidden></p>
+      </form>
+
+      <div id="caja-cambiar-clave" hidden>
+        <h2 class="auth-h2">Creá tu clave definitiva</h2>
+        <p class="aviso">Es tu primer ingreso (o te pidieron renovar la clave). Mínimo 8 caracteres.</p>
+        <form class="form-noticia caja-auth" id="form-cambiar-clave">
+          <label for="clave-actual">Clave temporal / actual</label>
+          <input id="clave-actual" type="password" required>
+          <label for="clave-nueva">Nueva clave</label>
+          <input id="clave-nueva" type="password" minlength="8" required>
+          <label for="clave-nueva-2">Repetir nueva clave</label>
+          <input id="clave-nueva-2" type="password" minlength="8" required>
+          <div class="acciones-form">
+            <button type="submit" class="btn btn-primario">Guardar clave</button>
+          </div>
+          <p class="msg-error" id="msg-clave" hidden></p>
+          <p class="msg-ok" id="msg-clave-ok" hidden></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- SOLICITAR -->
+    <section class="panel-auth" id="panel-solicitar" hidden>
+      <p class="aviso">
+        Pedí ser administrador de tu comunidad, editor o sacerdote.
+        Se enviará un aviso a <strong>cancionerolitugico@gmail.com</strong> con un código de 6 dígitos.
+        Solo el administrador general (Marcos Mora Vitta) o el segundo responsable pueden aceptar.
+      </p>
+      <form class="form-noticia caja-auth" id="form-solicitar">
+        <label for="sol-nombres">Nombres</label>
+        <input id="sol-nombres" required>
+        <label for="sol-apellidos">Apellidos</label>
+        <input id="sol-apellidos" required>
+        <label for="sol-email">Correo electrónico</label>
+        <input id="sol-email" type="email" required>
+        <label for="sol-comunidad">Comunidad</label>
+        <select id="sol-comunidad" required></select>
+        <label for="sol-rol">Rol solicitado</label>
+        <select id="sol-rol">
+          <option value="admin">Administrador de comunidad</option>
+          <option value="editor">Editor</option>
+          <option value="sacerdote">Sacerdote (párroco)</option>
+        </select>
+        <label for="sol-motivo">Motivo / presentación</label>
+        <textarea id="sol-motivo" rows="3" placeholder="Quién sos y por qué pedís acceso"></textarea>
+        <div class="acciones-form">
+          <button type="submit" class="btn btn-primario">Enviar solicitud</button>
+        </div>
+        <p class="msg-error" id="msg-sol" hidden></p>
+        <p class="msg-ok" id="msg-sol-ok" hidden></p>
+      </form>
+    </section>
+
+    <!-- PANEL -->
+    <section class="panel-auth" id="panel-panel" hidden>
+      <p class="sesion-bar" id="panel-quien"></p>
+
+      <h2 class="auth-h2">Solicitudes pendientes</h2>
+      <div id="lista-solicitudes"></div>
+
+      <h2 class="auth-h2">Usuarios activos</h2>
+      <div id="lista-usuarios"></div>
+
+      <h2 class="auth-h2">Segundo responsable del sitio</h2>
+      <p class="aviso">Si Marcos no puede, el segundo administrador tiene los mismos poderes de aceptación y bajas.</p>
+      <form class="form-noticia caja-auth" id="form-segundo">
+        <label for="segundo-email">Correo del usuario a nombrar</label>
+        <input id="segundo-email" type="email" placeholder="usuario@correo.com">
+        <div class="acciones-form">
+          <button type="submit" class="btn btn-secundario" id="btn-segundo">Nombrar segundo admin</button>
+          <button type="button" class="btn btn-secundario" id="btn-exportar">Descargar usuarios.json</button>
+        </div>
+        <p class="msg-ok" id="msg-segundo" hidden></p>
+      </form>
+
+      <h2 class="auth-h2">Registro de entradas</h2>
+      <div id="lista-auditoria" class="lista-auditoria"></div>
+
+      <div class="acciones-form" style="margin-top:1.5rem">
+        <button type="button" class="btn btn-secundario" id="btn-salir-panel">Cerrar sesión</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p><a href="./inicio.html">← Volver al inicio</a></p>
+  </footer>
+
+  <script type="module">
+    import {
+      initNavSitio,
+      iniciarSesion,
+      sesionActual,
+      cerrarSesion,
+      solicitarAcceso,
+      listarSolicitudes,
+      obtenerCodigoSolicitud,
+      aceptarSolicitud,
+      rechazarSolicitud,
+      listarUsuarios,
+      darDeBaja,
+      nombrarSegundoAdmin,
+      cambiarClavePropia,
+      esResponsableSitio,
+      comunidadesOpciones,
+      leerAuditoria,
+      descargarUsuariosJson,
+      CORREO_PARROQUIA
+    } from "./js/auth.js";
+    import {
+      avisarSolicitudAParroquia,
+      avisarSolicitudRecibida,
+      avisarAceptacion,
+      avisarBaja
+    } from "./js/auth-correo.js";
+
+    initNavSitio();
+
+    const tabs = document.querySelectorAll(".tab-auth");
+    const paneles = {
+      entrar: document.getElementById("panel-entrar"),
+      solicitar: document.getElementById("panel-solicitar"),
+      panel: document.getElementById("panel-panel")
+    };
+
+    function mostrarTab(id) {
+      tabs.forEach((t) => t.classList.toggle("activa", t.dataset.tab === id));
+      Object.keys(paneles).forEach((k) => {
+        paneles[k].hidden = k !== id;
+      });
+    }
+
+    tabs.forEach((t) =>
+      t.addEventListener("click", () => {
+        if (t.dataset.tab === "panel" && !esResponsableSitio()) return;
+        mostrarTab(t.dataset.tab);
+        if (t.dataset.tab === "panel") refrescarPanel();
+      })
+    );
+
+    const selCom = document.getElementById("sol-comunidad");
+    comunidadesOpciones().forEach((c) => {
+      const o = document.createElement("option");
+      o.value = c.slug;
+      o.textContent = c.nombre;
+      selCom.appendChild(o);
+    });
+
+    function trasLogin(s) {
+      document.getElementById("tab-panel").hidden = !esResponsableSitio(s);
+      if (s.debeCambiarClave) {
+        document.getElementById("form-login").hidden = true;
+        document.getElementById("caja-cambiar-clave").hidden = false;
+        mostrarTab("entrar");
+        return;
+      }
+      if (esResponsableSitio(s)) {
+        document.getElementById("tab-panel").hidden = false;
+        mostrarTab("panel");
+        refrescarPanel();
+      } else {
+        location.href = "./noticias.html";
+      }
+    }
+
+    const s0 = sesionActual();
+    if (s0) {
+      document.getElementById("tab-panel").hidden = !esResponsableSitio(s0);
+      if (s0.debeCambiarClave) {
+        document.getElementById("form-login").hidden = true;
+        document.getElementById("caja-cambiar-clave").hidden = false;
+      } else if (esResponsableSitio(s0)) {
+        mostrarTab("panel");
+        refrescarPanel();
+      }
+    }
+
+    document.getElementById("form-login").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("msg-login");
+      msg.hidden = true;
+      try {
+        const s = await iniciarSesion({
+          nombres: document.getElementById("login-nombres").value,
+          apellidos: document.getElementById("login-apellidos").value,
+          email: document.getElementById("login-email").value,
+          clave: document.getElementById("login-clave").value
+        });
+        trasLogin(s);
+      } catch (err) {
+        msg.hidden = false;
+        msg.textContent = err.message || "No se pudo entrar";
+      }
+    });
+
+    document.getElementById("form-cambiar-clave").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("msg-clave");
+      const ok = document.getElementById("msg-clave-ok");
+      msg.hidden = true;
+      ok.hidden = true;
+      const n1 = document.getElementById("clave-nueva").value;
+      const n2 = document.getElementById("clave-nueva-2").value;
+      if (n1 !== n2) {
+        msg.hidden = false;
+        msg.textContent = "Las claves nuevas no coinciden";
+        return;
+      }
+      try {
+        await cambiarClavePropia(document.getElementById("clave-actual").value, n1);
+        ok.hidden = false;
+        ok.textContent = "Clave guardada (protegida). Ya podés usar el sitio.";
+        setTimeout(() => {
+          const s = sesionActual();
+          if (esResponsableSitio(s)) {
+            document.getElementById("caja-cambiar-clave").hidden = true;
+            document.getElementById("form-login").hidden = false;
+            mostrarTab("panel");
+            refrescarPanel();
+          } else location.href = "./noticias.html";
+        }, 800);
+      } catch (err) {
+        msg.hidden = false;
+        msg.textContent = err.message || "No se pudo cambiar";
+      }
+    });
+
+    document.getElementById("form-solicitar").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("msg-sol");
+      const ok = document.getElementById("msg-sol-ok");
+      msg.hidden = true;
+      ok.hidden = true;
+      try {
+        const datos = {
+          nombres: document.getElementById("sol-nombres").value,
+          apellidos: document.getElementById("sol-apellidos").value,
+          email: document.getElementById("sol-email").value,
+          comunidad: document.getElementById("sol-comunidad").value,
+          rolPedido: document.getElementById("sol-rol").value,
+          motivo: document.getElementById("sol-motivo").value
+        };
+        const r = await solicitarAcceso(datos);
+        await avisarSolicitudAParroquia({
+          nombre: datos.nombres + " " + datos.apellidos,
+          email: datos.email,
+          comunidad: datos.comunidad,
+          rolPedido: datos.rolPedido,
+          codigo: r.codigo,
+          motivo: datos.motivo
+        });
+        await avisarSolicitudRecibida({
+          nombre: datos.nombres + " " + datos.apellidos,
+          email: datos.email
+        });
+        ok.hidden = false;
+        ok.textContent =
+          "Solicitud enviada. Se abrió el correo hacia " +
+          CORREO_PARROQUIA +
+          " con el código " +
+          r.codigo +
+          ". También se preparó el aviso a tu correo.";
+        e.target.reset();
+      } catch (err) {
+        msg.hidden = false;
+        msg.textContent = err.message || "No se pudo enviar";
+      }
+    });
+
+    async function refrescarPanel() {
+      const s = sesionActual();
+      if (!esResponsableSitio(s)) return;
+      document.getElementById("panel-quien").innerHTML =
+        "Sesión: <strong>" +
+        s.nombre +
+        "</strong> (" +
+        s.rol +
+        ") · " +
+        s.email;
+
+      const sols = listarSolicitudes().filter((x) => x.estado === "pendiente");
+      const box = document.getElementById("lista-solicitudes");
+      box.replaceChildren();
+      if (!sols.length) {
+        box.innerHTML = "<p class='aviso'>No hay solicitudes pendientes.</p>";
+      } else {
+        for (const sol of sols) {
+          const art = document.createElement("article");
+          art.className = "noticia";
+          const codigo = obtenerCodigoSolicitud(sol.id) || "(ver correo)";
+          art.innerHTML =
+            "<h2>" +
+            sol.nombre +
+            "</h2>" +
+            "<p class='noticia-meta'>" +
+            sol.email +
+            " · " +
+            sol.comunidad +
+            " · " +
+            sol.rolPedido +
+            "</p>" +
+            "<p class='noticia-cuerpo'>" +
+            (sol.motivo || "") +
+            "</p>" +
+            "<p class='aviso'>Código (también en el correo a la parroquia): <strong>" +
+            codigo +
+            "</strong></p>";
+          const fila = document.createElement("div");
+          fila.className = "acciones-form";
+          const inp = document.createElement("input");
+          inp.placeholder = "Código de 6 dígitos";
+          inp.maxLength = 6;
+          inp.style.maxWidth = "10rem";
+          const btnOk = document.createElement("button");
+          btnOk.type = "button";
+          btnOk.className = "btn btn-primario";
+          btnOk.textContent = "Aceptar";
+          btnOk.addEventListener("click", async () => {
+            try {
+              const r = await aceptarSolicitud(sol.id, inp.value || codigo);
+              await avisarAceptacion({
+                nombre: r.usuario.nombre,
+                email: r.usuario.email,
+                claveTemporal: r.claveTemporal,
+                rol: r.usuario.rol,
+                comunidad: r.usuario.comunidad
+              });
+              alert(
+                "Aceptado. Clave temporal: " +
+                  r.claveTemporal +
+                  "\nSe prepararon los correos al usuario y a " +
+                  CORREO_PARROQUIA
+              );
+              refrescarPanel();
+            } catch (err) {
+              alert(err.message || "Error");
+            }
+          });
+          const btnNo = document.createElement("button");
+          btnNo.type = "button";
+          btnNo.className = "btn btn-secundario";
+          btnNo.textContent = "Rechazar";
+          btnNo.addEventListener("click", async () => {
+            const m = prompt("Motivo del rechazo (opcional)") || "";
+            await rechazarSolicitud(sol.id, m);
+            refrescarPanel();
+          });
+          fila.append(inp, btnOk, btnNo);
+          art.appendChild(fila);
+          box.appendChild(art);
+        }
+      }
+
+      const usuarios = (await listarUsuarios()).filter((u) => u.activo !== false);
+      const lu = document.getElementById("lista-usuarios");
+      lu.replaceChildren();
+      const ul = document.createElement("ul");
+      ul.className = "lista-cancioneros";
+      usuarios.forEach((u) => {
+        const li = document.createElement("li");
+        li.innerHTML =
+          "<strong>" +
+          (u.nombre || u.email) +
+          "</strong> · " +
+          u.rol +
+          " · " +
+          (u.comunidad || "") +
+          "<span class='meta'>" +
+          u.email +
+          "</span>";
+        if (u.rol !== "admin_general") {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "btn btn-secundario";
+          b.style.marginTop = "0.35rem";
+          b.textContent = "Dar de baja";
+          b.addEventListener("click", async () => {
+            const motivo = prompt("Motivo de la baja") || "Baja administrativa";
+            if (!confirm("¿Dar de baja a " + u.nombre + "?")) return;
+            const baja = await darDeBaja(u.email, motivo);
+            await avisarBaja({
+              nombre: baja.nombre,
+              email: baja.email,
+              motivo,
+              por: sesionActual().email
+            });
+            refrescarPanel();
+          });
+          li.appendChild(b);
+        }
+        ul.appendChild(li);
+      });
+      lu.appendChild(ul);
+
+      const aud = leerAuditoria(40);
+      const la = document.getElementById("lista-auditoria");
+      la.replaceChildren();
+      aud.forEach((a) => {
+        const p = document.createElement("p");
+        p.className = "aviso";
+        p.textContent =
+          (a.cuando || "").replace("T", " ").slice(0, 19) +
+          " · " +
+          a.tipo +
+          " · " +
+          (a.nombre || a.email || "") +
+          (a.rol ? " (" + a.rol + ")" : "");
+        la.appendChild(p);
+      });
+    }
+
+    document.getElementById("form-segundo").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("msg-segundo");
+      msg.hidden = true;
+      try {
+        const u = await nombrarSegundoAdmin(document.getElementById("segundo-email").value);
+        msg.hidden = false;
+        msg.className = "msg-ok";
+        msg.textContent = "Segundo responsable: " + u.nombre + " <" + u.email + ">";
+        refrescarPanel();
+      } catch (err) {
+        msg.hidden = false;
+        msg.className = "msg-error";
+        msg.textContent = err.message || "Error";
+      }
+    });
+
+    document.getElementById("btn-exportar").addEventListener("click", () => {
+      descargarUsuariosJson();
+    });
+
+    document.getElementById("btn-salir-panel").addEventListener("click", () => {
+      cerrarSesion();
+      location.reload();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+{
+  "name": "Editor CIC",
+  "short_name": "CIC",
+  "description": "Editor de cancioneros CIC: letra, acordes, audio, sync y HTML distribuible.",
+  "id": "./editor.html",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1d23",
+  "theme_color": "#1a1d23",
+  "lang": "es",
+  "categories": ["music", "productivity"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "./editor.html",
+      "name": "Documento CIC",
+      "accept": {
+        "application/x-cic": [".cic"],
+        "application/json": [".cic"],
+        "text/plain": [".cic"]
+      },
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "launch_handler": {
+    "client_mode": ["focus-existing", "auto"]
+  },
+  "shortcuts": [
+    {
+      "name": "Cancionero",
+      "url": "./index.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Abrir editor",
+      "url": "./editor.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Audiotor (sync)",
+      "url": "./audiotor.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

@@ -1,0 +1,624 @@
+/* Parroquia Nuestra Señora del Monte Carmelo */
+
+:root {
+  --crema: #f3e6c8;
+  --crema-clara: #faf3e4;
+  --fachada: #e8d49a;
+  --terracota: #9a4f2e;
+  --terracota-oscura: #6e351c;
+  --verde: #2f4a38;
+  --verde-suave: #4a6b55;
+  --cielo: #7eb6d9;
+  --cielo-claro: #c5dff0;
+  --texto: #2a241c;
+  --texto-suave: #5a5044;
+  --blanco: #fffef9;
+  --sombra: rgba(42, 36, 28, 0.18);
+  --fuente-display: "Fraunces", "Palatino Linotype", Palatino, serif;
+  --fuente-cuerpo: "Outfit", "Segoe UI", sans-serif;
+  --nav-h: 3.5rem;
+  --radio: 0.15rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--fuente-cuerpo);
+  font-weight: 400;
+  color: var(--texto);
+  background:
+    radial-gradient(ellipse 120% 80% at 10% 0%, var(--cielo-claro) 0%, transparent 55%),
+    linear-gradient(165deg, var(--crema-clara) 0%, var(--crema) 45%, #e5d4b0 100%);
+  min-height: 100vh;
+  line-height: 1.55;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  color: var(--terracota);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--terracota-oscura);
+}
+
+.nav-sitio {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100;
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1.25rem;
+  background: rgba(250, 243, 228, 0.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(154, 79, 46, 0.15);
+  transition: background 0.35s ease, box-shadow 0.35s ease;
+}
+
+.nav-sitio.scrolled {
+  background: rgba(250, 243, 228, 0.96);
+  box-shadow: 0 4px 24px var(--sombra);
+}
+
+.nav-marca {
+  font-family: var(--fuente-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--verde);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 42vw;
+}
+
+.nav-marca:hover {
+  color: var(--terracota);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-links a {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--texto);
+  text-decoration: none;
+  padding: 0.35rem 0;
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.nav-links a:hover,
+.nav-links a[aria-current="page"] {
+  color: var(--terracota);
+  border-bottom-color: var(--terracota);
+}
+
+.nav-toggle {
+  display: none;
+  background: none;
+  border: 1px solid var(--terracota);
+  color: var(--terracota);
+  padding: 0.35rem 0.65rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: var(--radio);
+}
+
+@media (max-width: 720px) {
+  .nav-toggle {
+    display: block;
+  }
+
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: var(--nav-h);
+    right: 0;
+    left: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: var(--crema-clara);
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(154, 79, 46, 0.2);
+    box-shadow: 0 12px 28px var(--sombra);
+  }
+
+  .nav-links.abierto {
+    display: flex;
+  }
+
+  .nav-links a {
+    padding: 0.85rem 1.25rem;
+    border-bottom: none;
+  }
+}
+
+.hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: calc(var(--nav-h) + 2rem) 1.5rem 3.5rem;
+  color: var(--blanco);
+  overflow: hidden;
+}
+
+.hero-fondo {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to top,
+      rgba(42, 36, 28, 0.72) 0%,
+      rgba(42, 36, 28, 0.25) 45%,
+      rgba(42, 36, 28, 0.15) 100%
+    ),
+    url("../Imagenes/Parroquia%20MonteCarmelo.jpeg") center / cover no-repeat;
+  transform: scale(1.04);
+  animation: hero-ken 18s ease-out forwards;
+}
+
+@keyframes hero-ken {
+  to {
+    transform: scale(1);
+  }
+}
+
+.hero-contenido {
+  position: relative;
+  z-index: 1;
+  max-width: 38rem;
+  animation: hero-in 1s ease 0.15s both;
+}
+
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hero-marca {
+  font-family: var(--fuente-display);
+  font-size: clamp(2.1rem, 5.5vw, 3.4rem);
+  font-weight: 650;
+  line-height: 1.12;
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+}
+
+.hero-lead {
+  margin: 0 0 1.5rem;
+  font-size: clamp(1rem, 2.2vw, 1.2rem);
+  font-weight: 400;
+  opacity: 0.95;
+  max-width: 28rem;
+}
+
+.hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1.25rem;
+  font-family: var(--fuente-cuerpo);
+  font-size: 0.95rem;
+  font-weight: 560;
+  border-radius: var(--radio);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.15s, background 0.2s, color 0.2s;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primario {
+  background: var(--terracota);
+  color: var(--blanco);
+}
+
+.btn-primario:hover {
+  background: var(--terracota-oscura);
+  color: var(--blanco);
+}
+
+.btn-fantasma {
+  background: rgba(255, 254, 249, 0.14);
+  color: var(--blanco);
+  border: 1px solid rgba(255, 254, 249, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.btn-fantasma:hover {
+  background: rgba(255, 254, 249, 0.28);
+  color: var(--blanco);
+}
+
+.btn-secundario {
+  background: transparent;
+  color: var(--verde);
+  border: 1px solid var(--verde-suave);
+}
+
+.btn-secundario:hover {
+  background: rgba(47, 74, 56, 0.08);
+  color: var(--verde);
+}
+
+.seccion {
+  padding: 4rem 1.5rem;
+  max-width: 58rem;
+  margin: 0 auto;
+}
+
+.seccion h2 {
+  font-family: var(--fuente-display);
+  font-size: clamp(1.65rem, 3.5vw, 2.15rem);
+  font-weight: 600;
+  color: var(--verde);
+  margin: 0 0 0.65rem;
+  letter-spacing: -0.02em;
+}
+
+.seccion .lead {
+  margin: 0 0 1.75rem;
+  color: var(--texto-suave);
+  font-size: 1.05rem;
+  max-width: 36rem;
+}
+
+.reseña p {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
+.reseña p:last-child {
+  margin-bottom: 0;
+}
+
+.lista-comunidades {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid rgba(154, 79, 46, 0.25);
+}
+
+.lista-comunidades li {
+  border-bottom: 1px solid rgba(154, 79, 46, 0.25);
+}
+
+.lista-comunidades a {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 0.15rem;
+  text-decoration: none;
+  color: var(--texto);
+  font-family: var(--fuente-display);
+  font-size: clamp(1.15rem, 2.5vw, 1.45rem);
+  font-weight: 550;
+  transition: color 0.2s, padding-left 0.25s;
+}
+
+.lista-comunidades a:hover {
+  color: var(--terracota);
+  padding-left: 0.4rem;
+}
+
+.lista-comunidades .flecha {
+  font-family: var(--fuente-cuerpo);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.pie {
+  padding: 2.5rem 1.5rem 3rem;
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--texto-suave);
+  border-top: 1px solid rgba(154, 79, 46, 0.2);
+}
+
+.pie a {
+  color: var(--verde);
+}
+
+.pagina {
+  padding: calc(var(--nav-h) + 2rem) 1.5rem 3rem;
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+.pagina-ancha {
+  max-width: 58rem;
+}
+
+.pagina h1 {
+  font-family: var(--fuente-display);
+  font-size: clamp(1.75rem, 4vw, 2.4rem);
+  color: var(--verde);
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.pagina .subtitulo {
+  margin: 0 0 2rem;
+  color: var(--texto-suave);
+}
+
+.noticia {
+  padding: 1.5rem 0;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.2);
+  animation: fade-up 0.5s ease both;
+}
+
+.noticia:first-of-type {
+  border-top: 1px solid rgba(154, 79, 46, 0.2);
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.noticia h2 {
+  font-family: var(--fuente-display);
+  font-size: 1.35rem;
+  margin: 0 0 0.35rem;
+  color: var(--texto);
+}
+
+.noticia-meta {
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+  margin: 0 0 0.75rem;
+}
+
+.noticia-cuerpo {
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.etiqueta {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--verde);
+  margin-right: 0.5rem;
+}
+
+.panel-edicion {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--terracota);
+}
+
+.panel-edicion[hidden] {
+  display: none !important;
+}
+
+.form-noticia {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.form-noticia label {
+  font-size: 0.85rem;
+  font-weight: 560;
+  color: var(--verde);
+}
+
+.form-noticia input,
+.form-noticia textarea,
+.form-noticia select {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+  border: 1px solid rgba(154, 79, 46, 0.35);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  color: var(--texto);
+}
+
+.form-noticia textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.zona-drop {
+  border: 2px dashed rgba(154, 79, 46, 0.4);
+  border-radius: var(--radio);
+  padding: 1.25rem;
+  text-align: center;
+  color: var(--texto-suave);
+  font-size: 0.95rem;
+  background: rgba(255, 254, 249, 0.5);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.zona-drop.sobre {
+  border-color: var(--terracota);
+  background: rgba(154, 79, 46, 0.08);
+}
+
+.acciones-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.caja-login {
+  max-width: 22rem;
+  margin: 2rem auto 0;
+}
+
+.caja-login .aviso {
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+  margin-bottom: 1.25rem;
+}
+
+.msg-error {
+  color: #8b1e1e;
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0;
+}
+
+.msg-ok {
+  color: var(--verde);
+  font-size: 0.9rem;
+}
+
+.lista-cancioneros {
+  list-style: none;
+  margin: 0 0 2rem;
+  padding: 0;
+}
+
+.lista-cancioneros li {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.2);
+}
+
+.lista-cancioneros a {
+  font-weight: 560;
+  text-decoration: none;
+  color: var(--texto);
+}
+
+.lista-cancioneros a:hover {
+  color: var(--terracota);
+}
+
+.lista-cancioneros .meta {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--texto-suave);
+  margin-top: 0.2rem;
+}
+
+.sesion-bar {
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+  margin-bottom: 1rem;
+}
+
+.sesion-bar strong {
+  color: var(--verde);
+}
+
+/* Auth */
+.tabs-auth {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 1.5rem;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.25);
+  padding-bottom: 0.5rem;
+}
+
+.tab-auth {
+  font: inherit;
+  font-weight: 560;
+  font-size: 0.95rem;
+  background: transparent;
+  border: none;
+  color: var(--texto-suave);
+  padding: 0.5rem 0.85rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-auth.activa {
+  color: var(--terracota);
+  border-bottom-color: var(--terracota);
+}
+
+.caja-auth {
+  max-width: 28rem;
+}
+
+.auth-h2 {
+  font-family: var(--fuente-display);
+  font-size: 1.25rem;
+  color: var(--verde);
+  margin: 2rem 0 0.75rem;
+}
+
+.lista-auditoria {
+  max-height: 16rem;
+  overflow: auto;
+  border-top: 1px solid rgba(154, 79, 46, 0.2);
+  padding-top: 0.5rem;
+}
+
+.lista-auditoria .aviso {
+  margin: 0.35rem 0;
+  font-size: 0.82rem;
+}
+
+.aviso {
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+  margin: 0 0 1rem;
+}
+

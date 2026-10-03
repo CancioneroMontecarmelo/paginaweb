@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "ayuda": "Lista de cancioneros publicados. Al guardar desde Mp3editag, añadí la entrada aquí o regenerá el índice.",
+  "cancioneros": [
+    {
+      "comunidadSlug": "monte-carmelo",
+      "comunidad": "Nuestra Señora del Monte Carmelo",
+      "nombre": "Misa dominical de ejemplo",
+      "titulo": "Misa dominical de ejemplo",
+      "fecha": "2026-08-24",
+      "archivo": "Nuestra Señora del Monte Carmelo/Misa_dominical_ejemplo_2026-08-24.json",
+      "comentario": "Capo 2 · afinación estándar"
+    }
+  ]
+}
