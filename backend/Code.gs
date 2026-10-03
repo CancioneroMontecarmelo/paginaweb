@@ -47,6 +47,7 @@ function doGet(e) {
     if (p.accion === 'listar') return json_(listar_(p));
     if (p.accion === 'ver') return verHtml_(p.id);
     if (p.accion === 'estadoCorreo') return json_({ ok: true, cuotaCorreo: MailApp.getRemainingDailyQuota() });
+    if (p.accion === 'diagAdmin') return json_(diagAdmin_());
     return json_({ ok: true, app: 'MonteCarmelo', version: 1 });
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
@@ -263,13 +264,14 @@ function auditar_(evento) {
 
 // Clave temporal pedida con «¿Primera vez u olvidaste tu clave?»: sirve 2 horas y no reemplaza a la
 // clave actual (así nadie puede dejar a otro sin acceso pidiendo recuperaciones).
-function usaRecuperacion_(u, hash) {
-  return !!u.hashRecuperacion && u.recuperacionVence > Date.now() && u.hashRecuperacion === String(hash || '');
+function usaRecuperacion_(u, hash, hashTemporal) {
+  if (!u.hashRecuperacion || !(u.recuperacionVence > Date.now())) return false;
+  return u.hashRecuperacion === String(hash || '') || u.hashRecuperacion === String(hashTemporal || '');
 }
 
 function login_(d) {
   var u = buscarUsuario_(d.email);
-  var temporal = !!u && u.hash !== String(d.hash || '') && usaRecuperacion_(u, d.hash);
+  var temporal = !!u && u.hash !== String(d.hash || '') && usaRecuperacion_(u, d.hash, d.hashTemporal);
   if (!u || (u.hash !== String(d.hash || '') && !temporal)) {
     auditar_({ tipo: 'login_fallido', email: normEmail_(d.email), nombres: d.nombres || '', apellidos: d.apellidos || '' });
     throw new Error('Datos incorrectos. Revisá correo y clave.');
@@ -290,7 +292,7 @@ function cambiarClave_(d) {
   return conCandado_(function () {
     var lista = leerUsuarios_();
     var x = lista.filter(function (v) { return normEmail_(v.email) === normEmail_(u.email); })[0];
-    if (x.hash !== d.hashActual && !usaRecuperacion_(x, d.hashActual)) throw new Error('Clave actual o temporal incorrecta');
+    if (x.hash !== d.hashActual && !usaRecuperacion_(x, d.hashActual, d.hashTemporal)) throw new Error('Clave actual o temporal incorrecta');
     x.hash = d.hashNuevo;
     x.debeCambiarClave = false;
     delete x.hashRecuperacion;
@@ -419,8 +421,13 @@ function listarSolicitudes_(d) {
   };
 }
 
+// Sin letras confundibles (l/1, o/0) y en minúsculas: el navegador manda además el hash de lo escrito
+// sin espacios y en minúsculas (hashTemporal), así un espacio copiado o una mayúscula no la invalidan.
 function claveTemporal_() {
-  return 'Mc' + Math.random().toString(36).slice(2, 6) + Math.floor(1000 + Math.random() * 9000);
+  var abc = 'abcdefghjkmnpqrstuvwxyz23456789';
+  var s = '';
+  for (var i = 0; i < 8; i++) s += abc.charAt(Math.floor(Math.random() * abc.length));
+  return s;
 }
 
 // Siempre responde lo mismo, exista o no el correo (no revela quién está registrado)
@@ -726,6 +733,24 @@ function prepararPrimeraVez() {
   console.log('Listo. Carpeta raíz: ' + raiz_().getUrl());
 }
 
+function diagAdmin_() {
+  var archivos = [];
+  var it = sistema_().getFilesByName('usuarios.json');
+  while (it.hasNext()) { var f = it.next(); archivos.push({ id: f.getId().slice(0, 6), modificado: f.getLastUpdated() }); }
+  var raices = 0;
+  var r = DriveApp.getRootFolder().getFoldersByName(RAIZ_NOMBRE);
+  while (r.hasNext()) { r.next(); raices++; }
+  var u = buscarUsuario_(CORREO_PARROQUIA);
+  return {
+    ok: true, archivosUsuarios: archivos, carpetasRaiz: raices, totalUsuarios: leerUsuarios_().length,
+    admin: u ? {
+      activo: u.activo !== false, rol: u.rol, tieneTemporal: !!u.hashRecuperacion,
+      venceEnMin: u.recuperacionVence ? Math.round((u.recuperacionVence - Date.now()) / 60000) : null,
+      largoHashTemporal: String(u.hashRecuperacion || '').length
+    } : null
+  };
+}
+
 // Ejecutar desde el editor de Apps Script si el correo de «¿Primera vez…?» no llega: la clave temporal
 // aparece en el registro de ejecución (solo lo ve el dueño del script) y sirve 2 horas.
 function claveTemporalAdmin() {
@@ -740,7 +765,8 @@ function claveTemporalAdmin() {
     guardarUsuarios_(lista);
   });
   auditar_({ tipo: 'recuperacion_editor', email: CORREO_PARROQUIA });
-  console.log('Clave temporal para ' + CORREO_PARROQUIA + ': ' + temp + '  (sirve 2 horas)');
+  console.log('Correo: ' + CORREO_PARROQUIA + ' — sirve 2 horas; solo vale la última clave generada.');
+  console.log(temp);
   try {
     console.log('Correos disponibles hoy: ' + MailApp.getRemainingDailyQuota());
     MailApp.sendEmail(CORREO_PARROQUIA, 'Prueba de correo — Monte Carmelo', 'Si ves este correo, el envío funciona.');

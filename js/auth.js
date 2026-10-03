@@ -99,6 +99,11 @@ export async function hashClave(clave) {
   return sha256Hex(SALT + String(clave || ""));
 }
 
+// Las claves temporales del servidor son minúsculas sin espacios
+function hashTemporal(clave) {
+  return hashClave(String(clave || "").replace(/\s+/g, "").toLowerCase());
+}
+
 function leerLS(clave, fallback) {
   try {
     const raw = localStorage.getItem(clave);
@@ -304,7 +309,7 @@ export async function iniciarSesion({ nombres, apellidos, email, clave }) {
   const correo = normalizarEmail(email);
   const hash = await hashClave(clave);
   if (usaBackend()) {
-    const r = await llamarApi("login", { email: correo, hash, nombres, apellidos });
+    const r = await llamarApi("login", { email: correo, hash, hashTemporal: await hashTemporal(clave), nombres, apellidos });
     const sesion = { ...r.sesion, token: r.token, desde: Date.now() };
     guardarSesion(sesion);
     return sesion;
@@ -643,6 +648,7 @@ export async function cambiarClavePropia(claveActual, claveNueva) {
     const r = await llamarApi("cambiarClave", {
       token: s.token,
       hashActual: await hashClave(claveActual),
+      hashTemporal: await hashTemporal(claveActual),
       hashNuevo: await hashClave(claveNueva)
     });
     guardarSesion({ ...s, ...r.sesion, token: s.token });
