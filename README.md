@@ -9,20 +9,25 @@ en el Google Drive de `cancionerolitugico@gmail.com` a través de un Apps Script
 
 ## Autenticación (Identificarse)
 
-- **Admin general:** Marcos Mora Vitta · `cancionerolitugico@gmail.com`
-- Solicitudes de admin/editor/sacerdote con código de 6 dígitos (llega por correo a la parroquia)
-- Solo Marcos (o el segundo responsable que él nombre) acepta o da de baja
-- Claves guardadas como hash SHA-256 (nunca en claro); la sesión dura 12 horas
-- Cada entrada queda en el registro de auditoría del panel
+Sin claves:
 
-- **Primera vez / clave olvidada:** Identificarse → «¿Primera vez u olvidaste tu clave?» → se envía por correo
-  una clave temporal (2 horas). Al entrar con ella el sitio pide crear la clave definitiva.
-- **Crear usuario:** en el Panel, el responsable carga nombre, correo, rol y comunidad; la persona recibe una
-  clave temporal por correo (y el panel la muestra por si el correo no llega).
+- **Entrar con Google:** el Apps Script verifica la cuenta con Google. `cancionerolitugico@gmail.com` es
+  siempre el **administrador general**; cualquier otra cuenta entra como visitante hasta que le den permisos.
+- **Visitante:** también se puede entrar escribiendo solo el correo (sin verificar): nunca da privilegios.
+- **Administradores y permisos** (panel de Identificarse): lista de quienes entraron, con un check para darles
+  privilegios (responsable del sitio, sacerdote, administrador de comunidad, editor o colaborador) y la
+  comunidad; desde ahí también se invita por correo o WhatsApp.
+- La sesión dura 12 horas y cada entrada queda en el registro del panel.
 
-Con el Apps Script conectado, los usuarios viven en `MonteCarmelo/sistema/usuarios.json` del Drive (privado).
-Sin conectar (`apiUrl` vacío en `js/config.js`) el sitio funciona en **modo local de prueba**: usuarios en
-`usuarios.json` + el navegador.
+Los usuarios viven en `MonteCarmelo/sistema/usuarios.json` del Drive (privado).
+
+### ID de cliente de Google (una sola vez)
+
+En <https://console.cloud.google.com/auth/clients> (proyecto de la cuenta de la parroquia): **Crear cliente** →
+«Aplicación web» → Orígenes autorizados de JavaScript: `https://cancioneromontecarmelo.github.io` y
+`http://localhost:8080`. El ID (`….apps.googleusercontent.com`) va en `GOOGLE_CLIENT_ID` (`backend/Code.gs`) y
+en `googleClientId` (`js/config.js`). En «Público», la app tiene que estar **publicada** (en producción) para que
+entre cualquier cuenta de Google.
 
 ## Cómo probar en local
 
@@ -49,7 +54,7 @@ Todo se hace con la cuenta **cancionerolitugico@gmail.com**.
    git checkout backend/appsscript.json   # clasp puede reemplazarlo por el de Google
    clasp push -f
    ```
-4. Autorizá Drive y correo **una sola vez**: `clasp open-script` → elegí la función `prepararPrimeraVez` → **Ejecutar** → aceptá los permisos
+4. Autorizá Drive, correo y la verificación de Google (una vez, y otra si cambian los permisos de `appsscript.json`): `clasp open-script` → elegí la función `prepararPrimeraVez` → **Ejecutar** → aceptá los permisos
    (si dice «Google no verificó esta app»: Configuración avanzada → Ir a Monte Carmelo API).
 5. Publicá la aplicación web:
    ```bash
@@ -78,11 +83,11 @@ clasp update-deployment <ID de la implementación> -d "descripción"
 | Carpeta / archivo | Uso |
 |---------|-----|
 | `editor/` | Cancionero Universal: editor, atril, Guardar/Abrir en el Drive (`editor/js/nube.js`) |
-| `backend/` | Apps Script: usuarios, solicitudes, auditoría y cancioneros en Drive |
+| `backend/` | Apps Script: entrada con Google, permisos, auditoría y cancioneros en Drive |
 | `comunidades/` | Página de cada comunidad: noticias y cancioneros publicados |
 | `noticias/` | Blog estático por comunidad (JSON) |
 | `ver.html` | Muestra un cancionero guardado en el Drive (`ver.html?id=…`) |
-| `js/config.js` | Dirección del Apps Script (`apiUrl`) |
+| `js/config.js` | Dirección del Apps Script (`apiUrl`) e ID de cliente de Google (`googleClientId`) |
 | `respaldo-antes-drive/` | Copia de los audios y cancioneros anteriores al Drive |
 
 ## Flujo del coro

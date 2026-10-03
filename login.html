@@ -23,160 +23,87 @@
 
   <main class="pagina pagina-ancha">
     <h1>Identificarse</h1>
-    <p class="subtitulo">Administradores, sacerdote, editores y colaboradores. Cada ingreso queda registrado.</p>
-
-    <div class="tabs-auth" role="tablist">
-      <button type="button" class="tab-auth activa" data-tab="entrar">Entrar</button>
-      <button type="button" class="tab-auth" data-tab="solicitar">Solicitar acceso</button>
-      <button type="button" class="tab-auth" data-tab="panel" id="tab-panel" hidden>Panel responsables</button>
-    </div>
 
     <!-- ENTRAR -->
     <section class="panel-auth" id="panel-entrar">
-      <p class="aviso">Ingresá con tu nombre, apellido, correo y clave.</p>
-      <form class="form-noticia caja-auth" id="form-login">
-        <label for="login-nombres">Nombres</label>
-        <input id="login-nombres" autocomplete="given-name" required>
+      <p class="subtitulo">Sin claves: entrá con tu cuenta de Google. Administradores, sacerdote, editores y
+        colaboradores reciben sus permisos automáticamente.</p>
+      <div id="boton-google" class="boton-google"></div>
+      <p class="msg-error" id="msg-google" hidden></p>
 
-        <label for="login-apellidos">Apellidos</label>
-        <input id="login-apellidos" autocomplete="family-name" required>
+      <div class="separador-o">o, si solo querés visitar</div>
 
-        <label for="login-email">Correo electrónico</label>
-        <input id="login-email" type="email" autocomplete="email" required>
-
-        <label for="login-clave">Clave</label>
-        <input id="login-clave" type="password" autocomplete="current-password" required>
-
+      <form class="form-noticia caja-auth" id="form-visitante">
+        <label for="vis-nombre">Tu nombre (opcional)</label>
+        <input id="vis-nombre" autocomplete="name">
+        <label for="vis-email">Correo electrónico</label>
+        <input id="vis-email" type="email" autocomplete="email" required>
         <div class="acciones-form">
-          <button type="submit" class="btn btn-primario">Entrar</button>
+          <button type="submit" class="btn btn-secundario">Entrar como visitante</button>
         </div>
-        <p class="msg-error" id="msg-login" hidden></p>
+        <p class="msg-error" id="msg-visitante" hidden></p>
       </form>
+    </section>
 
-      <details class="caja-auth" id="caja-recuperar">
-        <summary>¿Primera vez u olvidaste tu clave?</summary>
-        <p class="aviso">Escribí el correo de tu cuenta: te enviaremos una clave temporal (sirve 2 horas).
-          Al entrar con ella el sitio te pedirá crear tu clave definitiva.</p>
-        <form class="form-noticia" id="form-recuperar">
-          <label for="rec-email">Correo electrónico</label>
-          <input id="rec-email" type="email" autocomplete="email" required>
-          <div class="acciones-form">
-            <button type="submit" class="btn btn-secundario">Enviarme una clave temporal</button>
-          </div>
-          <p class="msg-error" id="msg-rec" hidden></p>
-          <p class="msg-ok" id="msg-rec-ok" hidden></p>
-        </form>
-      </details>
-
-      <div id="caja-cambiar-clave" hidden>
-        <h2 class="auth-h2">Creá tu clave definitiva</h2>
-        <p class="aviso">Es tu primer ingreso (o te pidieron renovar la clave). Mínimo 8 caracteres.</p>
-        <form class="form-noticia caja-auth" id="form-cambiar-clave">
-          <label for="clave-actual">Clave temporal / actual</label>
-          <input id="clave-actual" type="password" required>
-          <label for="clave-nueva">Nueva clave</label>
-          <input id="clave-nueva" type="password" minlength="8" required>
-          <label for="clave-nueva-2">Repetir nueva clave</label>
-          <input id="clave-nueva-2" type="password" minlength="8" required>
-          <div class="acciones-form">
-            <button type="submit" class="btn btn-primario">Guardar clave</button>
-          </div>
-          <p class="msg-error" id="msg-clave" hidden></p>
-          <p class="msg-ok" id="msg-clave-ok" hidden></p>
-        </form>
+    <!-- SESIÓN SIN PRIVILEGIOS DE RESPONSABLE -->
+    <section class="panel-auth" id="panel-sesion" hidden>
+      <p class="sesion-bar" id="sesion-quien"></p>
+      <p class="msg-ok" id="sesion-aviso" hidden></p>
+      <div class="acciones-form">
+        <a class="btn btn-primario" href="./noticias.html">Ir a noticias</a>
+        <a class="btn btn-secundario" href="./editor/" id="sesion-editor" hidden>Abrir el editor</a>
+        <button type="button" class="btn btn-secundario" data-salir>Cerrar sesión</button>
       </div>
     </section>
 
-    <!-- SOLICITAR -->
-    <section class="panel-auth" id="panel-solicitar" hidden>
-      <p class="aviso">
-        Pedí ser administrador de tu comunidad, editor o sacerdote.
-        Se enviará un aviso a <strong>cancionerolitugico@gmail.com</strong> con un código de 6 dígitos.
-        Solo el administrador general (Marcos Mora Vitta) o el segundo responsable pueden aceptar.
-      </p>
-      <form class="form-noticia caja-auth" id="form-solicitar">
-        <label for="sol-nombres">Nombres</label>
-        <input id="sol-nombres" required>
-        <label for="sol-apellidos">Apellidos</label>
-        <input id="sol-apellidos" required>
-        <label for="sol-email">Correo electrónico</label>
-        <input id="sol-email" type="email" required>
-        <label for="sol-comunidad">Comunidad</label>
-        <select id="sol-comunidad" required></select>
-        <label for="sol-rol">Rol solicitado</label>
-        <select id="sol-rol">
-          <option value="admin">Administrador de comunidad</option>
-          <option value="editor">Editor</option>
-          <option value="sacerdote">Sacerdote (párroco)</option>
-        </select>
-        <label for="sol-motivo">Motivo / presentación</label>
-        <textarea id="sol-motivo" rows="3" placeholder="Quién sos y por qué pedís acceso"></textarea>
-        <div class="acciones-form">
-          <button type="submit" class="btn btn-primario">Enviar solicitud</button>
-        </div>
-        <p class="msg-error" id="msg-sol" hidden></p>
-        <p class="msg-ok" id="msg-sol-ok" hidden></p>
-      </form>
-    </section>
-
-    <!-- PANEL -->
+    <!-- PANEL DE RESPONSABLES -->
     <section class="panel-auth" id="panel-panel" hidden>
       <p class="sesion-bar" id="panel-quien"></p>
-
-      <h2 class="auth-h2">Solicitudes pendientes</h2>
-      <div id="lista-solicitudes"></div>
-
-      <div id="sec-crear">
-      <h2 class="auth-h2">Crear usuario</h2>
-      <p class="aviso">Para dar acceso sin esperar una solicitud. La persona recibe por correo una clave temporal
-        y al entrar crea la suya.</p>
-      <form class="form-noticia caja-auth" id="form-crear">
-        <label for="crear-nombres">Nombres</label>
-        <input id="crear-nombres" required>
-        <label for="crear-apellidos">Apellidos</label>
-        <input id="crear-apellidos" required>
-        <label for="crear-email">Correo electrónico</label>
-        <input id="crear-email" type="email" required>
-        <label for="crear-rol">Rol</label>
-        <select id="crear-rol">
-          <option value="admin">Administrador de comunidad</option>
-          <option value="editor" selected>Editor</option>
-          <option value="sacerdote">Sacerdote (párroco)</option>
-          <option value="colaborador">Colaborador</option>
-        </select>
-        <label for="crear-comunidad">Comunidad</label>
-        <select id="crear-comunidad" required></select>
-        <div class="acciones-form">
-          <button type="submit" class="btn btn-primario">Crear usuario</button>
-        </div>
-        <p class="msg-error" id="msg-crear" hidden></p>
-        <p class="msg-ok" id="msg-crear-ok" hidden></p>
-      </form>
+      <div class="acciones-form">
+        <button type="button" class="btn btn-primario" id="btn-admins">Administradores y permisos</button>
+        <a class="btn btn-secundario" href="./editor/">Abrir el editor</a>
+        <button type="button" class="btn btn-secundario" data-salir>Cerrar sesión</button>
       </div>
-
-      <h2 class="auth-h2">Usuarios activos</h2>
-      <div id="lista-usuarios"></div>
-
-      <h2 class="auth-h2">Segundo responsable del sitio</h2>
-      <p class="aviso">Si Marcos no puede, el segundo administrador tiene los mismos poderes de aceptación y bajas.</p>
-      <form class="form-noticia caja-auth" id="form-segundo">
-        <label for="segundo-email">Correo del usuario a nombrar</label>
-        <input id="segundo-email" type="email" placeholder="usuario@correo.com">
-        <div class="acciones-form">
-          <button type="submit" class="btn btn-secundario" id="btn-segundo">Nombrar segundo admin</button>
-          <button type="button" class="btn btn-secundario" id="btn-exportar">Descargar usuarios.json</button>
-        </div>
-        <p class="msg-ok" id="msg-segundo" hidden></p>
-      </form>
 
       <h2 class="auth-h2">Registro de entradas</h2>
       <div id="lista-auditoria" class="lista-auditoria"></div>
-
-      <div class="acciones-form" style="margin-top:1.5rem">
-        <button type="button" class="btn btn-secundario" id="btn-salir-panel">Cerrar sesión</button>
-      </div>
     </section>
   </main>
+
+  <dialog class="dlg-admins" id="dlg-admins">
+    <div class="dlg-cabeza">
+      <h2>Administradores y permisos</h2>
+      <button type="button" class="btn-chico" id="dlg-cerrar">Cerrar ✕</button>
+    </div>
+    <div class="dlg-cuerpo">
+      <h3 class="auth-h2">Invitar a alguien</h3>
+      <p class="aviso">Escribí su correo de Google y elegí sus privilegios. La invitación explica cómo entrar
+        (con el botón de Google, sin clave).</p>
+      <form class="form-noticia form-invitar" id="form-invitar">
+        <label>Correo<input id="inv-email" type="email" required placeholder="persona@gmail.com"></label>
+        <label>Nombre (opcional)<input id="inv-nombre"></label>
+        <label>Privilegios<select id="inv-rol"></select></label>
+        <label>Comunidad<select id="inv-comunidad"></select></label>
+        <label>WhatsApp (opcional)<input id="inv-tel" type="tel" placeholder="+56 9 1234 5678"></label>
+        <div class="acciones-form">
+          <button type="submit" class="btn btn-primario" id="inv-correo">Invitar por correo</button>
+          <button type="button" class="btn btn-secundario" id="inv-whatsapp">Invitar por WhatsApp</button>
+        </div>
+      </form>
+      <p class="msg-error" id="msg-invitar" hidden></p>
+      <p class="msg-ok" id="msg-invitar-ok" hidden></p>
+
+      <h3 class="auth-h2">Personas</h3>
+      <p class="aviso">Marcá el check para darle privilegios y elegí cuáles. Los cambios se guardan solos.
+        Quien entra por primera vez aparece aquí como visitante.</p>
+      <table class="tabla-personas">
+        <thead>
+          <tr><th>Persona</th><th>Privilegios</th><th>Tipo</th><th>Comunidad</th><th></th><th></th></tr>
+        </thead>
+        <tbody id="tabla-personas"></tbody>
+      </table>
+    </div>
+  </dialog>
 
   <footer class="pie">
     <p><a href="./inicio.html">← Volver al inicio</a></p>
@@ -185,450 +112,285 @@
   <script type="module">
     import {
       initNavSitio,
-      iniciarSesion,
       sesionActual,
       cerrarSesion,
-      solicitarAcceso,
-      listarSolicitudes,
-      obtenerCodigoSolicitud,
-      aceptarSolicitud,
-      rechazarSolicitud,
-      listarUsuarios,
-      darDeBaja,
-      nombrarSegundoAdmin,
-      cambiarClavePropia,
+      botonGoogle,
+      entrarVisitante,
       esResponsableSitio,
-      comunidadesOpciones,
+      puedeEditar,
+      listarUsuarios,
+      asignarRol,
+      invitar,
+      eliminarUsuario,
       leerAuditoria,
-      descargarUsuariosJson,
-      usaBackend,
-      recuperarClave,
-      crearUsuario,
-      CORREO_PARROQUIA
+      comunidadesOpciones,
+      ROLES
     } from "./js/auth.js";
-    import {
-      avisarSolicitudAParroquia,
-      avisarSolicitudRecibida,
-      avisarAceptacion,
-      avisarBaja
-    } from "./js/auth-correo.js";
 
     initNavSitio();
-    const servidor = usaBackend();
-    document.getElementById("btn-exportar").hidden = servidor;
-    document.getElementById("caja-recuperar").hidden = !servidor;
-    document.getElementById("sec-crear").hidden = !servidor;
+    const $ = (id) => document.getElementById(id);
+    const NOMBRES_ROL = { admin_general: "Administrador general", visitante: "Visitante", ...ROLES };
+    const COMUNIDADES = comunidadesOpciones();
+    const nombreComunidad = (slug) => (COMUNIDADES.find((c) => c.slug === slug) || {}).nombre || "";
 
-    function modoCambiarClave(si) {
-      document.getElementById("form-login").hidden = si;
-      document.getElementById("caja-recuperar").hidden = si || !servidor;
-      document.getElementById("caja-cambiar-clave").hidden = !si;
+    function mostrar(panel) {
+      for (const id of ["panel-entrar", "panel-sesion", "panel-panel"]) $(id).hidden = id !== panel;
     }
 
-    const tabs = document.querySelectorAll(".tab-auth");
-    const paneles = {
-      entrar: document.getElementById("panel-entrar"),
-      solicitar: document.getElementById("panel-solicitar"),
-      panel: document.getElementById("panel-panel")
-    };
-
-    function mostrarTab(id) {
-      tabs.forEach((t) => t.classList.toggle("activa", t.dataset.tab === id));
-      Object.keys(paneles).forEach((k) => {
-        paneles[k].hidden = k !== id;
-      });
+    function mensaje(id, texto) {
+      $(id).hidden = !texto;
+      $(id).textContent = texto || "";
     }
 
-    tabs.forEach((t) =>
-      t.addEventListener("click", () => {
-        if (t.dataset.tab === "panel" && !esResponsableSitio()) return;
-        mostrarTab(t.dataset.tab);
-        if (t.dataset.tab === "panel") refrescarPanel();
+    function trasEntrar(s, aviso) {
+      initNavSitio();
+      if (esResponsableSitio(s)) {
+        mostrar("panel-panel");
+        $("panel-quien").innerHTML = "";
+        $("panel-quien").append("Sesión: ", Object.assign(document.createElement("strong"), { textContent: s.nombre }),
+          " (" + NOMBRES_ROL[s.rol] + ") · " + s.email);
+        refrescarAuditoria();
+        return;
+      }
+      mostrar("panel-sesion");
+      $("sesion-quien").innerHTML = "";
+      $("sesion-quien").append("Entraste como ", Object.assign(document.createElement("strong"), { textContent: s.nombre || s.email }),
+        " · " + (NOMBRES_ROL[s.rol] || s.rol) + (s.comunidad && s.rol !== "visitante" ? " · " + nombreComunidad(s.comunidad) : ""));
+      mensaje("sesion-aviso", aviso || "");
+      $("sesion-editor").hidden = !puedeEditar();
+    }
+
+    document.querySelectorAll("[data-salir]").forEach((b) =>
+      b.addEventListener("click", () => {
+        cerrarSesion();
+        location.reload();
       })
     );
 
-    for (const sel of [document.getElementById("sol-comunidad"), document.getElementById("crear-comunidad")]) {
-      comunidadesOpciones().forEach((c) => {
-        const o = document.createElement("option");
-        o.value = c.slug;
-        o.textContent = c.nombre;
-        sel.appendChild(o);
-      });
-    }
-
-    document.getElementById("form-recuperar").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById("msg-rec");
-      const ok = document.getElementById("msg-rec-ok");
-      const btn = e.target.querySelector("button");
-      msg.hidden = true;
-      ok.hidden = true;
-      btn.disabled = true;
-      try {
-        const email = document.getElementById("rec-email").value;
-        await recuperarClave(email);
-        ok.hidden = false;
-        ok.textContent =
-          "Si " + email + " tiene una cuenta, en unos minutos le llegará la clave temporal (revisá también Spam). " +
-          "Después entrá arriba con tu correo y esa clave.";
-      } catch (err) {
-        msg.hidden = false;
-        msg.textContent = err.message || "No se pudo enviar";
-      }
-      btn.disabled = false;
-    });
-
-    document.getElementById("form-crear").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById("msg-crear");
-      const ok = document.getElementById("msg-crear-ok");
-      const btn = e.target.querySelector("button");
-      msg.hidden = true;
-      ok.hidden = true;
-      btn.disabled = true;
-      try {
-        const r = await crearUsuario({
-          nombres: document.getElementById("crear-nombres").value,
-          apellidos: document.getElementById("crear-apellidos").value,
-          email: document.getElementById("crear-email").value,
-          rol: document.getElementById("crear-rol").value,
-          comunidad: document.getElementById("crear-comunidad").value
-        });
-        ok.hidden = false;
-        ok.textContent =
-          "Cuenta creada para " + r.usuario.nombre + ". Clave temporal: " + r.claveTemporal +
-          (r.correoEnviado
-            ? " (se la enviamos por correo a " + r.usuario.email + ")."
-            : " — no se pudo enviar el correo: comunicásela a " + r.usuario.email + ".");
-        e.target.reset();
-        refrescarPanel();
-      } catch (err) {
-        msg.hidden = false;
-        msg.textContent = err.message || "No se pudo crear";
-      }
-      btn.disabled = false;
-    });
-
-    function trasLogin(s) {
-      document.getElementById("tab-panel").hidden = !esResponsableSitio(s);
-      if (s.debeCambiarClave) {
-        modoCambiarClave(true);
-        mostrarTab("entrar");
-        return;
-      }
-      if (esResponsableSitio(s)) {
-        document.getElementById("tab-panel").hidden = false;
-        mostrarTab("panel");
-        refrescarPanel();
-      } else {
-        location.href = "./noticias.html";
-      }
-    }
-
     const s0 = sesionActual();
-    if (s0) {
-      document.getElementById("tab-panel").hidden = !esResponsableSitio(s0);
-      if (s0.debeCambiarClave) {
-        modoCambiarClave(true);
-      } else if (esResponsableSitio(s0)) {
-        mostrarTab("panel");
-        refrescarPanel();
+    if (s0) trasEntrar(s0);
+
+    botonGoogle(
+      $("boton-google"),
+      (s) => {
+        mensaje("msg-google", "");
+        trasEntrar(s);
+      },
+      (err) => mensaje("msg-google", err.message || "No se pudo entrar con Google")
+    ).catch((err) => mensaje("msg-google", err.message));
+
+    $("form-visitante").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      mensaje("msg-visitante", "");
+      const btn = e.target.querySelector("button");
+      btn.disabled = true;
+      try {
+        const r = await entrarVisitante($("vis-email").value, $("vis-nombre").value.trim());
+        trasEntrar(r.sesion, r.aviso);
+      } catch (err) {
+        mensaje("msg-visitante", err.message || "No se pudo entrar");
+      }
+      btn.disabled = false;
+    });
+
+    async function refrescarAuditoria() {
+      const la = $("lista-auditoria");
+      try {
+        const aud = await leerAuditoria(60);
+        la.replaceChildren(
+          ...aud.map((a) => {
+            const p = document.createElement("p");
+            p.className = "aviso";
+            p.textContent =
+              new Date(a.cuando).toLocaleString("es-CL") + " · " + a.tipo + " · " + (a.nombre || a.email || "") +
+              (a.rol ? " (" + (NOMBRES_ROL[a.rol] || a.rol) + ")" : "");
+            return p;
+          })
+        );
+      } catch (err) {
+        la.textContent = err.message;
       }
     }
 
-    document.getElementById("form-login").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById("msg-login");
-      msg.hidden = true;
+    // ============ VENTANA ADMINISTRADORES ============
+
+    function opcionesRol(sel, valor) {
+      const general = sesionActual()?.rol === "admin_general";
+      sel.replaceChildren(
+        ...Object.entries(ROLES)
+          .filter(([k]) => k !== "admin_segundo" || general || valor === "admin_segundo")
+          .map(([k, v]) => new Option(v, k, k === valor, k === valor))
+      );
+    }
+
+    function opcionesComunidad(sel, valor) {
+      sel.replaceChildren(...COMUNIDADES.map((c) => new Option(c.nombre, c.slug, c.slug === valor, c.slug === valor)));
+    }
+
+    opcionesRol($("inv-rol"), "admin");
+    opcionesComunidad($("inv-comunidad"), "parroquia");
+
+    $("btn-admins").addEventListener("click", () => {
+      opcionesRol($("inv-rol"), "admin");
+      $("dlg-admins").showModal();
+      refrescarPersonas();
+    });
+    $("dlg-cerrar").addEventListener("click", () => $("dlg-admins").close());
+    $("dlg-admins").addEventListener("close", refrescarAuditoria);
+
+    const enlaceWhatsapp = (tel, texto) =>
+      "https://wa.me/" + String(tel || "").replace(/\D/g, "") + "?text=" + encodeURIComponent(texto);
+
+    function datosInvitacion() {
+      if (!$("form-invitar").reportValidity()) return null;
+      return {
+        email: $("inv-email").value,
+        nombre: $("inv-nombre").value.trim(),
+        rol: $("inv-rol").value,
+        comunidad: $("inv-comunidad").value
+      };
+    }
+
+    async function enviarInvitacion(datos, porWhatsapp, tel) {
+      mensaje("msg-invitar", "");
+      mensaje("msg-invitar-ok", "");
+      // La ventana se abre antes de esperar al servidor para que el navegador no la bloquee
+      const ventana = porWhatsapp ? window.open("", "_blank") : null;
       try {
-        const s = await iniciarSesion({
-          nombres: document.getElementById("login-nombres").value,
-          apellidos: document.getElementById("login-apellidos").value,
-          email: document.getElementById("login-email").value,
-          clave: document.getElementById("login-clave").value
-        });
-        trasLogin(s);
+        const r = await invitar({ ...datos, porCorreo: !porWhatsapp });
+        if (porWhatsapp) {
+          if (ventana) ventana.location = enlaceWhatsapp(tel, r.texto);
+          else location.href = enlaceWhatsapp(tel, r.texto);
+          mensaje("msg-invitar-ok", "Privilegios guardados para " + r.usuario.email + ". Se abrió WhatsApp con la invitación.");
+        } else if (r.correoEnviado) {
+          mensaje("msg-invitar-ok", "Invitación enviada por correo a " + r.usuario.email + ".");
+        } else {
+          mensaje("msg-invitar", "Los privilegios quedaron guardados, pero el correo no salió. Probá con WhatsApp.");
+        }
+        refrescarPersonas();
+        return true;
       } catch (err) {
-        msg.hidden = false;
-        msg.textContent = err.message || "No se pudo entrar";
+        if (ventana) ventana.close();
+        mensaje("msg-invitar", err.message || "No se pudo invitar");
+        return false;
       }
+    }
+
+    $("form-invitar").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const datos = datosInvitacion();
+      if (datos && (await enviarInvitacion(datos, false))) $("form-invitar").reset();
     });
 
-    document.getElementById("form-cambiar-clave").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById("msg-clave");
-      const ok = document.getElementById("msg-clave-ok");
-      msg.hidden = true;
-      ok.hidden = true;
-      const n1 = document.getElementById("clave-nueva").value;
-      const n2 = document.getElementById("clave-nueva-2").value;
-      if (n1 !== n2) {
-        msg.hidden = false;
-        msg.textContent = "Las claves nuevas no coinciden";
+    $("inv-whatsapp").addEventListener("click", async () => {
+      const datos = datosInvitacion();
+      if (datos && (await enviarInvitacion(datos, true, $("inv-tel").value))) $("form-invitar").reset();
+    });
+
+    async function refrescarPersonas() {
+      const tb = $("tabla-personas");
+      tb.innerHTML = "<tr><td colspan='6' class='aviso'>Cargando…</td></tr>";
+      let lista;
+      try {
+        lista = await listarUsuarios();
+      } catch (err) {
+        tb.innerHTML = "";
+        tb.append(Object.assign(document.createElement("tr"), { innerHTML: "<td colspan='6' class='msg-error'></td>" }));
+        tb.querySelector("td").textContent = err.message;
         return;
       }
-      try {
-        await cambiarClavePropia(document.getElementById("clave-actual").value, n1);
-        ok.hidden = false;
-        ok.textContent = "Clave guardada (protegida). Ya podés usar el sitio.";
-        setTimeout(() => {
-          const s = sesionActual();
-          if (esResponsableSitio(s)) {
-            modoCambiarClave(false);
-            mostrarTab("panel");
-            refrescarPanel();
-          } else location.href = "./noticias.html";
-        }, 800);
-      } catch (err) {
-        msg.hidden = false;
-        msg.textContent = err.message || "No se pudo cambiar";
-      }
-    });
-
-    document.getElementById("form-solicitar").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById("msg-sol");
-      const ok = document.getElementById("msg-sol-ok");
-      msg.hidden = true;
-      ok.hidden = true;
-      try {
-        const datos = {
-          nombres: document.getElementById("sol-nombres").value,
-          apellidos: document.getElementById("sol-apellidos").value,
-          email: document.getElementById("sol-email").value,
-          comunidad: document.getElementById("sol-comunidad").value,
-          rolPedido: document.getElementById("sol-rol").value,
-          motivo: document.getElementById("sol-motivo").value
-        };
-        const r = await solicitarAcceso(datos);
-        if (servidor) {
-          ok.hidden = false;
-          ok.textContent =
-            "Solicitud enviada. La parroquia recibió un correo con tu solicitud y te escribiremos a " +
-            datos.email +
-            " cuando sea aceptada.";
-          e.target.reset();
-          return;
-        }
-        await avisarSolicitudAParroquia({
-          nombre: datos.nombres + " " + datos.apellidos,
-          email: datos.email,
-          comunidad: datos.comunidad,
-          rolPedido: datos.rolPedido,
-          codigo: r.codigo,
-          motivo: datos.motivo
-        });
-        await avisarSolicitudRecibida({
-          nombre: datos.nombres + " " + datos.apellidos,
-          email: datos.email
-        });
-        ok.hidden = false;
-        ok.textContent =
-          "Solicitud enviada. Se abrió el correo hacia " +
-          CORREO_PARROQUIA +
-          " con el código " +
-          r.codigo +
-          ". También se preparó el aviso a tu correo.";
-        e.target.reset();
-      } catch (err) {
-        msg.hidden = false;
-        msg.textContent = err.message || "No se pudo enviar";
-      }
-    });
-
-    async function refrescarPanel() {
-      const s = sesionActual();
-      if (!esResponsableSitio(s)) return;
-      document.getElementById("panel-quien").innerHTML =
-        "Sesión: <strong>" +
-        s.nombre +
-        "</strong> (" +
-        s.rol +
-        ") · " +
-        s.email;
-
-      const sols = (await listarSolicitudes()).filter((x) => x.estado === "pendiente");
-      const box = document.getElementById("lista-solicitudes");
-      box.replaceChildren();
-      if (!sols.length) {
-        box.innerHTML = "<p class='aviso'>No hay solicitudes pendientes.</p>";
-      } else {
-        for (const sol of sols) {
-          const art = document.createElement("article");
-          art.className = "noticia";
-          const codigoLocal = obtenerCodigoSolicitud(sol.id);
-          const codigo = codigoLocal || "(ver el correo de la parroquia)";
-          art.innerHTML =
-            "<h2>" +
-            sol.nombre +
-            "</h2>" +
-            "<p class='noticia-meta'>" +
-            sol.email +
-            " · " +
-            sol.comunidad +
-            " · " +
-            sol.rolPedido +
-            "</p>" +
-            "<p class='noticia-cuerpo'>" +
-            (sol.motivo || "") +
-            "</p>" +
-            "<p class='aviso'>Código (también en el correo a la parroquia): <strong>" +
-            codigo +
-            "</strong></p>";
-          const fila = document.createElement("div");
-          fila.className = "acciones-form";
-          const inp = document.createElement("input");
-          inp.placeholder = "Código de 6 dígitos";
-          inp.maxLength = 6;
-          inp.style.maxWidth = "10rem";
-          const btnOk = document.createElement("button");
-          btnOk.type = "button";
-          btnOk.className = "btn btn-primario";
-          btnOk.textContent = "Aceptar";
-          btnOk.addEventListener("click", async () => {
-            try {
-              const r = await aceptarSolicitud(sol.id, inp.value || codigoLocal || "");
-              if (servidor) {
-                alert(
-                  "Aceptado. Clave temporal: " +
-                    r.claveTemporal +
-                    (r.correoEnviado
-                      ? "\nSe la enviamos por correo a " + r.usuario.email + "."
-                      : "\nNo se pudo enviar el correo: comunicásela a " + r.usuario.email + ".")
-                );
-                refrescarPanel();
-                return;
-              }
-              await avisarAceptacion({
-                nombre: r.usuario.nombre,
-                email: r.usuario.email,
-                claveTemporal: r.claveTemporal,
-                rol: r.usuario.rol,
-                comunidad: r.usuario.comunidad
-              });
-              alert(
-                "Aceptado. Clave temporal: " +
-                  r.claveTemporal +
-                  "\nSe prepararon los correos al usuario y a " +
-                  CORREO_PARROQUIA
-              );
-              refrescarPanel();
-            } catch (err) {
-              alert(err.message || "Error");
-            }
-          });
-          const btnNo = document.createElement("button");
-          btnNo.type = "button";
-          btnNo.className = "btn btn-secundario";
-          btnNo.textContent = "Rechazar";
-          btnNo.addEventListener("click", async () => {
-            const m = prompt("Motivo del rechazo (opcional)") || "";
-            try {
-              await rechazarSolicitud(sol.id, m);
-            } catch (err) {
-              alert(err.message || "Error");
-            }
-            refrescarPanel();
-          });
-          fila.append(inp, btnOk, btnNo);
-          art.appendChild(fila);
-          box.appendChild(art);
-        }
-      }
-
-      const usuarios = (await listarUsuarios()).filter((u) => u.activo !== false);
-      const lu = document.getElementById("lista-usuarios");
-      lu.replaceChildren();
-      const ul = document.createElement("ul");
-      ul.className = "lista-cancioneros";
-      usuarios.forEach((u) => {
-        const li = document.createElement("li");
-        li.innerHTML =
-          "<strong>" +
-          (u.nombre || u.email) +
-          "</strong> · " +
-          u.rol +
-          " · " +
-          (u.comunidad || "") +
-          "<span class='meta'>" +
-          u.email +
-          "</span>";
-        if (u.rol !== "admin_general") {
-          const b = document.createElement("button");
-          b.type = "button";
-          b.className = "btn btn-secundario";
-          b.style.marginTop = "0.35rem";
-          b.textContent = "Dar de baja";
-          b.addEventListener("click", async () => {
-            const motivo = prompt("Motivo de la baja") || "Baja administrativa";
-            if (!confirm("¿Dar de baja a " + u.nombre + "?")) return;
-            let baja;
-            try {
-              baja = await darDeBaja(u.email, motivo);
-            } catch (err) {
-              alert(err.message || "Error");
-              return;
-            }
-            if (servidor) {
-              refrescarPanel();
-              return;
-            }
-            await avisarBaja({
-              nombre: baja.nombre,
-              email: baja.email,
-              motivo,
-              por: sesionActual().email
-            });
-            refrescarPanel();
-          });
-          li.appendChild(b);
-        }
-        ul.appendChild(li);
-      });
-      lu.appendChild(ul);
-
-      const aud = await leerAuditoria(40);
-      const la = document.getElementById("lista-auditoria");
-      la.replaceChildren();
-      aud.forEach((a) => {
-        const p = document.createElement("p");
-        p.className = "aviso";
-        p.textContent =
-          (a.cuando || "").replace("T", " ").slice(0, 19) +
-          " · " +
-          a.tipo +
-          " · " +
-          (a.nombre || a.email || "") +
-          (a.rol ? " (" + a.rol + ")" : "");
-        la.appendChild(p);
-      });
+      const orden = (u) => (u.rol === "admin_general" ? 0 : u.rol !== "visitante" ? 1 : 2);
+      lista.sort((a, b) => orden(a) - orden(b) || String(b.ultimaEntrada || b.creado).localeCompare(String(a.ultimaEntrada || a.creado)));
+      tb.replaceChildren(...lista.map(filaPersona));
     }
 
-    document.getElementById("form-segundo").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById("msg-segundo");
-      msg.hidden = true;
-      try {
-        const u = await nombrarSegundoAdmin(document.getElementById("segundo-email").value);
-        msg.hidden = false;
-        msg.className = "msg-ok";
-        msg.textContent = "Segundo responsable: " + u.nombre + " <" + u.email + ">";
-        refrescarPanel();
-      } catch (err) {
-        msg.hidden = false;
-        msg.className = "msg-error";
-        msg.textContent = err.message || "Error";
+    function filaPersona(u) {
+      const tr = document.createElement("tr");
+      const persona = document.createElement("td");
+      persona.className = "persona";
+      const detalle = [u.email];
+      if (u.verificado) detalle.push("Google ✓");
+      else if (u.invitado) detalle.push("invitado, aún no entró");
+      if (u.ultimaEntrada) detalle.push("última entrada " + new Date(u.ultimaEntrada).toLocaleDateString("es-CL"));
+      persona.append(
+        Object.assign(document.createElement("strong"), { textContent: u.nombre || u.email }),
+        Object.assign(document.createElement("span"), { textContent: detalle.join(" · ") })
+      );
+      tr.append(persona);
+
+      if (u.rol === "admin_general") {
+        const td = document.createElement("td");
+        td.colSpan = 5;
+        td.className = "estado";
+        td.textContent = "Administrador general (siempre)";
+        tr.append(td);
+        return tr;
       }
-    });
 
-    document.getElementById("btn-exportar").addEventListener("click", () => {
-      descargarUsuariosJson();
-    });
+      const conPrivilegios = u.rol !== "visitante";
+      const check = Object.assign(document.createElement("input"), { type: "checkbox", checked: conPrivilegios });
+      check.title = "Dar privilegios";
+      const rol = document.createElement("select");
+      opcionesRol(rol, conPrivilegios ? u.rol : "admin");
+      const com = document.createElement("select");
+      opcionesComunidad(com, u.comunidad || "parroquia");
+      rol.disabled = com.disabled = !conPrivilegios;
+      const estado = Object.assign(document.createElement("td"), { className: "estado" });
 
-    document.getElementById("btn-salir-panel").addEventListener("click", () => {
-      cerrarSesion();
-      location.reload();
-    });
+      async function guardar() {
+        rol.disabled = com.disabled = !check.checked;
+        estado.textContent = "Guardando…";
+        try {
+          await asignarRol({ email: u.email, rol: check.checked ? rol.value : "visitante", comunidad: com.value });
+          estado.textContent = "Guardado ✓";
+          u.rol = check.checked ? rol.value : "visitante";
+          acciones.replaceChildren(...botonesAcciones());
+        } catch (err) {
+          estado.textContent = err.message;
+        }
+      }
+      check.addEventListener("change", guardar);
+      rol.addEventListener("change", guardar);
+      com.addEventListener("change", guardar);
+
+      const acciones = document.createElement("td");
+      function botonesAcciones() {
+        const botones = [];
+        if (u.rol !== "visitante" && !u.verificado) {
+          const wa = Object.assign(document.createElement("button"), { type: "button", className: "btn-chico", textContent: "WhatsApp" });
+          wa.title = "Enviar la invitación por WhatsApp";
+          wa.addEventListener("click", () =>
+            enviarInvitacion({ email: u.email, rol: u.rol, comunidad: com.value }, true, prompt("Número de WhatsApp (opcional)") || "")
+          );
+          const mail = Object.assign(document.createElement("button"), { type: "button", className: "btn-chico", textContent: "Correo" });
+          mail.title = "Enviar la invitación por correo";
+          mail.addEventListener("click", () => enviarInvitacion({ email: u.email, rol: u.rol, comunidad: com.value }, false));
+          botones.push(wa, " ", mail, " ");
+        }
+        const quitar = Object.assign(document.createElement("button"), { type: "button", className: "btn-chico", textContent: "Quitar" });
+        quitar.title = "Quitar de la lista";
+        quitar.addEventListener("click", async () => {
+          if (!confirm("¿Quitar a " + (u.nombre || u.email) + " de la lista? Si vuelve a entrar aparecerá como visitante.")) return;
+          try {
+            await eliminarUsuario(u.email);
+            tr.remove();
+          } catch (err) {
+            estado.textContent = err.message;
+          }
+        });
+        botones.push(quitar);
+        return botones;
+      }
+      acciones.append(...botonesAcciones());
+
+      const celda = (el) => {
+        const td = document.createElement("td");
+        td.append(el);
+        return td;
+      };
+      tr.append(celda(check), celda(rol), celda(com), estado, acciones);
+      return tr;
+    }
   </script>
 </body>
 </html>

@@ -622,3 +622,180 @@ a:hover {
   margin: 0 0 1rem;
 }
 
+.boton-google {
+  min-height: 44px;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.separador-o {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 28rem;
+  margin: 1.75rem 0 1rem;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.separador-o::before,
+.separador-o::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid rgba(154, 79, 46, 0.25);
+}
+
+/* Ventana «Administradores y permisos» */
+.dlg-admins {
+  width: min(56rem, 96vw);
+  max-height: 92vh;
+  padding: 0;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--crema-clara);
+  color: var(--texto);
+  box-shadow: 0 1.5rem 4rem var(--sombra);
+}
+
+.dlg-admins::backdrop {
+  background: rgba(42, 36, 28, 0.45);
+}
+
+.dlg-admins .dlg-cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.25);
+  position: sticky;
+  top: 0;
+  background: var(--crema-clara);
+  z-index: 1;
+}
+
+.dlg-admins h2 {
+  font-family: var(--fuente-display);
+  color: var(--verde);
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.dlg-admins .dlg-cuerpo {
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+.dlg-admins .auth-h2 {
+  margin-top: 1rem;
+}
+
+.form-invitar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.6rem 0.85rem;
+  align-items: end;
+}
+
+.form-invitar label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.tabla-personas {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tabla-personas th {
+  text-align: left;
+  font-size: 0.78rem;
+  font-weight: 560;
+  color: var(--texto-suave);
+  padding: 0.4rem 0.4rem;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.3);
+}
+
+.tabla-personas td {
+  padding: 0.5rem 0.4rem;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.15);
+  vertical-align: middle;
+}
+
+.tabla-personas .persona strong {
+  display: block;
+  color: var(--texto);
+}
+
+.tabla-personas .persona span {
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+  word-break: break-all;
+}
+
+.tabla-personas select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid rgba(154, 79, 46, 0.35);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  max-width: 12rem;
+}
+
+.tabla-personas select:disabled {
+  opacity: 0.45;
+}
+
+.tabla-personas input[type="checkbox"] {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--terracota);
+  cursor: pointer;
+}
+
+.tabla-personas .estado {
+  font-size: 0.78rem;
+  color: var(--verde);
+  white-space: nowrap;
+}
+
+.btn-chico {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid rgba(154, 79, 46, 0.35);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  color: var(--texto);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-chico:hover {
+  border-color: var(--terracota);
+  color: var(--terracota);
+}
+
+@media (max-width: 40rem) {
+  .tabla-personas thead {
+    display: none;
+  }
+
+  .tabla-personas tr {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.35rem 0.6rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(154, 79, 46, 0.2);
+  }
+
+  .tabla-personas td {
+    border: none;
+    padding: 0;
+  }
+
+  .tabla-personas td.persona {
+    grid-column: 1 / -1;
+  }
+}
+

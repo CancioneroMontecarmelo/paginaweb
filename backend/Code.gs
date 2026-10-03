@@ -3,20 +3,24 @@
  *
  * Implementar como «Aplicación web»: Ejecutar como = Yo · Quién tiene acceso = Cualquier usuario.
  * El sitio (GitHub Pages) envía POST con cuerpo JSON en text/plain (sin preflight CORS).
+ * Sin claves: se entra con «Entrar con Google» (el servidor verifica la cuenta con Google) o, como
+ * visitante, escribiendo solo el correo. Los privilegios los asignan los responsables desde el panel.
  *
  * Drive:
  *   MonteCarmelo/
- *     sistema/usuarios.json · solicitudes.json · auditoria.json   (privados)
+ *     sistema/usuarios.json · auditoria.json                     (privados)
  *     indice.json                                                (lista pública de cancioneros)
  *     Cancioneros/<comunidad>/<fecha>_<slug>/
  *        cancionero.m3u8 · canciones/*.md · audios/* · <slug>.html
  */
 
-var SALT = 'montecarmelo-v1';
 var CORREO_PARROQUIA = 'cancionerolitugico@gmail.com';
 var RAIZ_NOMBRE = 'MonteCarmelo';
 var TOKEN_HORAS = 12;
 var MAX_ARCHIVO_BYTES = 30 * 1024 * 1024;
+var SITIO_URL = 'https://cancioneromontecarmelo.github.io/paginaweb/';
+// «ID de cliente» OAuth (Google Cloud → Credenciales). Es público: el mismo va en js/config.js.
+var GOOGLE_CLIENT_ID = '446127505219-pei616euh78muqr6ak500br0ac41t2mk.apps.googleusercontent.com';
 
 var COMUNIDADES = {
   'maria-de-nazaret': 'Capilla María de Nazaret',
@@ -25,18 +29,23 @@ var COMUNIDADES = {
   'monte-carmelo': 'Nuestra Señora del Monte Carmelo'
 };
 
+// Roles con privilegios. Cualquier otra cuenta es «visitante».
+var ROLES = {
+  admin_general: 'Administrador general',
+  admin_segundo: 'Responsable del sitio',
+  sacerdote: 'Sacerdote',
+  admin: 'Administrador de comunidad',
+  editor: 'Editor',
+  colaborador: 'Colaborador'
+};
+
 var ADMIN_SEMILLA = {
   id: 'u-marcos',
-  usuario: 'marcos.mora',
-  nombres: 'Marcos',
-  apellidos: 'Mora Vitta',
   nombre: 'Marcos Mora Vitta',
   email: CORREO_PARROQUIA,
   rol: 'admin_general',
   comunidad: 'parroquia',
-  hash: 'b35c972e25b1cb54b3ce4e281f7356d6f9b65da4a1f975b8d8ad041dc1774c3d',
-  activo: true,
-  debeCambiarClave: false
+  activo: true
 };
 
 // ==================== ENTRADA ====================
@@ -46,9 +55,7 @@ function doGet(e) {
   try {
     if (p.accion === 'listar') return json_(listar_(p));
     if (p.accion === 'ver') return verHtml_(p.id);
-    if (p.accion === 'estadoCorreo') return json_({ ok: true, cuotaCorreo: MailApp.getRemainingDailyQuota() });
-    if (p.accion === 'diagAdmin') return json_(diagAdmin_());
-    return json_({ ok: true, app: 'MonteCarmelo', version: 1 });
+    return json_({ ok: true, app: 'MonteCarmelo', version: 2 });
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
   }
@@ -73,18 +80,13 @@ function doPost(e) {
 }
 
 var ACCIONES = {
-  login: login_,
+  entrarGoogle: entrarGoogle_,
+  entrarVisitante: entrarVisitante_,
   sesion: function (d) { return { sesion: sesionPublica_(usuarioDeToken_(d.token)) }; },
-  cambiarClave: cambiarClave_,
-  recuperarClave: recuperarClave_,
-  crearUsuario: crearUsuario_,
-  solicitarAcceso: solicitarAcceso_,
-  listarSolicitudes: listarSolicitudes_,
-  aceptarSolicitud: aceptarSolicitud_,
-  rechazarSolicitud: rechazarSolicitud_,
   listarUsuarios: listarUsuarios_,
-  darDeBaja: darDeBaja_,
-  nombrarSegundo: nombrarSegundo_,
+  asignarRol: asignarRol_,
+  invitar: invitar_,
+  eliminarUsuario: eliminarUsuario_,
   auditoria: auditoria_,
   iniciarCancionero: iniciarCancionero_,
   subirArchivo: subirArchivo_,
@@ -101,16 +103,12 @@ function json_(obj) {
 
 // ==================== UTILIDADES ====================
 
-function hex_(bytes) {
-  return bytes.map(function (b) { return ((b + 256) % 256).toString(16).replace(/^(.)$/, '0$1'); }).join('');
-}
-
-function hashClave_(clave) {
-  return hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, SALT + String(clave || ''), Utilities.Charset.UTF_8));
-}
-
 function normEmail_(s) {
   return String(s || '').trim().toLowerCase();
+}
+
+function emailValido_(e) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 }
 
 function slug_(s) {
@@ -151,15 +149,14 @@ function usuarioDeToken_(token) {
   var datos = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(partes[0])).getDataAsString('UTF-8'));
   if (!datos.exp || datos.exp < Date.now()) throw new Error('La sesión venció. Volvé a identificarte.');
   var u = buscarUsuario_(datos.email);
-  if (!u || u.activo === false) throw new Error('Cuenta inexistente o dada de baja.');
+  if (!u || u.activo === false) throw new Error('Cuenta inexistente o sin acceso.');
   return u;
 }
 
 function sesionPublica_(u) {
   return {
-    id: u.id, usuario: u.usuario, email: u.email, nombres: u.nombres || '', apellidos: u.apellidos || '',
-    nombre: u.nombre || [u.nombres, u.apellidos].filter(String).join(' '),
-    rol: u.rol, comunidad: u.comunidad, debeCambiarClave: !!u.debeCambiarClave, activo: true
+    id: u.id, email: u.email, nombre: u.nombre || u.email, foto: u.foto || '',
+    rol: ROLES[u.rol] ? u.rol : 'visitante', comunidad: u.comunidad || '', activo: u.activo !== false
   };
 }
 
@@ -168,13 +165,13 @@ function esResponsable_(u) {
 }
 
 function puedeEditar_(u, comunidad) {
-  if (!u || u.activo === false) return false;
+  if (!u || u.activo === false || !ROLES[u.rol]) return false;
   if (esResponsable_(u) || u.rol === 'sacerdote' || u.comunidad === 'parroquia') return true;
   return u.comunidad === comunidad;
 }
 
 function exigirResponsable_(u) {
-  if (!esResponsable_(u)) throw new Error('Solo el administrador general o el segundo responsable pueden hacer esto.');
+  if (!esResponsable_(u)) throw new Error('Solo el administrador general o un responsable del sitio pueden hacer esto.');
 }
 
 // ==================== CARPETAS Y JSON EN DRIVE ====================
@@ -262,106 +259,6 @@ function auditar_(evento) {
   });
 }
 
-// Clave temporal pedida con «¿Primera vez u olvidaste tu clave?»: sirve 2 horas y no reemplaza a la
-// clave actual (así nadie puede dejar a otro sin acceso pidiendo recuperaciones).
-function usaRecuperacion_(u, hash, hashTemporal) {
-  if (!u.hashRecuperacion || !(u.recuperacionVence > Date.now())) return false;
-  return u.hashRecuperacion === String(hash || '') || u.hashRecuperacion === String(hashTemporal || '');
-}
-
-function login_(d) {
-  var u = buscarUsuario_(d.email);
-  var temporal = !!u && u.hash !== String(d.hash || '') && usaRecuperacion_(u, d.hash, d.hashTemporal);
-  if (!u || (u.hash !== String(d.hash || '') && !temporal)) {
-    auditar_({ tipo: 'login_fallido', email: normEmail_(d.email), nombres: d.nombres || '', apellidos: d.apellidos || '' });
-    throw new Error('Datos incorrectos. Revisá correo y clave.');
-  }
-  if (u.activo === false) {
-    auditar_({ tipo: 'login_baja', email: u.email, nombre: u.nombre });
-    throw new Error('Esta cuenta está dada de baja. Contactá a la parroquia.');
-  }
-  auditar_({ tipo: temporal ? 'entrada_clave_temporal' : 'entrada', email: u.email, nombre: u.nombre, rol: u.rol, comunidad: u.comunidad });
-  var sesion = sesionPublica_(u);
-  if (temporal) sesion.debeCambiarClave = true;
-  return { token: crearToken_(u), sesion: sesion };
-}
-
-function cambiarClave_(d) {
-  var u = usuarioDeToken_(d.token);
-  if (!/^[0-9a-f]{64}$/.test(String(d.hashNuevo || ''))) throw new Error('Clave nueva inválida');
-  return conCandado_(function () {
-    var lista = leerUsuarios_();
-    var x = lista.filter(function (v) { return normEmail_(v.email) === normEmail_(u.email); })[0];
-    if (x.hash !== d.hashActual && !usaRecuperacion_(x, d.hashActual, d.hashTemporal)) throw new Error('Clave actual o temporal incorrecta');
-    x.hash = d.hashNuevo;
-    x.debeCambiarClave = false;
-    delete x.hashRecuperacion;
-    delete x.recuperacionVence;
-    guardarUsuarios_(lista);
-    auditar_({ tipo: 'cambio_clave', email: x.email, nombre: x.nombre });
-    return { sesion: sesionPublica_(x) };
-  });
-}
-
-function listarUsuarios_(d) {
-  exigirResponsable_(usuarioDeToken_(d.token));
-  return {
-    usuarios: leerUsuarios_().map(function (u) {
-      var s = sesionPublica_(u);
-      s.activo = u.activo !== false;
-      s.creado = u.creado || '';
-      return s;
-    })
-  };
-}
-
-function darDeBaja_(d) {
-  var yo = usuarioDeToken_(d.token);
-  var email = normEmail_(d.email);
-  var propio = email === normEmail_(yo.email);
-  if (!propio && !esResponsable_(yo) && yo.rol !== 'admin' && yo.rol !== 'sacerdote') throw new Error('Sin permiso para dar de baja');
-  if (email === normEmail_(ADMIN_SEMILLA.email) && !propio) throw new Error('No se puede dar de baja al administrador general');
-  return conCandado_(function () {
-    var lista = leerUsuarios_();
-    var u = lista.filter(function (v) { return normEmail_(v.email) === email; })[0];
-    if (!u) throw new Error('Usuario no encontrado');
-    u.activo = false;
-    u.baja = ahora_();
-    u.motivoBaja = String(d.motivo || '');
-    u.bajaPor = yo.email;
-    guardarUsuarios_(lista);
-    auditar_({ tipo: 'baja', email: u.email, nombre: u.nombre, por: yo.email, motivo: u.motivoBaja });
-    correo_(u.email, 'Baja en el sitio Monte Carmelo',
-      'Hola ' + u.nombre + ',\n\nTu cuenta en el sitio de la Parroquia Nuestra Señora del Monte Carmelo fue dada de baja.\nMotivo: ' +
-      (u.motivoBaja || '—') + '\n\nSi creés que es un error, escribí a ' + CORREO_PARROQUIA + '.');
-    return { usuario: sesionPublica_(u) };
-  });
-}
-
-function nombrarSegundo_(d) {
-  var yo = usuarioDeToken_(d.token);
-  if (yo.rol !== 'admin_general') throw new Error('Solo el administrador general puede nombrar al segundo responsable');
-  return conCandado_(function () {
-    var lista = leerUsuarios_();
-    var u = lista.filter(function (v) { return normEmail_(v.email) === normEmail_(d.email) && v.activo !== false; })[0];
-    if (!u) throw new Error('Usuario no encontrado o inactivo');
-    lista.forEach(function (v) { if (v.rol === 'admin_segundo') v.rol = 'admin'; });
-    u.rol = 'admin_segundo';
-    u.comunidad = u.comunidad || 'parroquia';
-    guardarUsuarios_(lista);
-    auditar_({ tipo: 'nombrar_segundo', email: u.email, nombre: u.nombre, por: yo.email });
-    return { usuario: sesionPublica_(u) };
-  });
-}
-
-function auditoria_(d) {
-  exigirResponsable_(usuarioDeToken_(d.token));
-  var log = leerJson_(sistema_(), 'auditoria.json', []);
-  return { auditoria: log.slice(0, Number(d.limite) || 50) };
-}
-
-// ==================== SOLICITUDES ====================
-
 function correo_(para, asunto, cuerpo) {
   try {
     MailApp.sendEmail({ to: para, subject: asunto, body: cuerpo, name: 'Parroquia Monte Carmelo' });
@@ -373,176 +270,166 @@ function correo_(para, asunto, cuerpo) {
   }
 }
 
-function solicitarAcceso_(d) {
-  var email = normEmail_(d.email);
-  if (!email || email.indexOf('@') < 0) throw new Error('Indicá un correo electrónico válido');
-  var nombres = String(d.nombres || '').trim();
-  var apellidos = String(d.apellidos || '').trim();
-  if (!nombres || !apellidos) throw new Error('Indicá nombres y apellidos');
-  var comunidad = String(d.comunidad || '').trim();
-  if (!comunidad) throw new Error('Elegí la comunidad');
-  var rolPedido = d.rolPedido === 'sacerdote' ? 'sacerdote' : d.rolPedido === 'editor' ? 'editor' : 'admin';
-  var previo = buscarUsuario_(email);
-  if (previo && previo.activo !== false) throw new Error('Ese correo ya está registrado. Iniciá sesión.');
-
-  var codigo = String(Math.floor(100000 + Math.random() * 900000));
-  var sol = {
-    id: 'sol-' + Date.now(), nombres: nombres, apellidos: apellidos, nombre: nombres + ' ' + apellidos,
-    email: email, comunidad: comunidad, rolPedido: rolPedido, motivo: String(d.motivo || '').trim(),
-    codigoHash: hashClave_(codigo), estado: 'pendiente', creado: ahora_()
-  };
-  conCandado_(function () {
-    var lista = leerJson_(sistema_(), 'solicitudes.json', []);
-    lista.unshift(sol);
-    escribirJson_(sistema_(), 'solicitudes.json', lista);
-  });
-  auditar_({ tipo: 'solicitud', email: email, nombre: sol.nombre, comunidad: comunidad, rolPedido: rolPedido });
-
-  correo_(CORREO_PARROQUIA, 'Solicitud de acceso: ' + sol.nombre,
-    'Nueva solicitud en el sitio Monte Carmelo.\n\nNombre: ' + sol.nombre + '\nCorreo: ' + email +
-    '\nComunidad: ' + (COMUNIDADES[comunidad] || comunidad) + '\nRol pedido: ' + rolPedido +
-    '\nMotivo: ' + (sol.motivo || '—') + '\n\nCódigo de verificación: ' + codigo +
-    '\n\nAceptala desde login.html → Panel responsables.');
-  correo_(email, 'Recibimos tu solicitud — Parroquia Monte Carmelo',
-    'Hola ' + sol.nombre + ',\n\nRecibimos tu solicitud de acceso como ' + rolPedido +
-    '. Cuando un responsable la acepte te llegará un correo con tu clave temporal.');
-  return { solicitud: { id: sol.id, estado: sol.estado } };
+// Comprueba con Google el «ID token» que entrega el botón «Entrar con Google»
+function verificarGoogle_(credencial) {
+  if (!GOOGLE_CLIENT_ID) throw new Error('Falta configurar el ID de cliente de Google en el servidor.');
+  var r = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(String(credencial || '')),
+    { muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) throw new Error('Google no confirmó tu cuenta. Probá de nuevo.');
+  var info = JSON.parse(r.getContentText());
+  if (info.aud !== GOOGLE_CLIENT_ID) throw new Error('La cuenta de Google no es para este sitio.');
+  if (String(info.email_verified) !== 'true') throw new Error('Tu correo de Google no está verificado.');
+  if (Number(info.exp) * 1000 < Date.now()) throw new Error('El ingreso con Google venció. Probá de nuevo.');
+  return { email: normEmail_(info.email), nombre: info.name || '', foto: info.picture || '' };
 }
 
-function listarSolicitudes_(d) {
-  exigirResponsable_(usuarioDeToken_(d.token));
-  var lista = leerJson_(sistema_(), 'solicitudes.json', []);
+function entrarGoogle_(d) {
+  var g = verificarGoogle_(d.credential);
+  var u = conCandado_(function () {
+    var lista = leerUsuarios_();
+    var x = lista.filter(function (v) { return normEmail_(v.email) === g.email; })[0];
+    if (!x) {
+      x = { id: 'u-' + Date.now(), email: g.email, rol: 'visitante', comunidad: '', activo: true, creado: ahora_() };
+      lista.push(x);
+    }
+    if (g.email === normEmail_(CORREO_PARROQUIA)) {
+      x.rol = 'admin_general';
+      x.comunidad = 'parroquia';
+      x.activo = true;
+    }
+    if (g.nombre && (!x.nombre || x.nombre === x.email)) x.nombre = g.nombre;
+    if (g.foto) x.foto = g.foto;
+    x.verificado = true;
+    x.ultimaEntrada = ahora_();
+    ['hash', 'hashRecuperacion', 'recuperacionVence', 'recuperacionPedida', 'debeCambiarClave'].forEach(function (k) { delete x[k]; });
+    guardarUsuarios_(lista);
+    return x;
+  });
+  if (u.activo === false) throw new Error('Esta cuenta no tiene acceso. Contactá a la parroquia.');
+  auditar_({ tipo: 'entrada', email: u.email, nombre: u.nombre, rol: u.rol, comunidad: u.comunidad });
+  return { token: crearToken_(u), sesion: sesionPublica_(u) };
+}
+
+// Solo correo, sin verificar: queda anotado como visitante y nunca recibe privilegios ni token
+function entrarVisitante_(d) {
+  var email = normEmail_(d.email);
+  if (!emailValido_(email)) throw new Error('Escribí un correo electrónico válido.');
+  var nombre = String(d.nombre || '').trim().slice(0, 80);
+  var conPermisos = false;
+  conCandado_(function () {
+    var lista = leerUsuarios_();
+    var x = lista.filter(function (v) { return normEmail_(v.email) === email; })[0];
+    if (x) {
+      conPermisos = !!ROLES[x.rol];
+      if (!x.verificado && nombre) x.nombre = nombre;
+    } else {
+      lista.push({ id: 'u-' + Date.now(), email: email, nombre: nombre || email, rol: 'visitante', comunidad: '', activo: true, creado: ahora_() });
+    }
+    guardarUsuarios_(lista);
+  });
+  auditar_({ tipo: 'entrada_visitante', email: email, nombre: nombre });
   return {
-    solicitudes: lista.map(function (s) {
-      var c = {};
-      for (var k in s) if (k !== 'codigoHash') c[k] = s[k];
-      return c;
+    sesion: { email: email, nombre: nombre || email, rol: 'visitante', comunidad: '', activo: true },
+    aviso: conPermisos ? 'Esta cuenta tiene permisos: para usarlos entrá con el botón de Google.' : ''
+  };
+}
+
+function listarUsuarios_(d) {
+  exigirResponsable_(usuarioDeToken_(d.token));
+  return {
+    usuarios: leerUsuarios_().map(function (u) {
+      var s = sesionPublica_(u);
+      s.verificado = !!u.verificado;
+      s.invitado = !!u.invitado;
+      s.ultimaEntrada = u.ultimaEntrada || '';
+      s.creado = u.creado || '';
+      return s;
     })
   };
 }
 
-// Sin letras confundibles (l/1, o/0) y en minúsculas: el navegador manda además el hash de lo escrito
-// sin espacios y en minúsculas (hashTemporal), así un espacio copiado o una mayúscula no la invalidan.
-function claveTemporal_() {
-  var abc = 'abcdefghjkmnpqrstuvwxyz23456789';
-  var s = '';
-  for (var i = 0; i < 8; i++) s += abc.charAt(Math.floor(Math.random() * abc.length));
-  return s;
+// Crea o actualiza la persona y le asigna rol y comunidad (rol 'visitante' = sin privilegios)
+function aplicarRol_(yo, d) {
+  var email = normEmail_(d.email);
+  if (!emailValido_(email)) throw new Error('Escribí un correo electrónico válido.');
+  if (email === normEmail_(CORREO_PARROQUIA)) throw new Error('El administrador general no se puede modificar.');
+  var rol = ROLES[d.rol] && d.rol !== 'admin_general' ? d.rol : 'visitante';
+  if (rol === 'admin_segundo' && yo.rol !== 'admin_general') throw new Error('Solo el administrador general puede nombrar responsables del sitio.');
+  var comunidad = String(d.comunidad || '');
+  if (comunidad !== 'parroquia' && !COMUNIDADES[comunidad]) comunidad = '';
+  if (rol !== 'visitante' && !comunidad) comunidad = 'parroquia';
+  return conCandado_(function () {
+    var lista = leerUsuarios_();
+    var x = lista.filter(function (v) { return normEmail_(v.email) === email; })[0];
+    if (!x) {
+      x = { id: 'u-' + Date.now(), email: email, nombre: String(d.nombre || '').trim() || email, creado: ahora_() };
+      lista.push(x);
+    } else if (x.rol === 'admin_segundo' && yo.rol !== 'admin_general') {
+      throw new Error('Solo el administrador general puede cambiar a un responsable del sitio.');
+    }
+    if (d.nombre && !x.verificado) x.nombre = String(d.nombre).trim();
+    x.rol = rol;
+    x.comunidad = comunidad;
+    x.activo = true;
+    x.modificadoPor = yo.email;
+    guardarUsuarios_(lista);
+    return x;
+  });
 }
 
-// Siempre responde lo mismo, exista o no el correo (no revela quién está registrado)
-function recuperarClave_(d) {
-  var email = normEmail_(d.email);
-  if (!email || email.indexOf('@') < 0) throw new Error('Indicá un correo electrónico válido');
+function asignarRol_(d) {
+  var yo = usuarioDeToken_(d.token);
+  exigirResponsable_(yo);
+  var x = aplicarRol_(yo, d);
+  auditar_({ tipo: 'permisos', email: x.email, nombre: x.nombre, rol: x.rol, comunidad: x.comunidad, por: yo.email });
+  return { usuario: sesionPublica_(x) };
+}
+
+function textoInvitacion_(yo, x) {
+  return 'Hola' + (x.nombre && x.nombre !== x.email ? ' ' + x.nombre : '') + ', ' + (yo.nombre || 'la parroquia') +
+    ' te invita a ser ' + (ROLES[x.rol] || 'parte') + ' (' + (COMUNIDADES[x.comunidad] || 'Parroquia') +
+    ') en el sitio de la Parroquia Nuestra Señora del Monte Carmelo.\n\n' +
+    'Para entrar abrí ' + SITIO_URL + 'login.html y tocá «Entrar con Google» con la cuenta ' + x.email + '. No necesitás clave.';
+}
+
+function invitar_(d) {
+  var yo = usuarioDeToken_(d.token);
+  exigirResponsable_(yo);
+  if (!ROLES[d.rol]) throw new Error('Elegí qué privilegios tendrá.');
+  var x = aplicarRol_(yo, d);
   conCandado_(function () {
     var lista = leerUsuarios_();
-    var u = lista.filter(function (v) { return normEmail_(v.email) === email && v.activo !== false; })[0];
-    if (!u) {
-      auditar_({ tipo: 'recuperacion_desconocido', email: email });
-      return;
-    }
-    if (u.recuperacionPedida && Date.now() - u.recuperacionPedida < 60 * 1000) return;
-    var temp = claveTemporal_();
-    u.hashRecuperacion = hashClave_(temp);
-    u.recuperacionVence = Date.now() + 2 * 3600 * 1000;
-    u.recuperacionPedida = Date.now();
+    var y = lista.filter(function (v) { return normEmail_(v.email) === normEmail_(x.email); })[0];
+    y.invitado = true;
+    y.invitadoPor = yo.email;
     guardarUsuarios_(lista);
-    auditar_({ tipo: 'recuperacion', email: u.email, nombre: u.nombre });
-    correo_(u.email, 'Tu clave temporal — Parroquia Monte Carmelo',
-      'Hola ' + u.nombre + ',\n\nPediste entrar al sitio de la Parroquia Nuestra Señora del Monte Carmelo.\n\n' +
-      'Clave temporal: ' + temp + '\n\nSirve durante 2 horas. Entrá en Identificarse con tu correo y esta clave: ' +
-      'el sitio te pedirá crear tu clave definitiva.\n\nSi no lo pediste, ignorá este correo: tu clave actual sigue funcionando.');
   });
+  var texto = textoInvitacion_(yo, x);
+  var enviado = d.porCorreo ? correo_(x.email, 'Invitación al sitio — Parroquia Monte Carmelo', texto) : false;
+  auditar_({ tipo: 'invitacion', email: x.email, nombre: x.nombre, rol: x.rol, comunidad: x.comunidad, por: yo.email, correo: enviado });
+  return { usuario: sesionPublica_(x), texto: texto, correoEnviado: enviado };
+}
+
+function eliminarUsuario_(d) {
+  var yo = usuarioDeToken_(d.token);
+  exigirResponsable_(yo);
+  var email = normEmail_(d.email);
+  if (email === normEmail_(CORREO_PARROQUIA)) throw new Error('El administrador general no se puede quitar.');
+  conCandado_(function () {
+    var lista = leerUsuarios_();
+    var x = lista.filter(function (v) { return normEmail_(v.email) === email; })[0];
+    if (!x) return;
+    if (x.rol === 'admin_segundo' && yo.rol !== 'admin_general') throw new Error('Solo el administrador general puede quitar a un responsable del sitio.');
+    guardarUsuarios_(lista.filter(function (v) { return v !== x; }));
+  });
+  auditar_({ tipo: 'quitado', email: email, por: yo.email });
   return {};
 }
 
-var ROLES_ASIGNABLES = ['admin', 'editor', 'sacerdote', 'colaborador'];
-
-function crearUsuario_(d) {
-  var yo = usuarioDeToken_(d.token);
-  exigirResponsable_(yo);
-  var email = normEmail_(d.email);
-  if (!email || email.indexOf('@') < 0) throw new Error('Indicá un correo electrónico válido');
-  var nombres = String(d.nombres || '').trim();
-  var apellidos = String(d.apellidos || '').trim();
-  if (!nombres || !apellidos) throw new Error('Indicá nombres y apellidos');
-  var rol = ROLES_ASIGNABLES.indexOf(d.rol) >= 0 ? d.rol : 'editor';
-  var comunidad = String(d.comunidad || '').trim();
-  if (comunidad !== 'parroquia' && !COMUNIDADES[comunidad]) throw new Error('Elegí la comunidad');
-  return conCandado_(function () {
-    var lista = leerUsuarios_();
-    var previo = lista.filter(function (u) { return normEmail_(u.email) === email; })[0];
-    if (previo && previo.activo !== false) throw new Error('Ese correo ya tiene una cuenta activa');
-    var temp = claveTemporal_();
-    var usuario = {
-      id: 'u-' + Date.now(),
-      usuario: slug_(nombres + '.' + apellidos).replace(/-/g, '.'),
-      nombres: nombres, apellidos: apellidos, nombre: nombres + ' ' + apellidos, email: email,
-      rol: rol, comunidad: comunidad, hash: hashClave_(temp), activo: true, debeCambiarClave: true,
-      creado: ahora_(), aceptadoPor: yo.email
-    };
-    lista = lista.filter(function (u) { return normEmail_(u.email) !== email; });
-    lista.push(usuario);
-    guardarUsuarios_(lista);
-    auditar_({ tipo: 'alta_directa', email: email, nombre: usuario.nombre, rol: rol, comunidad: comunidad, por: yo.email });
-    var enviado = correo_(email, 'Tu cuenta en el sitio — Parroquia Monte Carmelo',
-      'Hola ' + usuario.nombre + ',\n\n' + yo.nombre + ' te creó una cuenta en el sitio de la Parroquia Nuestra Señora del Monte Carmelo como ' +
-      rol + ' (' + (COMUNIDADES[comunidad] || 'Parroquia') + ').\n\nCorreo: ' + email + '\nClave temporal: ' + temp +
-      '\n\nAl entrar por primera vez en Identificarse el sitio te pedirá crear tu clave definitiva.');
-    return { usuario: sesionPublica_(usuario), claveTemporal: temp, correoEnviado: enviado };
-  });
-}
-
-function aceptarSolicitud_(d) {
-  var yo = usuarioDeToken_(d.token);
-  exigirResponsable_(yo);
-  return conCandado_(function () {
-    var sols = leerJson_(sistema_(), 'solicitudes.json', []);
-    var sol = sols.filter(function (s) { return s.id === d.id; })[0];
-    if (!sol || sol.estado !== 'pendiente') throw new Error('Solicitud no encontrada o ya resuelta');
-    if (hashClave_(String(d.codigo || '').trim()) !== sol.codigoHash) throw new Error('Código de verificación incorrecto');
-
-    var temp = claveTemporal_();
-    var rol = d.rol || sol.rolPedido;
-    var usuarios = leerUsuarios_().filter(function (u) { return normEmail_(u.email) !== sol.email; });
-    var usuario = {
-      id: 'u-' + Date.now(),
-      usuario: slug_(sol.nombres + '.' + sol.apellidos).replace(/-/g, '.'),
-      nombres: sol.nombres, apellidos: sol.apellidos, nombre: sol.nombre, email: sol.email,
-      rol: rol, comunidad: sol.comunidad, hash: hashClave_(temp), activo: true, debeCambiarClave: true,
-      creado: ahora_(), aceptadoPor: yo.email
-    };
-    usuarios.push(usuario);
-    guardarUsuarios_(usuarios);
-
-    sol.estado = 'aceptada';
-    sol.resuelto = ahora_();
-    sol.resueltoPor = yo.email;
-    escribirJson_(sistema_(), 'solicitudes.json', sols);
-    auditar_({ tipo: 'aceptacion', email: usuario.email, nombre: usuario.nombre, rol: rol, comunidad: usuario.comunidad, por: yo.email });
-
-    var enviado = correo_(usuario.email, 'Acceso aceptado — Parroquia Monte Carmelo',
-      'Hola ' + usuario.nombre + ',\n\nTu acceso fue aceptado como ' + rol + ' (' + (COMUNIDADES[usuario.comunidad] || usuario.comunidad) +
-      ').\n\nClave temporal: ' + temp + '\n\nAl entrar por primera vez el sitio te pedirá crear tu clave definitiva.');
-    return { usuario: sesionPublica_(usuario), claveTemporal: temp, correoEnviado: enviado };
-  });
-}
-
-function rechazarSolicitud_(d) {
-  var yo = usuarioDeToken_(d.token);
-  exigirResponsable_(yo);
-  return conCandado_(function () {
-    var sols = leerJson_(sistema_(), 'solicitudes.json', []);
-    var sol = sols.filter(function (s) { return s.id === d.id; })[0];
-    if (!sol || sol.estado !== 'pendiente') throw new Error('Solicitud no encontrada');
-    sol.estado = 'rechazada';
-    sol.motivoRechazo = String(d.motivo || '');
-    sol.resuelto = ahora_();
-    sol.resueltoPor = yo.email;
-    escribirJson_(sistema_(), 'solicitudes.json', sols);
-    auditar_({ tipo: 'rechazo', email: sol.email, nombre: sol.nombre, por: yo.email });
-    return {};
-  });
+function auditoria_(d) {
+  exigirResponsable_(usuarioDeToken_(d.token));
+  var log = leerJson_(sistema_(), 'auditoria.json', []);
+  return { auditoria: log.slice(0, Number(d.limite) || 50) };
 }
 
 // ==================== CANCIONEROS ====================
@@ -724,54 +611,14 @@ function borrarCancionero_(d) {
   return {};
 }
 
-/** Ejecutar una vez a mano desde el editor de Apps Script para autorizar Drive y correo. */
+/** Ejecutar a mano desde el editor de Apps Script (una vez, y otra si cambian los permisos) para autorizar
+ *  Drive, correo y la verificación de cuentas de Google. */
 function prepararPrimeraVez() {
   raiz_();
   sistema_();
   leerUsuarios_();
   secreto_();
+  UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=prueba', { muteHttpExceptions: true });
   console.log('Listo. Carpeta raíz: ' + raiz_().getUrl());
-}
-
-function diagAdmin_() {
-  var archivos = [];
-  var it = sistema_().getFilesByName('usuarios.json');
-  while (it.hasNext()) { var f = it.next(); archivos.push({ id: f.getId().slice(0, 6), modificado: f.getLastUpdated() }); }
-  var raices = 0;
-  var r = DriveApp.getRootFolder().getFoldersByName(RAIZ_NOMBRE);
-  while (r.hasNext()) { r.next(); raices++; }
-  var u = buscarUsuario_(CORREO_PARROQUIA);
-  return {
-    ok: true, archivosUsuarios: archivos, carpetasRaiz: raices, totalUsuarios: leerUsuarios_().length,
-    admin: u ? {
-      activo: u.activo !== false, rol: u.rol, tieneTemporal: !!u.hashRecuperacion,
-      venceEnMin: u.recuperacionVence ? Math.round((u.recuperacionVence - Date.now()) / 60000) : null,
-      largoHashTemporal: String(u.hashRecuperacion || '').length
-    } : null
-  };
-}
-
-// Ejecutar desde el editor de Apps Script si el correo de «¿Primera vez…?» no llega: la clave temporal
-// aparece en el registro de ejecución (solo lo ve el dueño del script) y sirve 2 horas.
-function claveTemporalAdmin() {
-  var temp = claveTemporal_();
-  conCandado_(function () {
-    var lista = leerUsuarios_();
-    var u = lista.filter(function (v) { return normEmail_(v.email) === normEmail_(CORREO_PARROQUIA); })[0];
-    if (!u) { u = JSON.parse(JSON.stringify(ADMIN_SEMILLA)); lista.push(u); }
-    u.activo = true;
-    u.hashRecuperacion = hashClave_(temp);
-    u.recuperacionVence = Date.now() + 2 * 3600 * 1000;
-    guardarUsuarios_(lista);
-  });
-  auditar_({ tipo: 'recuperacion_editor', email: CORREO_PARROQUIA });
-  console.log('Correo: ' + CORREO_PARROQUIA + ' — sirve 2 horas; solo vale la última clave generada.');
-  console.log(temp);
-  try {
-    console.log('Correos disponibles hoy: ' + MailApp.getRemainingDailyQuota());
-    MailApp.sendEmail(CORREO_PARROQUIA, 'Prueba de correo — Monte Carmelo', 'Si ves este correo, el envío funciona.');
-    console.log('Correo de prueba enviado a ' + CORREO_PARROQUIA);
-  } catch (err) {
-    console.log('El envío de correo falla: ' + err);
-  }
+  console.log(GOOGLE_CLIENT_ID ? 'ID de cliente de Google configurado.' : 'Falta GOOGLE_CLIENT_ID al principio de Code.gs.');
 }

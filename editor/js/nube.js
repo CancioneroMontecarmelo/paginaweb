@@ -5,7 +5,6 @@
 // Sin apiUrl en js/config.js solo funcionan las carpetas del equipo.
 
 const MC_API = (window.MONTECARMELO_CONFIG || {}).apiUrl || '';
-const MC_SALT = 'montecarmelo-v1';
 const MC_SESION = 'montecarmelo.sesion';
 const MC_MAX_ARCHIVO = 30 * 1024 * 1024;
 const MC_COMUNIDADES = {
@@ -43,11 +42,6 @@ function mcPintarSesion() {
   box.title = s ? `${s.nombre || ''} · ${s.email}` : '';
 }
 
-async function mcHash(clave) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(MC_SALT + clave));
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
 async function mcApi(accion, datos = {}) {
   let r;
   try {
@@ -82,41 +76,27 @@ function mcError(titulo, e) {
   showModal({ title: titulo, body: `<p>${escapeHtml(e.message || String(e))}</p>` });
 }
 
-// Devuelve la sesión con token, pidiendo correo y clave si hace falta (null si se canceló)
+// Devuelve la sesión con token, pidiendo entrar con Google si hace falta (null si se canceló)
 async function mcEntrar() {
   const vigente = mcSesion();
   if (vigente) return vigente;
   let sesion = null;
   await showModal({
     title: 'Identificarse',
-    body: `<p>Para usar el Drive de la parroquia entra con tu cuenta del sitio.</p>
-      <div class="mc-campos">
-        <label for="mcEmail">Correo electrónico</label><input type="email" id="mcEmail" autocomplete="email">
-        <label for="mcClave">Clave</label><input type="password" id="mcClave" autocomplete="current-password">
-      </div>
-      <p class="hint">¿No tienes cuenta? <a href="../login.html" target="_blank" rel="noopener">Solicita acceso</a>.</p>`,
-    onOpen: d => d.querySelector('#mcEmail').focus(),
-    buttons: [
-      { label: 'Cancelar' },
-      {
-        label: 'Entrar', primary: true,
-        onClick: d => {
-          const email = d.querySelector('#mcEmail').value.trim();
-          const clave = d.querySelector('#mcClave').value;
-          if (!email || !clave) return modalFail(d, 'Escribe tu correo y tu clave.');
-          modalFail(d, 'Entrando…');
-          mcHash(clave).then(hash => mcApi('login', { email, hash })).then(r => {
-            sesion = { ...r.sesion, token: r.token, desde: Date.now() };
-            localStorage.setItem(MC_SESION, JSON.stringify(sesion));
-            mcPintarSesion();
-            d.close();
-          }, e => modalFail(d, e.message));
-          return false;
-        }
-      }
-    ]
+    body: `<p>Para usar el Drive de la parroquia entra con tu cuenta de Google (no hace falta clave).</p>
+      <div id="mcGoogle" style="min-height:44px;margin:.75rem 0"></div>
+      <p class="hint">Si tu cuenta todavía no tiene permisos, pídeselos al administrador de la parroquia.</p>`,
+    onOpen: d => {
+      import(new URL('../js/auth.js', document.baseURI).href)
+        .then(auth => auth.botonGoogle(d.querySelector('#mcGoogle'), s => {
+          sesion = s;
+          mcPintarSesion();
+          d.close();
+        }, e => modalFail(d, e.message)))
+        .catch(e => modalFail(d, e.message));
+    },
+    buttons: [{ label: 'Cancelar' }]
   });
-  if (sesion?.debeCambiarClave) toast('Recuerda crear tu clave definitiva en la página Identificarse del sitio.', 6000);
   return sesion;
 }
 
@@ -131,6 +111,14 @@ async function driveSaveDialog() {
   if (!songs.length) { toast('No hay canciones abiertas para guardar'); return; }
   const s = await mcEntrar();
   if (!s) return;
+  if (s.rol === 'visitante') {
+    showModal({
+      title: 'Drive de la parroquia',
+      body: `<p>Entraste como <b>${escapeHtml(s.email)}</b>, que todavía no tiene permisos para guardar cancioneros.</p>
+        <p class="hint">Pídele al administrador de la parroquia que te los asigne en <b>Identificarse → Administradores y permisos</b>.</p>`
+    });
+    return;
+  }
   const prev = state.mcDrive;
   const todas = MC_ROLES_TODAS.includes(s.rol) || !MC_COMUNIDADES[s.comunidad];
   const opciones = Object.entries(MC_COMUNIDADES).filter(([slug]) => todas || slug === s.comunidad);
