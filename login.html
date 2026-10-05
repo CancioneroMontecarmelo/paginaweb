@@ -137,6 +137,7 @@
       leerAuditoria,
       comunidadesOpciones,
       llamarApi,
+      CORREO_PARROQUIA,
       ROLES
     } from "./js/auth.js";
 
@@ -309,16 +310,26 @@
       };
     }
 
+    // El mismo texto que arma el servidor (textoInvitacion_ en backend/Code.gs)
+    const SITIO_URL = "https://cancioneromontecarmelo.github.io/paginaweb/";
+    function textoInvitacion(d) {
+      const email = String(d.email || "").trim().toLowerCase();
+      const yo = sesionActual() || {};
+      const comunidad = d.comunidad === "parroquia" ? "Parroquia" : nombreComunidad(d.comunidad) || "Parroquia";
+      return "Hola" + (d.nombre && d.nombre !== email ? " " + d.nombre : "") + ", " + (yo.nombre || "la parroquia") +
+        " te invita a ser " + (ROLES[d.rol] || "parte") + " (" + comunidad +
+        ") en el sitio de la Parroquia Nuestra Señora del Monte Carmelo.\n\n" +
+        "Para entrar abrí " + SITIO_URL + "login.html y tocá «Entrar con Google» con la cuenta " + email + ". No necesitás clave.";
+    }
+
     async function enviarInvitacion(datos, porWhatsapp, tel) {
       mensaje("msg-invitar", "");
       mensaje("msg-invitar-ok", "");
-      // La ventana se abre antes de esperar al servidor para que el navegador no la bloquee
-      const ventana = porWhatsapp ? window.open("", "_blank") : null;
+      // WhatsApp se abre en el mismo toque: si se espera al servidor, el navegador ya no deja abrir la app
+      if (porWhatsapp) window.open(enlaceWhatsapp(tel, textoInvitacion(datos)), "_blank", "noopener");
       try {
         const r = await invitar({ ...datos, porCorreo: !porWhatsapp });
         if (porWhatsapp) {
-          if (ventana) ventana.location = enlaceWhatsapp(tel, r.texto);
-          else location.href = enlaceWhatsapp(tel, r.texto);
           mensaje("msg-invitar-ok", "Privilegios guardados para " + r.usuario.email + ". Se abrió WhatsApp con la invitación.");
         } else if (r.correoEnviado) {
           mensaje("msg-invitar-ok", "Invitación enviada por correo a " + r.usuario.email + ".");
@@ -328,8 +339,8 @@
         refrescarPersonas();
         return true;
       } catch (err) {
-        if (ventana) ventana.close();
-        mensaje("msg-invitar", err.message || "No se pudo invitar");
+        mensaje("msg-invitar", (porWhatsapp ? "Ojo: el mensaje de WhatsApp ya se abrió, pero los privilegios no se guardaron. " : "") +
+          (err.message || "No se pudo invitar"));
         return false;
       }
     }
@@ -342,6 +353,7 @@
 
     $("inv-whatsapp").addEventListener("click", async () => {
       const datos = datosInvitacion();
+      if (datos && datos.email.trim().toLowerCase() === CORREO_PARROQUIA) return mensaje("msg-invitar", "El administrador general no se puede modificar.");
       if (datos && (await enviarInvitacion(datos, true, $("inv-tel").value))) $("form-invitar").reset();
     });
 
@@ -418,7 +430,7 @@
           const wa = Object.assign(document.createElement("button"), { type: "button", className: "btn-chico", textContent: "WhatsApp" });
           wa.title = "Enviar la invitación por WhatsApp";
           wa.addEventListener("click", () =>
-            enviarInvitacion({ email: u.email, rol: u.rol, comunidad: com.value }, true, prompt("Número de WhatsApp (opcional)") || "")
+            enviarInvitacion({ email: u.email, nombre: u.nombre, rol: u.rol, comunidad: com.value }, true, "")
           );
           const mail = Object.assign(document.createElement("button"), { type: "button", className: "btn-chico", textContent: "Correo" });
           mail.title = "Enviar la invitación por correo";

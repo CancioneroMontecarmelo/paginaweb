@@ -369,6 +369,7 @@ function mcGuardado(opts, nCanciones, armado, htmlId) {
       { label: 'Cerrar' },
       ...(url ? [
         { label: 'Copiar enlace', onClick: d => { navigator.clipboard?.writeText(url).then(() => modalFail(d, 'Enlace copiado ✓'), () => modalFail(d, url)); return false; } },
+        { label: 'Por correo', onClick: () => { location.href = mcCorreoCancionero(opts.titulo, MC_COMUNIDADES[opts.comunidad], url); } },
         { label: 'Enviar por WhatsApp', primary: true, onClick: () => { window.open('https://wa.me/?text=' + encodeURIComponent(mensaje), '_blank', 'noopener'); } }
       ] : [])
     ]
@@ -535,6 +536,9 @@ async function mcGuardarCancion() {
 }
 
 // ============ COMPARTIR (WhatsApp o correo) ============
+const mcCorreoCancionero = (titulo, comunidad, url) => `mailto:?subject=${encodeURIComponent('Cancionero: ' + titulo)}&body=${encodeURIComponent(
+  `Hola:\n\nTe comparto el cancionero «${titulo}»${comunidad ? ` de ${comunidad}` : ''}, con la letra, los acordes y los audios:\n\n${url}\n\nSe abre en el navegador, sin instalar nada.`)}`;
+
 // Con el cancionero guardado en el Drive se comparte el vínculo a su página; si no, se ofrece guardarlo
 // primero o enviar el archivo .html (Compartir → Enviar el archivo).
 async function mcCompartir(medio) {
@@ -559,11 +563,9 @@ async function mcCompartir(medio) {
     });
     if (!eleccion) return;
     if (eleccion === 'archivo') return shareBookDialog();
-    if (eleccion === 'guardar') {
-      await driveSaveDialog();
-      if (!state.mcDrive?.htmlId || docs.some(d => !isBlank(d) && isDirty(d))) return;
-      if ($('#modal').open) $('#modal').close();
-    }
+    // Al terminar de guardar, el aviso «Guardado en el Drive» trae los botones para enviarlo: abrir WhatsApp
+    // o el correo desde aquí, después de esperar al servidor, el navegador ya no lo permite
+    if (eleccion === 'guardar') return driveSaveDialog();
   }
   const d = state.mcDrive;
   const url = mcVerUrl(d.htmlId);
@@ -571,8 +573,7 @@ async function mcCompartir(medio) {
   const comunidad = MC_COMUNIDADES[d.comunidad] || '';
   const texto = `Cancionero «${titulo}»${comunidad ? ` (${comunidad}${d.fecha ? ', ' + d.fecha : ''})` : ''}: ${url}`;
   if (medio === 'correo') {
-    location.href = `mailto:?subject=${encodeURIComponent('Cancionero: ' + titulo)}&body=${encodeURIComponent(
-      `Hola:\n\nTe comparto el cancionero «${titulo}»${comunidad ? ` de ${comunidad}` : ''}, con la letra, los acordes y los audios:\n\n${url}\n\nSe abre en el navegador, sin instalar nada.`)}`;
+    location.href = mcCorreoCancionero(titulo, comunidad, url);
   } else {
     window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank', 'noopener');
   }
