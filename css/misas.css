@@ -858,6 +858,155 @@
   margin: 0 0 0.75rem;
 }
 
+/* Biblioteca: pestañas Canciones / Lecturas */
+.bib-pestanas {
+  margin: 0.35rem -0.2rem 0.35rem;
+}
+
+.bib-pestanas .modo {
+  padding: 0.35rem 0.6rem;
+}
+
+.lecturas {
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.lect-cabeza {
+  padding: 0.35rem 0.25rem 0.6rem;
+}
+
+.lect-cabeza strong {
+  display: block;
+  font-family: var(--fuente-display);
+  font-weight: 600;
+  color: var(--verde);
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.lect-cabeza small {
+  color: var(--texto-suave);
+}
+
+.lect-seccion {
+  border-top: 1px solid rgba(154, 79, 46, 0.15);
+  padding: 0.35rem 0.25rem;
+}
+
+.lect-seccion summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--terracota);
+  padding: 0.2rem 0;
+}
+
+.lect-seccion h4 {
+  margin: 0.8rem 0 0.25rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #a3261b;
+}
+
+.lect-seccion p {
+  margin: 0 0 0.45rem;
+}
+
+.lect-seccion .lect-lema {
+  font-style: italic;
+  margin-top: 0.8rem;
+}
+
+.lect-seccion .lect-cita {
+  font-weight: 560;
+  color: #7a2a1b;
+}
+
+.lect-fuente {
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+  border-top: 1px solid rgba(154, 79, 46, 0.15);
+  padding: 0.5rem 0.25rem 0;
+  margin: 0.5rem 0 0;
+}
+
+/* Cantos sugeridos y publicar */
+.canciones-momento .sugerida {
+  font-style: normal;
+  font-size: 0.68rem;
+  padding: 0 0.3rem;
+  border-radius: 0.6rem;
+  background: rgba(46, 92, 62, 0.12);
+  color: var(--verde);
+}
+
+.momento.activo .canciones-momento .sugerida {
+  background: rgba(255, 255, 255, 0.25);
+  color: inherit;
+}
+
+.btn-publicar {
+  display: block;
+  width: calc(100% - 0.55rem);
+  margin: 0 0 0.85rem 0.55rem;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.95rem;
+}
+
+.misa-publicada {
+  margin: 0 0 0.5rem 0.55rem;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.publicador {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  left: -10px;
+  top: -10px;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pasos {
+  display: flex;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.pasos .activo {
+  color: var(--terracota);
+  font-weight: 600;
+}
+
+.n-resumen {
+  margin: 0 0 0.6rem;
+  font-weight: 560;
+}
+
+.n-dia {
+  min-height: 1.3em;
+  margin: 0.6rem 0 0;
+  font-size: 0.88rem;
+  color: var(--verde);
+}
+
+#p-barra {
+  width: 100%;
+}
+
+.p-enlaces {
+  padding-left: 1.2rem;
+  line-height: 1.8;
+}
+
 .s-existente {
   margin-bottom: 0.75rem;
 }

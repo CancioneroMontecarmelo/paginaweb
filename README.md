@@ -109,11 +109,20 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
 - **Centro**: la canción elegida con sus acordes y audios. Arriba, el **trasponedor** (el tono queda
   guardado en el cancionero).
 - **Panel derecho — Cancioneros**: los cancioneros de misa ya creados (nombre, fecha, tiempo litúrgico) y
-  sus momentos (Entrada, Gloria, Santo…). **+ Agregar nuevo** crea uno con los momentos habituales.
-- **Panel izquierdo — Biblioteca**: al tocar un momento, lista todas las canciones del sitio con esa
-  etiqueta; al marcarla queda en el cancionero y se muestra en el centro.
-- **Guardar**: nombre, fecha de uso, tiempo litúrgico, coro, fechas posibles de ensayo y ensayos
-  realizados con quiénes asistieron.
+  sus momentos (Entrada, Gloria, Santo…). **+ Agregar nuevo** pide primero el nombre y después la fecha
+  de la misa; entonces se despliegan los momentos, cada uno con un **canto sugerido** (marcado
+  «sugerida») que se cambia tocando el momento.
+- **Panel izquierdo — Biblioteca**, con dos pestañas:
+  - **Canciones**: al tocar un momento, lista todas las canciones del sitio con esa etiqueta; al marcarla
+    queda en el cancionero (reemplaza a la sugerida) y se muestra en el centro.
+  - **Lecturas**: las lecturas del día de la misa (antífona, lecturas, salmo, evangelio y oraciones),
+    tomadas de [eucaristiadiaria.cl](https://www.eucaristiadiaria.cl/) (Área de Liturgia del Arzobispado
+    de Santiago). Se publican mes a mes: para fechas más lejanas la pestaña avisa que todavía no están.
+- **Publicar** (al final del cancionero): lo guarda de inmediato en la web y arma su página `.html` en el
+  Drive, como **Guardar en Drive** del editor: aparece en la página de la comunidad y quedan los enlaces
+  para verla, compartirla y **editarla en el editor**. Publicar de nuevo reemplaza la misma página.
+- **Guardar** («Fechas y ensayos…»): nombre, fecha de uso, tiempo litúrgico, coro, fechas posibles de
+  ensayo y ensayos realizados con quiénes asistieron.
 - **Coro**: nombre del coro e integrantes (comunidad, fecha de incorporación, voz, instrumentos,
   lectura de partitura, nivel).
 - **Canciones y audios**: agrega canciones `.md` nuevas con sus audios, o audios a una canción que ya
@@ -121,7 +130,25 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
   agregan solas las canciones de cada cancionero guardado desde el editor.
 
 En el Drive: `MonteCarmelo/Biblioteca/` (canciones y audios + `biblioteca.json`), `MonteCarmelo/misas.json`
-(público) y en `MonteCarmelo/sistema/` los archivos privados `coros.json` y `ensayos.json`.
+(público), `MonteCarmelo/Lecturas/<fecha>.json` (lecturas ya leídas) y en `MonteCarmelo/sistema/` los
+archivos privados `coros.json` y `ensayos.json`.
+
+### Cantos sugeridos
+
+Para cada momento se elige, entre las canciones de la Biblioteca con esa etiqueta, la de mayor puntaje:
+
+- +5 si tiene la etiqueta del tiempo litúrgico de la fecha (+3 si es de un tiempo cercano: Cuaresma en
+  Semana Santa, Pascua en Pentecostés…) y −4 si es de otro tiempo (un canto de Adviento en Tiempo ordinario).
+- +6 si coincide con la solemnidad o fiesta del día (Cristo Rey, Asunción, Virgen del Carmen…) y +4 a los
+  cantos marianos en las fiestas de la Virgen.
+- −3 si la comunidad lo usó en sus últimos 3 cancioneros, para no repetir siempre los mismos.
+- Hasta +3 por palabras del título o las etiquetas que aparecen en las lecturas del día.
+- En Cuaresma no se sugieren cantos con «aleluya», y en Adviento y Cuaresma el cancionero se arma sin Gloria (salvo en las solemnidades).
+
+El tiempo litúrgico sale del título de las lecturas o, si todavía no están, de la fecha (calculada desde
+la Pascua; en Chile la Epifanía y la Ascensión van en domingo). **Volver a sugerir** cambia solo los
+momentos que siguen con la sugerencia o vacíos; lo elegido a mano no se toca. Al publicar, las sugeridas
+quedan como elegidas.
 
 ### Audios de la Biblioteca
 

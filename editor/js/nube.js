@@ -284,6 +284,36 @@ async function mcArmarArchivos(songs, opts, avance) {
   return { files, htmlRuta, audios: audioRuta.size, faltan, grandes, sinIncluir, pesada };
 }
 
+// Arma y sube la carpeta del cancionero (opts.folderId: la reemplaza si todavía existe) y lo publica
+// en la lista de la comunidad. Sin reingreso, una sesión vencida corta con error en vez de pedir entrar.
+async function mcSubirCancionero(songs, opts, s, avance, seguir = () => {}, reingreso = true) {
+  const armado = await mcArmarArchivos(songs, opts, avance);
+  seguir();
+  avance('Conectando con el Drive…');
+  const base = { token: s.token, comunidad: opts.comunidad, titulo: opts.titulo, fecha: opts.fecha };
+  let ini;
+  if (opts.folderId) ini = await mcApi('iniciarCancionero', { ...base, folderId: opts.folderId }, reingreso).catch(() => null);
+  ini ||= await mcApi('iniciarCancionero', base, reingreso);
+  const existentes = new Map((ini.existentes || []).map(f => [f.ruta, f.size]));
+  const total = armado.files.reduce((n, f) => n + f.blob.size, 0) || 1;
+  let hecho = 0;
+  for (const [i, f] of armado.files.entries()) {
+    seguir();
+    avance(`Subiendo ${i + 1} de ${armado.files.length}: ${f.ruta}`, hecho, total);
+    if (!(f.audio && existentes.get(f.ruta) === f.blob.size)) {
+      await mcApi('subirArchivo', { token: s.token, folderId: ini.folderId, ruta: f.ruta, mime: f.mime, base64: await mcBase64(f.blob) }, reingreso);
+    }
+    hecho += f.blob.size;
+  }
+  seguir();
+  avance('Publicando en la lista de la comunidad…', 1, 1);
+  const fin = await mcApi('cerrarCancionero', {
+    token: s.token, folderId: ini.folderId, conservar: armado.files.map(f => f.ruta), htmlRuta: armado.htmlRuta,
+    canciones: songs.length, audios: armado.audios, comentario: opts.comentario
+  }, reingreso);
+  return { armado, folderId: ini.folderId, htmlId: fin.cancionero.htmlId };
+}
+
 async function mcGuardar(songs, opts, s) {
   let terminado = false;
   let cancelado = false;
@@ -303,39 +333,15 @@ async function mcGuardar(songs, opts, s) {
   const seguir = () => { if (cancelado) throw new Error('cancelado'); };
 
   try {
-    const armado = await mcArmarArchivos(songs, opts, avance);
-    seguir();
-    avance('Conectando con el Drive…');
-    const base = { token: s.token, comunidad: opts.comunidad, titulo: opts.titulo, fecha: opts.fecha };
-    let ini;
-    if (opts.actualizar && state.mcDrive?.folderId) {
-      ini = await mcApi('iniciarCancionero', { ...base, folderId: state.mcDrive.folderId }).catch(() => null);
-    }
-    ini ||= await mcApi('iniciarCancionero', base);
-    const existentes = new Map((ini.existentes || []).map(f => [f.ruta, f.size]));
-    const total = armado.files.reduce((n, f) => n + f.blob.size, 0) || 1;
-    let hecho = 0;
-    for (const [i, f] of armado.files.entries()) {
-      seguir();
-      avance(`Subiendo ${i + 1} de ${armado.files.length}: ${f.ruta}`, hecho, total);
-      if (!(f.audio && existentes.get(f.ruta) === f.blob.size)) {
-        await mcApi('subirArchivo', { token: s.token, folderId: ini.folderId, ruta: f.ruta, mime: f.mime, base64: await mcBase64(f.blob) });
-      }
-      hecho += f.blob.size;
-    }
-    seguir();
-    avance('Publicando en la lista de la comunidad…', 1, 1);
-    const fin = await mcApi('cerrarCancionero', {
-      token: s.token, folderId: ini.folderId, conservar: armado.files.map(f => f.ruta), htmlRuta: armado.htmlRuta,
-      canciones: songs.length, audios: armado.audios, comentario: opts.comentario
-    });
+    const folderId = opts.actualizar ? state.mcDrive?.folderId : '';
+    const { armado, folderId: nuevaCarpeta, htmlId } = await mcSubirCancionero(songs, { ...opts, folderId }, s, avance, seguir);
     terminado = true;
-    state.mcDrive = { folderId: ini.folderId, titulo: opts.titulo, comunidad: opts.comunidad, fecha: opts.fecha, comentario: opts.comentario, htmlId: fin.cancionero.htmlId };
+    state.mcDrive = { folderId: nuevaCarpeta, titulo: opts.titulo, comunidad: opts.comunidad, fecha: opts.fecha, comentario: opts.comentario, htmlId };
     songs.forEach(d => markClean(d));
     setActiveBook(opts.titulo, null, `Drive · ${MC_COMUNIDADES[opts.comunidad]}`);
     refresh();
     dlg.close();
-    mcGuardado(opts, songs.length, armado, fin.cancionero.htmlId);
+    mcGuardado(opts, songs.length, armado, htmlId);
   } catch (e) {
     terminado = true;
     if (dlg.open) dlg.close();
@@ -367,6 +373,63 @@ function mcGuardado(opts, nCanciones, armado, htmlId) {
       ] : [])
     ]
   });
+}
+
+// ============ PUBLICAR DESDE LA PANTALLA MISAS ============
+// misas.html abre oculto editor/?misa=<id>&publicar=1: se arman las canciones del cancionero de misa (en el
+// orden de sus momentos y en el tono elegido) y se suben como «Guardar en Drive». El avance va a la página
+// de Misas por postMessage.
+async function mcLeerPublico(params) {
+  let r;
+  try {
+    r = await fetch(MC_API + '?' + new URLSearchParams(params)).then(res => res.json());
+  } catch (_) {
+    throw new Error('No se pudo conectar con el Drive de la parroquia. Revisa tu conexión a internet.');
+  }
+  if (!r.ok) throw new Error(r.error || 'El Drive de la parroquia no respondió.');
+  return r;
+}
+
+async function mcPublicarMisa(id) {
+  const avisar = (tipo, datos = {}) => {
+    if (parent !== window) parent.postMessage({ mcPublicar: tipo, misa: id, ...datos }, location.origin);
+  };
+  const avance = (texto, hecho = 0, total = 1) => avisar('avance', { texto, valor: total ? hecho / total : 0 });
+  try {
+    if (!MC_API) throw new Error('El Drive de la parroquia todavía no está conectado.');
+    const s = mcSesion();
+    if (!s) throw new Error('Tu sesión se cerró: vuelve a identificarte y publica de nuevo.');
+    avance('Leyendo el cancionero…');
+    const misa = ((await mcLeerPublico({ accion: 'misas' })).misas || []).find(m => m.id === id);
+    if (!misa) throw new Error('No se encontró el cancionero.');
+    const elegidas = misa.momentos.flatMap(m => m.canciones);
+    const songs = [];
+    for (const [i, c] of elegidas.entries()) {
+      avance(`Preparando la canción ${i + 1} de ${elegidas.length}…`, i, elegidas.length * 4);
+      let r;
+      try { r = await mcLeerPublico({ accion: 'cancion', id: c.cancionId }); } catch (_) { continue; }
+      const data = parseMarkdown(r.texto, (r.cancion?.titulo || 'cancion') + '.md');
+      const orig = detectKey(data.text);
+      if (orig && c.desplazamiento) {
+        const idx = mod12(orig.idx + c.desplazamiento);
+        data.text = transposeText(data.text, c.desplazamiento, keyPrefersFlats(idx, orig.minor));
+      }
+      if (!data.tags?.length && r.cancion?.etiquetas) data.tags = r.cancion.etiquetas;
+      songs.push(makeDoc({ ...data, title: data.title || r.cancion?.titulo || 'Sin título', clean: true }));
+    }
+    if (!songs.length) throw new Error('Ninguna canción del cancionero está en la Biblioteca.');
+    docs = songs;
+    activate(songs[0].id);
+    const opts = {
+      titulo: misa.nombre, comunidad: misa.comunidad, fecha: misa.fechaUso || mcFecha(),
+      comentario: misa.tiempoLiturgico || '', embed: false, folderId: misa.drive?.folderId || ''
+    };
+    const fin = await mcSubirCancionero(songs, opts, s, (texto, hecho, total) =>
+      avance(texto, 1 + 3 * (total ? hecho / total : 0), 4), () => {}, false);
+    avisar('listo', { folderId: fin.folderId, htmlId: fin.htmlId, faltantes: elegidas.length - songs.length });
+  } catch (e) {
+    avisar('error', { mensaje: e.message || String(e) });
+  }
 }
 
 // ============ ABRIR ============

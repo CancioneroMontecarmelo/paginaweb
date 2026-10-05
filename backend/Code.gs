@@ -10,6 +10,7 @@
  *   MonteCarmelo/
  *     sistema/usuarios.json · auditoria.json                     (privados)
  *     indice.json                                                (lista pública de cancioneros)
+ *     Lecturas/<fecha>.json                                      (lecturas del día ya leídas)
  *     Cancioneros/<comunidad>/<fecha>_<slug>/
  *        cancionero.m3u8 · canciones/*.md · audios/* · <slug>.html
  */
@@ -60,6 +61,7 @@ function doGet(e) {
     if (p.accion === 'cancion') return json_(cancionBiblioteca_(p.id));
     if (p.accion === 'audio') return json_(audioBiblioteca_(p.id));
     if (p.accion === 'misas') return json_(listarMisas_(p));
+    if (p.accion === 'lecturas') return json_(lecturas_(p.fecha));
     return json_({ ok: true, app: 'MonteCarmelo', version: 3 });
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
@@ -975,7 +977,9 @@ function limpiarMomentos_(lista) {
     return {
       momento: texto_(m.momento, 60) || 'Momento',
       canciones: (Array.isArray(m.canciones) ? m.canciones : []).slice(0, 10).map(function (c) {
-        return { cancionId: texto_(c.cancionId, 120), desplazamiento: Math.max(-11, Math.min(11, Math.round(Number(c.desplazamiento) || 0))) };
+        var r = { cancionId: texto_(c.cancionId, 120), desplazamiento: Math.max(-11, Math.min(11, Math.round(Number(c.desplazamiento) || 0))) };
+        if (c.sugerida === true) r.sugerida = true;
+        return r;
       }).filter(function (c) { return c.cancionId; })
     };
   });
@@ -1001,6 +1005,14 @@ function guardarMisa_(d) {
       autor: previa ? previa.autor : u.email, autorNombre: previa ? previa.autorNombre : u.nombre,
       creado: previa ? previa.creado : ahora_(), actualizado: ahora_()
     };
+    // La carpeta y la página del Drive solo cambian al publicar; un guardado común las conserva
+    var publicada = m.drive && /^[\w-]{10,}$/.test(String(m.drive.folderId || '')) ? {
+      folderId: String(m.drive.folderId), htmlId: /^[\w-]{10,}$/.test(String(m.drive.htmlId || '')) ? String(m.drive.htmlId) : ''
+    } : null;
+    var drive = publicada || (previa && previa.drive) || null;
+    if (drive) nueva.drive = drive;
+    if (publicada) nueva.publicada = ahora_();
+    else if (previa && previa.publicada) nueva.publicada = previa.publicada;
     data.misas = data.misas.filter(function (x) { return x.id !== nueva.id; });
     data.misas.unshift(nueva);
     escribirJson_(raiz_(), 'misas.json', data);
@@ -1140,6 +1152,116 @@ function borrarCoro_(d) {
   });
   auditar_({ tipo: 'coro_borrado', email: u.email, nombre: u.nombre, id: d.id });
   return {};
+}
+
+// ==================== LECTURAS DEL DÍA ====================
+// Fuente: eucaristiadiaria.cl (Área de Liturgia, Arzobispado de Santiago). Publican mes a mes: un día que
+// todavía no está devuelve la página sin secciones. Los días encontrados quedan en Lecturas/<fecha>.json.
+
+var LECTURAS_URL = 'https://www.eucaristiadiaria.cl/dia_cal.php?fecha=';
+var LECTURAS_SECCIONES = { inicio: 'Ritos iniciales', liturgia: 'Liturgia de la Palabra', evangelio: 'Evangelio', eucaristia: 'Liturgia eucarística' };
+
+function lecturas_(fecha) {
+  fecha = fecha_(fecha);
+  if (!fecha) throw new Error('Fecha inválida');
+  var cache = CacheService.getScriptCache();
+  var clave = 'lecturas-v1-' + fecha;
+  var guardado = cache.get(clave);
+  if (guardado) return JSON.parse(guardado);
+  var carpeta = subcarpeta_(raiz_(), 'Lecturas');
+  var l = leerJson_(carpeta, fecha + '.json', null);
+  if (!l) {
+    var res = UrlFetchApp.fetch(LECTURAS_URL + fecha, { muteHttpExceptions: true, followRedirects: true });
+    if (res.getResponseCode() !== 200) throw new Error('No se pudo leer eucaristiadiaria.cl (' + res.getResponseCode() + ')');
+    l = parsearLecturas_(res.getContentText('UTF-8'));
+    l.fecha = fecha;
+    l.fuente = LECTURAS_URL + fecha;
+    if (l.disponible) escribirJson_(carpeta, fecha + '.json', l);
+  }
+  var r = { ok: true, lecturas: l };
+  try { cache.put(clave, JSON.stringify(r), l.disponible ? 21600 : 1800); } catch (_) {}
+  return r;
+}
+
+function parsearLecturas_(html) {
+  var fin = html.indexOf('id="pie"');
+  if (fin > 0) html = html.slice(0, fin);
+  var t = /class="titulos"[^>]*>([\s\S]*?)<br/i.exec(html);
+  var l = { disponible: false, dia: t ? textoHtml_(t[1]) : '', titulo: '', color: '', tiempo: '', secciones: [] };
+  var re = /<a name="(\w+)" class="subtitulos">([\s\S]*?)<\/a>/gi, m, marcas = [];
+  while ((m = re.exec(html))) marcas.push({ id: m[1], nombre: textoHtml_(m[2]), desde: re.lastIndex });
+  marcas.forEach(function (s, i) {
+    var cuerpo = html.slice(s.desde, i + 1 < marcas.length ? marcas[i + 1].desde : html.length);
+    var bloques = [], pm, rp = /<p\b([^>]*)>([\s\S]*?)<\/p>/gi;
+    while ((pm = rp.exec(cuerpo))) {
+      var b = bloqueLectura_(pm[1], pm[2]);
+      if (b) bloques.push(b);
+    }
+    if (bloques.length) l.secciones.push({ id: s.id, nombre: LECTURAS_SECCIONES[s.id] || s.nombre, bloques: bloques });
+  });
+  l.disponible = l.secciones.some(function (s) { return s.id === 'liturgia' || s.id === 'evangelio'; });
+  // Al comienzo de los ritos iniciales van, centrados y en rojo: la fecha, la celebración y el color litúrgico
+  var ini = l.secciones.filter(function (s) { return s.id === 'inicio'; })[0];
+  if (ini) {
+    var centrados = [];
+    while (ini.bloques.length && ini.bloques[0].centro) centrados.push(ini.bloques.shift().x);
+    if (centrados.length > 1) l.titulo = centrados[1];
+    if (centrados.length > 2 && /^(verde|blanco|rojo|morado|rosado|negro|azul)/i.test(centrados[2])) l.color = centrados[2];
+    if (!l.titulo && centrados.length) l.titulo = centrados[0];
+    if (!ini.bloques.length) l.secciones = l.secciones.filter(function (s) { return s !== ini; });
+  }
+  l.tiempo = tiempoDeTitulo_(l.titulo);
+  l.secciones.forEach(function (s) { s.bloques.forEach(function (b) { delete b.centro; }); });
+  return l;
+}
+
+// Bloque de una lectura: h = título (todo en rojo), c = de dónde se lee (con la cita en rojo),
+// e = frase que resume la lectura (cursiva), p = texto
+function bloqueLectura_(atributos, interior) {
+  var x = textoHtml_(interior);
+  if (!x || x === '+++') return null;
+  var rojo = /<span style="color:\s*rgb\((?:238|255), 0, 0\)">([\s\S]*?)<\/span>/gi, m, enRojo = '';
+  while ((m = rojo.exec(interior))) enRojo += textoHtml_(m[1]);
+  var b = { t: 'p', x: x };
+  if (enRojo && enRojo.replace(/\s+/g, '') === x.replace(/\s+/g, '')) b.t = 'h';
+  else if (/^\s*(<span[^>]*>\s*)*<em>/i.test(interior)) b.t = 'e';
+  else if (/\d/.test(enRojo) && x.length < 220) b.t = 'c';
+  if (/text-align:\s*center/i.test(atributos) && b.t === 'h') b.centro = true;
+  return b;
+}
+
+var ACENTOS_HTML_ = { acute: '\u0301', grave: '\u0300', circ: '\u0302', uml: '\u0308', tilde: '\u0303', cedil: '\u0327' };
+var ENTIDADES_HTML_ = {
+  nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", laquo: '«', raquo: '»', ldquo: '“', rdquo: '”',
+  lsquo: '‘', rsquo: '’', sbquo: '‚', bdquo: '„', hellip: '…', ndash: '–', mdash: '—', iexcl: '¡', iquest: '¿',
+  ordf: 'ª', ordm: 'º', deg: '°', middot: '·', bull: '•', szlig: 'ß', aelig: 'æ', oelig: 'œ', copy: '©', dagger: '†'
+};
+
+function textoHtml_(h) {
+  return String(h || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&([a-zA-Z])(acute|grave|circ|uml|tilde|cedil);/g, function (_, l, a) { return (l + ACENTOS_HTML_[a]).normalize('NFC'); })
+    .replace(/&#(\d+);/g, function (_, n) { return String.fromCodePoint(+n); })
+    .replace(/&#x([0-9a-f]+);/gi, function (_, n) { return String.fromCodePoint(parseInt(n, 16)); })
+    .replace(/&(\w+);/g, function (e, n) { return ENTIDADES_HTML_.hasOwnProperty(n) ? ENTIDADES_HTML_[n] : e; })
+    .replace(/[ \t\u00a0]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .trim();
+}
+
+// Tiempo litúrgico según el título del día (los nombres son las etiquetas del grupo «Tiempos litúrgicos»)
+function tiempoDeTitulo_(titulo) {
+  var t = String(titulo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  var reglas = [
+    [/MIERCOLES DE CENIZA/, 'Miércoles de Ceniza'], [/DOMINGO DE RAMOS/, 'Domingo de Ramos'],
+    [/JUEVES SANTO/, 'Jueves Santo'], [/VIERNES SANTO/, 'Viernes Santo'], [/VIGILIA PASCUAL/, 'Vigilia Pascual'],
+    [/SEMANA SANTA/, 'Semana Santa'], [/PENTECOSTES/, 'Pentecostés'], [/ASCENSION DEL SENOR/, 'Ascensión'],
+    [/EPIFANIA/, 'Epifanía'], [/ADVIENTO/, 'Adviento'], [/CUARESMA/, 'Cuaresma'], [/PASCUA/, 'Pascua'],
+    [/NAVIDAD|NATIVIDAD DEL SENOR/, 'Navidad'], [/TIEMPO ORDINARIO/, 'Tiempo ordinario']
+  ];
+  for (var i = 0; i < reglas.length; i++) if (reglas[i][0].test(t)) return reglas[i][1];
+  return '';
 }
 
 /** Ejecutar a mano desde el editor de Apps Script (una vez, y otra si cambian los permisos) para autorizar

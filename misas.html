@@ -50,7 +50,7 @@
       </div>
     </div>
     <div class="cab-trasponer">
-      <button type="button" class="btn-chico boton-cajon" id="abrir-biblioteca" aria-controls="panel-biblioteca">☰ Canciones</button>
+      <button type="button" class="btn-chico boton-cajon" id="abrir-biblioteca" aria-controls="panel-biblioteca">☰ Biblioteca</button>
       <div class="trasponedor" id="trasponedor" role="group" aria-label="Cambiar el tono"></div>
       <div class="trasp-medios">
         <button type="button" class="nota-btn" id="bajar" title="Bajar medio tono">−½</button>
@@ -71,13 +71,21 @@
     <aside class="panel-flotante panel-biblioteca" id="panel-biblioteca" aria-label="Biblioteca de canciones">
       <div class="panel-cabeza">
         <h2>Biblioteca</h2>
-        <p class="panel-sub" id="bib-titulo">Todas las canciones</p>
-        <label class="bib-filtro" id="bib-filtro-caja" hidden>
-          <input type="checkbox" id="bib-solo-momento" checked>
-          <span id="bib-filtro-texto">Solo de este momento</span>
-        </label>
+        <div class="modos bib-pestanas" role="tablist" aria-label="Contenido de la Biblioteca">
+          <button type="button" class="modo activo" role="tab" id="tab-canciones" data-pestana="canciones" aria-selected="true" aria-controls="lista-biblioteca">Canciones</button>
+          <button type="button" class="modo" role="tab" id="tab-lecturas" data-pestana="lecturas" aria-selected="false" aria-controls="lista-lecturas">Lecturas</button>
+        </div>
+        <div id="bib-cab-canciones">
+          <p class="panel-sub" id="bib-titulo">Todas las canciones</p>
+          <label class="bib-filtro" id="bib-filtro-caja" hidden>
+            <input type="checkbox" id="bib-solo-momento" checked>
+            <span id="bib-filtro-texto">Solo de este momento</span>
+          </label>
+        </div>
+        <p class="panel-sub" id="lect-sub" hidden></p>
       </div>
-      <div class="panel-cuerpo" id="lista-biblioteca"><p class="aviso">Cargando…</p></div>
+      <div class="panel-cuerpo" id="lista-biblioteca" role="tabpanel" aria-labelledby="tab-canciones"><p class="aviso">Cargando…</p></div>
+      <div class="panel-cuerpo lecturas" id="lista-lecturas" role="tabpanel" aria-labelledby="tab-lecturas" hidden></div>
     </aside>
 
     <section class="lienzo" id="lienzo" aria-live="polite">
@@ -98,6 +106,78 @@
       <div class="panel-cuerpo" id="lista-misas"><p class="aviso">Cargando…</p></div>
     </aside>
   </main>
+
+  <!-- Cancionero nuevo: primero el nombre, después la fecha de la misa -->
+  <dialog class="dlg-misas" id="dlg-nuevo">
+    <form method="dialog" id="form-nuevo">
+      <div class="dlg-cabeza">
+        <h2 id="n-titulo">Cancionero nuevo</h2>
+        <button type="button" class="btn-chico" data-cerrar>Cerrar</button>
+      </div>
+      <div class="dlg-cuerpo">
+        <ol class="pasos" aria-label="Pasos">
+          <li id="n-paso1-marca" class="activo">1. Nombre</li>
+          <li id="n-paso2-marca">2. Fecha de la misa</li>
+        </ol>
+        <div id="n-paso1">
+          <div class="form-grilla">
+            <label class="ancho">Nombre del cancionero
+              <input type="text" id="n-nombre" maxlength="120" placeholder="Ej.: Misa del domingo, 11:00 h" autocomplete="off">
+            </label>
+          </div>
+        </div>
+        <div id="n-paso2" hidden>
+          <p class="n-resumen" id="n-resumen"></p>
+          <div class="form-grilla">
+            <label>Fecha de la misa
+              <input type="date" id="n-fecha">
+            </label>
+            <label id="n-comunidad-caja">Comunidad
+              <select id="n-comunidad"></select>
+            </label>
+          </div>
+          <p class="n-dia" id="n-dia" aria-live="polite"></p>
+        </div>
+        <p class="msg-error" id="n-error" hidden></p>
+        <div class="dlg-acciones">
+          <button type="button" class="btn btn-secundario" id="n-atras" hidden>Atrás</button>
+          <span class="espacio"></span>
+          <button type="button" class="btn btn-secundario" data-cerrar>Cancelar</button>
+          <button type="submit" class="btn btn-primario" id="n-seguir">Siguiente</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Publicar: guarda el cancionero y arma su página en el Drive -->
+  <dialog class="dlg-misas" id="dlg-publicar">
+    <div class="dlg-cabeza">
+      <h2 id="p-titulo">Publicando…</h2>
+      <button type="button" class="btn-chico" id="p-cerrar-x" data-cerrar>Cerrar</button>
+    </div>
+    <div class="dlg-cuerpo">
+      <div id="p-avance">
+        <p id="p-paso">Guardando el cancionero…</p>
+        <progress id="p-barra" max="1"></progress>
+        <p class="aviso">No cierres esta página hasta que termine.</p>
+      </div>
+      <div id="p-listo" hidden>
+        <p id="p-mensaje"></p>
+        <ul class="p-enlaces">
+          <li><a id="p-ver" target="_blank" rel="noopener">Ver la página del cancionero</a></li>
+          <li><a id="p-editar" target="_blank" rel="noopener">Editar en el editor</a></li>
+        </ul>
+        <p class="aviso" id="p-notas" hidden></p>
+      </div>
+      <p class="msg-error" id="p-error" hidden></p>
+      <div class="dlg-acciones">
+        <span class="espacio"></span>
+        <button type="button" class="btn btn-secundario" id="p-copiar" hidden>Copiar enlace</button>
+        <a class="btn btn-secundario" id="p-whatsapp" target="_blank" rel="noopener" hidden>Enviar por WhatsApp</a>
+        <button type="button" class="btn btn-primario" data-cerrar id="p-cerrar">Cerrar</button>
+      </div>
+    </div>
+  </dialog>
 
   <!-- Guardar cancionero -->
   <dialog class="dlg-misas" id="dlg-guardar">

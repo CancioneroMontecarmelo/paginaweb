@@ -701,6 +701,14 @@ window.addEventListener('beforeunload', e => {
 function init() {
   buildMenubar(MENUS);
   bindTabs();
+  if (EFIMERO) {
+    docs = [makeDoc({ title: '', text: '' })];
+    activeId = docs[0].id;
+    applyState();
+    activate(activeId);
+    mcPublicarMisa(new URLSearchParams(location.search).get('misa'));
+    return;
+  }
   const restored = loadSession();
   if (!restored) {
     docs = [makeDoc({ title: '', text: '' })];

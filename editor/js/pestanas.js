@@ -224,10 +224,14 @@ function redo() {
 // ============ SESIÓN (guardado automático en el navegador) ============
 const STORE_KEY = 'montecarmelo-editor.v1';
 const OLD_STORE_KEY = 'montecarmelo-editor.v0';
+// editor/?publicar=1 es el editor que la pantalla Misas abre oculto para publicar: no restaura ni pisa
+// las pestañas que el usuario tenga guardadas en este navegador
+const EFIMERO = new URLSearchParams(location.search).get('publicar') === '1';
 let saveTimer = null;
 
 function saveNow() {
   clearTimeout(saveTimer);
+  if (EFIMERO) return;
   syncFromEditor();
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({

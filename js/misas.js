@@ -1,10 +1,12 @@
 /**
  * misas.js — Pantalla Misas (misas.html), común a todas las comunidades.
  *
- *  - Panel derecho: cancioneros de misa de la comunidad y sus momentos; «Agregar nuevo» crea un borrador.
- *  - Panel izquierdo: la Biblioteca de canciones filtrada por la etiqueta del momento elegido, con checks.
+ *  - Panel derecho: cancioneros de misa de la comunidad y sus momentos; «Agregar nuevo» pide nombre y fecha,
+ *    arma los momentos con cantos sugeridos y «Publicar» los guarda y arma su página en el Drive.
+ *  - Panel izquierdo: la Biblioteca, con dos pestañas: canciones (filtradas por la etiqueta del momento
+ *    elegido, con checks) y las lecturas del día de la misa (eucaristiadiaria.cl, por el Apps Script).
  *  - Centro: la canción con acordes (transpuesta) y sus audios.
- *  - Diálogos: guardar el cancionero (fechas, ensayos y asistencia), coro e integrantes, canciones y audios.
+ *  - Diálogos: cancionero nuevo, publicar, guardar (fechas, ensayos y asistencia), coro, canciones y audios.
  *
  * Usa los scripts clásicos del editor cargados antes en la página (acordes, markdown, etiquetas, render)
  * más js/misas-shim.js. Los datos viven en el Drive a través del Apps Script (backend/Code.gs).
@@ -72,7 +74,9 @@ const st = {
   tonoOriginal: null,
   textos: new Map(),
   coros: null,
-  busqueda: ""
+  busqueda: "",
+  pestana: "canciones", // pestaña de la Biblioteca: canciones | lecturas
+  lecturas: new Map() // fecha → { cargando, datos, error, promesa }
 };
 
 // ============ SERVIDOR ============
@@ -238,11 +242,12 @@ function momentosHtml() {
   const a = st.actual;
   const ed = editable();
   const items = a.momentos.map((m, i) => {
-    const titulos = m.canciones.map((c) => tituloDe(c.cancionId)).join(" · ");
+    const titulos = m.canciones.map((c) => esc(tituloDe(c.cancionId)) +
+      (c.sugerida && ed ? ' <em class="sugerida" title="La sugirió el sistema: tocá el momento para cambiarla">sugerida</em>' : "")).join(" · ");
     return `<li class="momento${i === st.momento ? " activo" : ""}">
       <button type="button" class="momento-boton" data-accion="momento" data-i="${i}">
         <b>${esc(m.momento)}</b>
-        <span class="canciones-momento${titulos ? "" : " vacio"}">${esc(titulos || (ed ? "Elegí una canción →" : "Sin canción"))}</span>
+        <span class="canciones-momento${titulos ? "" : " vacio"}">${titulos || esc(ed ? "Elegí una canción →" : "Sin canción")}</span>
       </button>
       ${ed ? `<button type="button" class="quitar" data-accion="quitar-momento" data-i="${i}" title="Quitar ${esc(m.momento)}">×</button>` : ""}
     </li>`;
@@ -254,11 +259,25 @@ function momentosHtml() {
       <option value="">+ Agregar momento…</option>${faltan.map((m) => `<option>${esc(m)}</option>`).join("")}
       <option value="__otro">Otro…</option></select></div>` : ""}
     <div class="misa-acciones">
-      ${ed ? `<button type="button" class="btn-chico${sucio() ? " importante" : ""}" data-accion="guardar">${a.borrador ? "Guardar…" : sucio() ? "Guardar cambios…" : "Fechas y ensayos…"}</button>` : ""}
+      ${ed ? `<button type="button" class="btn-chico" data-accion="guardar">${a.borrador ? "Guardar…" : sucio() ? "Guardar cambios…" : "Fechas y ensayos…"}</button>` : ""}
+      ${ed && st.biblioteca.length ? '<button type="button" class="btn-chico" data-accion="sugerir" title="Vuelve a elegir los cantos de los momentos que siguen con la sugerencia del sistema o vacíos">Volver a sugerir</button>' : ""}
       ${ed && sucio() && !a.borrador ? '<button type="button" class="btn-chico" data-accion="descartar">Descartar cambios</button>' : ""}
       <button type="button" class="btn-chico" data-accion="cerrar">${a.borrador ? "Descartar" : "Cerrar"}</button>
-    </div>`;
+    </div>
+    ${publicadaHtml(a)}
+    ${ed ? `<button type="button" class="btn btn-primario btn-publicar" data-accion="publicar">${a.drive ? sucio() ? "Publicar cambios" : "Publicar de nuevo" : "Publicar"}</button>` : ""}`;
 }
+
+function publicadaHtml(a) {
+  if (!a.drive?.folderId) return "";
+  const cuando = a.publicada ? new Date(a.publicada).toLocaleDateString("es", { day: "numeric", month: "short" }) : "";
+  return `<p class="misa-publicada">Publicado${cuando ? " el " + esc(cuando) : ""}:
+    ${a.drive.htmlId ? `<a href="${esc(urlVer(a.drive.htmlId))}" target="_blank" rel="noopener">ver la página</a> ·` : ""}
+    <a href="${esc(urlEditor(a.drive.folderId))}" target="_blank" rel="noopener">editar en el editor</a></p>`;
+}
+
+const urlVer = (htmlId) => new URL("ver.html?id=" + encodeURIComponent(htmlId), location.href).href;
+const urlEditor = (folderId) => new URL("editor/?drive=" + encodeURIComponent(folderId), location.href).href;
 
 function abrirMisa(id) {
   if (st.actual?.id === id) return cerrarMisa();
@@ -298,33 +317,41 @@ function descartarCambios() {
   pintarBiblioteca();
 }
 
-function nuevoCancionero() {
-  if (!confirmarDescartar()) return;
+// Borrador con los momentos de la misa y un canto sugerido en cada uno (lecturas: null si no están)
+function crearBorrador({ nombre, fecha, comunidad, lecturas }) {
   const s = st.sesion || {};
-  const propia = COMUNIDADES.some((c) => c.slug === s.comunidad) ? s.comunidad : "";
+  const tiempo = lecturas?.tiempo || tiempoPorFecha(fecha);
+  const sinGloria = TIEMPOS_SIN_GLORIA.includes(tiempo) && !etiquetasDelDia(lecturas?.titulo).fiestas.length;
   st.actual = {
     id: "nuevo",
     borrador: true,
-    nombre: "",
-    comunidad: st.comunidad || propia,
-    fechaUso: proximoDomingo(),
-    tiempoLiturgico: "",
+    nombre,
+    comunidad,
+    fechaUso: fecha,
+    tiempoLiturgico: tiempo,
     coroId: "",
-    momentos: MOMENTOS_BASE.map((momento) => ({ momento, canciones: [] })),
+    momentos: MOMENTOS_BASE.filter((m) => !(sinGloria && m === "Gloria")).map((momento) => ({ momento, canciones: [] })),
     autorNombre: s.nombre || s.email || ""
   };
   st.original = "";
+  const sugeridos = sugerirCantos(st.actual, lecturas);
   st.momento = 0;
   st.indice = 0;
-  st.vista = null;
-  pintarTodo();
+  cambiarPestana("lecturas");
+  mostrarCancionDelMomento();
+  pintarMisas();
+  pintarBiblioteca();
   actualizarUrl();
-  if (movil()) abrirCajon("biblioteca");
+  avisar(sugeridos
+    ? `Se sugirieron cantos para ${sugeridos} ${sugeridos === 1 ? "momento" : "momentos"}. Tocá un momento para cambiar su canto.`
+    : "Tocá cada momento para elegir sus cantos en la Biblioteca.");
+  if (movil()) abrirCajon("cancioneros");
 }
 
 function elegirMomento(i) {
   st.momento = i;
   st.indice = 0;
+  if (st.pestana !== "canciones") cambiarPestana("canciones");
   mostrarCancionDelMomento();
   pintarMisas();
   pintarBiblioteca();
@@ -366,6 +393,7 @@ function mostrarCancionDelMomento() {
 // ============ PANEL DERECHO: BIBLIOTECA ============
 
 function pintarBiblioteca() {
+  if (st.pestana === "lecturas") pintarLecturas();
   const cont = $("#lista-biblioteca");
   const m = momentoActual();
   const ed = editable() && !!m;
@@ -415,9 +443,12 @@ function pintarBiblioteca() {
 function marcarCancion(id, usar) {
   const m = momentoActual();
   if (!m || !editable()) return;
+  // Elegir una canción a mano reemplaza a la sugerida (o la confirma si es la misma)
+  if (usar) m.canciones = m.canciones.filter((c) => !c.sugerida || c.cancionId === id);
   const i = m.canciones.findIndex((c) => c.cancionId === id);
   if (usar) {
     if (i < 0) m.canciones.push({ cancionId: id, desplazamiento: 0 });
+    else delete m.canciones[i].sugerida;
     st.indice = m.canciones.findIndex((c) => c.cancionId === id);
   } else if (i >= 0) {
     m.canciones.splice(i, 1);
@@ -440,6 +471,267 @@ function verCancion(id) {
   }
   pintarBiblioteca();
   if (movil()) cerrarCajones();
+}
+
+// ============ BIBLIOTECA: LECTURAS DEL DÍA ============
+
+function cambiarPestana(p) {
+  st.pestana = p;
+  document.querySelectorAll(".bib-pestanas .modo").forEach((b) => {
+    const activa = b.dataset.pestana === p;
+    b.classList.toggle("activo", activa);
+    b.setAttribute("aria-selected", String(activa));
+  });
+  $("#lista-biblioteca").hidden = p !== "canciones";
+  $("#bib-cab-canciones").hidden = p !== "canciones";
+  $("#lista-lecturas").hidden = p !== "lecturas";
+  $("#lect-sub").hidden = p !== "lecturas";
+  if (p === "lecturas") pintarLecturas();
+}
+
+function cargarLecturas(fecha) {
+  if (!fecha) return Promise.resolve(null);
+  let e = st.lecturas.get(fecha);
+  if (!e) {
+    e = { cargando: true, datos: null, error: "" };
+    e.promesa = leer({ accion: "lecturas", fecha })
+      .then((r) => { e.datos = r.lecturas; }, (err) => { e.error = err.message; })
+      .finally(() => {
+        e.cargando = false;
+        if (st.pestana === "lecturas") pintarLecturas();
+      });
+    st.lecturas.set(fecha, e);
+  }
+  return e.promesa.then(() => {
+    if (e.error) throw new Error(e.error);
+    return e.datos;
+  });
+}
+
+// «XXVIII DOMINGO DEL TIEMPO ORDINARIO» → «XXVIII Domingo del Tiempo Ordinario»
+function tituloLiturgico(t) {
+  return String(t || "").toLowerCase().split(" ").map((w, i) =>
+    /^[ivxlc]+$|^\(\w\)$/.test(w) ? w.toUpperCase()
+      : i && /^(de|del|la|las|los|el|y|en|a)$/.test(w) ? w
+        : w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+function pintarLecturas() {
+  const cont = $("#lista-lecturas");
+  const fecha = st.actual?.fechaUso || "";
+  const e = fecha ? st.lecturas.get(fecha) : null;
+  const clave = [st.actual ? "a" : "", fecha, e ? (e.cargando ? "c" : e.error ? "e" : "ok") : "-"].join("|");
+  $("#lect-sub").textContent = fecha ? `Misa del ${fechaLarga(fecha)}` : "";
+  if (pintarLecturas.clave === clave && cont.childElementCount) return;
+  pintarLecturas.clave = clave;
+  const aviso = (t) => `<p class="aviso">${esc(t)}</p>`;
+  if (!st.actual) {
+    cont.innerHTML = aviso("Elegí o creá un cancionero para ver las lecturas del día de esa misa.");
+    return;
+  }
+  if (!fecha) {
+    cont.innerHTML = aviso("Este cancionero no tiene fecha. Ponésela con «Fechas y ensayos…» para ver sus lecturas.");
+    return;
+  }
+  if (!e) {
+    cargarLecturas(fecha).catch(() => {});
+    return pintarLecturas();
+  }
+  if (e.cargando) {
+    cont.innerHTML = aviso("Cargando las lecturas…");
+    return;
+  }
+  if (e.error) {
+    cont.innerHTML = aviso("No se pudieron traer las lecturas: " + e.error) +
+      '<button type="button" class="btn-chico" data-accion="reintentar-lecturas">Reintentar</button>';
+    return;
+  }
+  const l = e.datos;
+  const fuente = `<p class="lect-fuente">Fuente: <a href="${esc(l.fuente)}" target="_blank" rel="noopener">eucaristiadiaria.cl</a>,
+    Área de Liturgia del Arzobispado de Santiago.</p>`;
+  if (!l.disponible) {
+    cont.innerHTML = aviso(`Las lecturas del ${fechaLarga(fecha)} todavía no están publicadas: eucaristiadiaria.cl las publica mes a mes. Volvé a mirar más cerca de la fecha.`) + fuente;
+    return;
+  }
+  const bloque = (b) => {
+    const x = esc(b.x).replace(/\n/g, "<br>");
+    if (b.t === "h") return `<h4>${x}</h4>`;
+    if (b.t === "c") return `<p class="lect-cita">${x}</p>`;
+    if (b.t === "e") return `<p class="lect-lema">${x}</p>`;
+    return `<p>${x}</p>`;
+  };
+  cont.innerHTML = `<div class="lect-cabeza">
+      <strong>${esc(tituloLiturgico(l.titulo) || l.dia)}</strong>
+      <small>${esc([l.dia, l.color && "Color " + l.color.toLowerCase()].filter(Boolean).join(" · "))}</small>
+    </div>
+    ${l.secciones.map((s) => `<details class="lect-seccion"${s.id === "liturgia" || s.id === "evangelio" ? " open" : ""}>
+      <summary>${esc(s.nombre)}</summary>${s.bloques.map(bloque).join("")}</details>`).join("")}
+    ${fuente}`;
+}
+
+// ============ CALENDARIO LITÚRGICO ============
+
+const fechaMedioDia = (iso) => new Date(iso + "T12:00:00");
+const sumarDias = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12);
+
+function domingoDePascua(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const n = h + l - 7 * m + 114;
+  return new Date(y, Math.floor(n / 31) - 1, (n % 31) + 1, 12);
+}
+
+// Tiempo litúrgico de una fecha (para cuando todavía no están las lecturas). En Chile la Epifanía
+// y la Ascensión se celebran en domingo.
+function tiempoPorFecha(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || "")) return "";
+  const f = fechaMedioDia(iso), y = f.getFullYear();
+  const dif = Math.round((f - domingoDePascua(y)) / 86400000);
+  if (dif === -46) return "Miércoles de Ceniza";
+  if (dif === -7) return "Domingo de Ramos";
+  if (dif === -3) return "Jueves Santo";
+  if (dif === -2) return "Viernes Santo";
+  if (dif === -1) return "Vigilia Pascual";
+  if (dif > -7 && dif < -3) return "Semana Santa";
+  if (dif > -46 && dif < -7) return "Cuaresma";
+  if (dif === 39 || dif === 42) return "Ascensión";
+  if (dif === 49) return "Pentecostés";
+  if (dif >= 0 && dif < 49) return "Pascua";
+  const navidad = new Date(y, 11, 25, 12);
+  const adviento = sumarDias(navidad, -(navidad.getDay() || 7) - 21);
+  if (f >= adviento && f < navidad) return "Adviento";
+  if (f >= navidad) return "Navidad";
+  const enero2 = new Date(y, 0, 2, 12);
+  const epifania = sumarDias(enero2, (7 - enero2.getDay()) % 7);
+  if (+f === +epifania) return "Epifanía";
+  return f < sumarDias(epifania, 7) ? "Navidad" : "Tiempo ordinario";
+}
+
+const TIEMPOS_SIN_GLORIA = ["Adviento", "Cuaresma", "Miércoles de Ceniza", "Domingo de Ramos", "Semana Santa"];
+const TIEMPOS_SIN_ALELUYA = ["Cuaresma", "Miércoles de Ceniza", "Domingo de Ramos", "Semana Santa", "Viernes Santo"];
+// Tiempos cercanos: un canto de Cuaresma sirve en Semana Santa, uno de Pascua en Pentecostés…
+const TIEMPO_FAMILIA = {
+  "Miércoles de Ceniza": ["Cuaresma"], "Domingo de Ramos": ["Semana Santa", "Cuaresma"], "Semana Santa": ["Cuaresma"],
+  "Jueves Santo": ["Semana Santa"], "Viernes Santo": ["Semana Santa", "Cuaresma"], "Vigilia Pascual": ["Pascua"],
+  "Ascensión": ["Pascua"], "Pentecostés": ["Pascua", "Espíritu Santo"], "Epifanía": ["Navidad"], "Navidad": ["Epifanía"]
+};
+
+const FIESTAS = grupoCatolico("Solemnidades y fiestas");
+const FIESTA_CLAVES = {
+  "Santísima Trinidad": ["TRINIDAD"], "Corpus Christi": ["CUERPO Y LA SANGRE", "CORPUS CHRISTI"],
+  "Sagrado Corazón": ["SAGRADO CORAZON"], "Cristo Rey": ["REY DEL UNIVERSO", "CRISTO REY"],
+  "Todos los Santos": ["TODOS LOS SANTOS"], "Fieles difuntos": ["DIFUNTOS"], "Inmaculada Concepción": ["INMACULADA"],
+  "Asunción": ["ASUNCION"], "Virgen del Carmen": ["CARMEN"], "Virgen de Guadalupe": ["GUADALUPE"],
+  "San José": ["SAN JOSE"], "San Pedro y San Pablo": ["PEDRO Y PABLO", "PEDRO Y SAN PABLO"],
+  "Presentación del Señor": ["PRESENTACION DEL SENOR"], "Bautismo del Señor": ["BAUTISMO DEL SENOR"],
+  "Transfiguración": ["TRANSFIGURACION"], "Exaltación de la Cruz": ["EXALTACION DE LA SANTA CRUZ", "EXALTACION DE LA CRUZ"]
+};
+const sinTildes = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
+// Fiestas (etiquetas de «Solemnidades y fiestas») y si el día es mariano, según el título de las lecturas
+function etiquetasDelDia(titulo) {
+  const t = sinTildes(titulo);
+  return {
+    fiestas: t ? FIESTAS.filter((f) => (FIESTA_CLAVES[f] || [sinTildes(f)]).some((k) => t.includes(k))) : [],
+    mariano: /VIRGEN|NUESTRA SENORA|SANTA MARIA|MADRE DE DIOS|INMACULADA|ASUNCION/.test(t)
+  };
+}
+
+// ============ CANTOS SUGERIDOS ============
+
+const PALABRAS_COMUNES = new Set(("ahora antes aquel aquella aquellos cuando desde donde ellos entre estaba estas estos " +
+  "hasta hemos mismo mucho nosotros nuestra nuestro nuestros otros para pero porque puede sobre tambien tiene todos " +
+  "usted ustedes vuestra vuestro senor palabra lectura evangelio salmo jesus cristo dijo decir").split(" "));
+
+const palabrasDe = (texto) => new Set(sinTildes(texto).toLowerCase().split(/[^a-z]+/)
+  .filter((w) => w.length >= 5 && !PALABRAS_COMUNES.has(w)));
+
+const textoLecturas = (l) => (l?.secciones || []).filter((s) => s.id === "liturgia" || s.id === "evangelio")
+  .flatMap((s) => s.bloques.map((b) => b.x)).join(" ");
+
+function hashTexto(s) {
+  let h = 2166136261;
+  for (const ch of s) h = Math.imul(h ^ ch.codePointAt(0), 16777619);
+  return h >>> 0;
+}
+
+// Cantos de las últimas 3 misas de la comunidad: se evitan para no repetir siempre los mismos
+function recientesDeComunidad(misa) {
+  return new Set(st.misas.filter((m) => m.id !== misa.id && m.comunidad === misa.comunidad)
+    .sort((a, b) => String(b.fechaUso || "").localeCompare(String(a.fechaUso || ""))).slice(0, 3)
+    .flatMap((m) => m.momentos.flatMap((x) => x.canciones.map((c) => c.cancionId))));
+}
+
+function puntajeCanto(c, ctx) {
+  const tags = (c.etiquetas || []).map(tagNorm);
+  let p = 0;
+  const tiempos = tags.filter((t) => ctx.todosLosTiempos.has(t));
+  if (ctx.tiempo && tiempos.includes(ctx.tiempo)) p += 5;
+  else if (tags.some((t) => ctx.familia.has(t))) p += 3;
+  else if (tiempos.length) p -= 4;
+  if (tags.some((t) => ctx.fiestas.has(t))) p += 6;
+  if (ctx.mariano && tags.some((t) => ctx.marianas.has(t))) p += 4;
+  // En Cuaresma no se canta el aleluya (la aclamación al Evangelio es otra)
+  if (ctx.sinAleluya && /aleluya/i.test(c.titulo)) p -= 10;
+  if (ctx.recientes.has(c.id)) p -= 3;
+  if (ctx.palabras.size) {
+    let n = 0;
+    for (const w of palabrasDe(c.titulo + " " + (c.etiquetas || []).join(" "))) if (ctx.palabras.has(w)) n++;
+    p += Math.min(3, n);
+  }
+  return p;
+}
+
+// Pone un canto sugerido en cada momento sin cantos elegidos a mano. Con reemplazar, también cambia
+// los que ya eran sugerencias. Devuelve cuántos momentos quedaron con canto sugerido.
+function sugerirCantos(misa, lecturas, { reemplazar = false } = {}) {
+  const tiempo = misa.tiempoLiturgico || tiempoPorFecha(misa.fechaUso);
+  const dia = etiquetasDelDia(lecturas?.titulo);
+  const ctx = {
+    tiempo: tagNorm(tiempo),
+    familia: new Set((TIEMPO_FAMILIA[tiempo] || []).map(tagNorm)),
+    todosLosTiempos: new Set(TIEMPOS.map(tagNorm)),
+    fiestas: new Set(dia.fiestas.map(tagNorm)),
+    mariano: dia.mariano,
+    marianas: new Set(["Mariano", "Canto a María", "Mes de María"].map(tagNorm)),
+    sinAleluya: TIEMPOS_SIN_ALELUYA.includes(tiempo),
+    recientes: recientesDeComunidad(misa),
+    palabras: palabrasDe(textoLecturas(lecturas))
+  };
+  const usadas = new Set(misa.momentos.flatMap((m) => m.canciones.filter((c) => !c.sugerida).map((c) => c.cancionId)));
+  let sugeridos = 0;
+  for (const m of misa.momentos) {
+    if (m.canciones.some((c) => !c.sugerida) || (m.canciones.length && !reemplazar)) continue;
+    let mejor = null, mejorP = -Infinity, mejorH = 0;
+    for (const c of st.biblioteca) {
+      if (usadas.has(c.id) || !esDelMomento(c, m.momento)) continue;
+      const p = puntajeCanto(c, ctx);
+      const h = hashTexto((misa.fechaUso || "") + "|" + c.id);
+      if (p > mejorP || (p === mejorP && h < mejorH)) [mejor, mejorP, mejorH] = [c, p, h];
+    }
+    m.canciones = mejor ? [{ cancionId: mejor.id, desplazamiento: 0, sugerida: true }] : [];
+    if (mejor) {
+      usadas.add(mejor.id);
+      sugeridos++;
+    }
+  }
+  return sugeridos;
+}
+
+async function volverASugerir() {
+  const a = st.actual;
+  if (!a || !editable()) return;
+  let l = null;
+  try { l = await cargarLecturas(a.fechaUso); } catch (_) { /* se sugiere solo con el tiempo litúrgico */ }
+  if (st.actual !== a) return;
+  const n = sugerirCantos(a, l?.disponible ? l : null, { reemplazar: true });
+  st.indice = 0;
+  mostrarCancionDelMomento();
+  pintarMisas();
+  pintarBiblioteca();
+  avisar(n ? `Cantos sugeridos para ${n} ${n === 1 ? "momento" : "momentos"}. Los elegidos a mano no se tocaron.`
+    : "No hay canciones de la Biblioteca con las etiquetas de estos momentos.");
 }
 
 // ============ LIENZO CENTRAL ============
@@ -623,6 +915,7 @@ function transponer(d) {
   v.desplazamiento = d;
   if (v.ref) {
     v.ref.desplazamiento = d;
+    delete v.ref.sugerida;
     pintarMisas();
   }
   pintarLienzo();
@@ -645,6 +938,220 @@ function pintarTodo() {
   pintarMisas();
   pintarBiblioteca();
   pintarLienzo();
+}
+
+// ============ DIÁLOGO: CANCIONERO NUEVO ============
+// Primero el nombre, después la fecha de la misa (y la comunidad). Con editar: completa los datos
+// del cancionero abierto antes de publicarlo.
+
+const nuevo = { paso: 1, editar: false };
+
+function abrirNuevo({ editar = false } = {}) {
+  if (!editar && !confirmarDescartar()) return;
+  const a = editar ? st.actual : null;
+  nuevo.editar = editar;
+  $("#n-titulo").textContent = editar ? "Datos para publicar" : "Cancionero nuevo";
+  $("#n-nombre").value = a?.nombre || "";
+  $("#n-fecha").value = a?.fechaUso || proximoDomingo();
+  const comunidades = comunidadesEditables();
+  const s = st.sesion || {};
+  const pre = [a?.comunidad, st.comunidad, s.comunidad].find((c) => comunidades.some((x) => x.slug === c)) || "";
+  $("#n-comunidad").innerHTML = (pre ? "" : '<option value="">Elegí la comunidad</option>') +
+    opciones(comunidades.map((c) => [c.slug, c.nombre]), pre);
+  $("#n-comunidad-caja").hidden = comunidades.length === 1 && !!pre;
+  mostrarError("#n-error", "");
+  $("#dlg-nuevo").showModal();
+  pasoNuevo(editar && a?.nombre ? 2 : 1);
+}
+
+function pasoNuevo(n) {
+  nuevo.paso = n;
+  $("#n-paso1").hidden = n !== 1;
+  $("#n-paso2").hidden = n !== 2;
+  $("#n-paso1-marca").classList.toggle("activo", n === 1);
+  $("#n-paso2-marca").classList.toggle("activo", n === 2);
+  $("#n-atras").hidden = n !== 2;
+  $("#n-seguir").textContent = n === 1 ? "Siguiente" : nuevo.editar ? "Publicar" : "Crear cancionero";
+  if (n === 1) {
+    $("#n-nombre").focus();
+    return;
+  }
+  $("#n-resumen").textContent = `«${$("#n-nombre").value.trim()}»`;
+  mostrarDiaNuevo();
+  $("#n-fecha").focus();
+}
+
+async function mostrarDiaNuevo() {
+  const fecha = $("#n-fecha").value;
+  const el = $("#n-dia");
+  if (!fecha) {
+    el.textContent = "";
+    return;
+  }
+  const base = `${fechaLarga(fecha)} · ${tiempoPorFecha(fecha)}`;
+  el.textContent = base + " · buscando las lecturas…";
+  let l = null;
+  try { l = await cargarLecturas(fecha); } catch (_) { /* sin lecturas: queda el tiempo litúrgico */ }
+  if ($("#n-fecha").value !== fecha) return;
+  el.textContent = l?.disponible ? `${fechaLarga(fecha)} · ${tituloLiturgico(l.titulo)}`
+    : base + (l ? " · las lecturas de esta fecha todavía no están publicadas" : "");
+}
+
+async function enviarNuevo(e) {
+  e.preventDefault();
+  const nombre = $("#n-nombre").value.trim();
+  if (nuevo.paso === 1) {
+    if (!nombre) return mostrarError("#n-error", "Escribí el nombre del cancionero.");
+    mostrarError("#n-error", "");
+    return pasoNuevo(2);
+  }
+  const fecha = $("#n-fecha").value;
+  const comunidad = $("#n-comunidad").value;
+  if (!nombre) return pasoNuevo(1);
+  if (!fecha) return mostrarError("#n-error", "Elegí la fecha de la misa.");
+  if (!comunidad) return mostrarError("#n-error", "Elegí la comunidad.");
+  const boton = $("#n-seguir");
+  boton.disabled = true;
+  boton.textContent = "Preparando…";
+  let l = null;
+  try {
+    l = await Promise.race([cargarLecturas(fecha), new Promise((r) => setTimeout(r, 15000, null))]);
+  } catch (_) { /* se arma igual, sin lecturas */ }
+  boton.disabled = false;
+  $("#dlg-nuevo").close();
+  const lecturas = l?.disponible ? l : null;
+  if (nuevo.editar && st.actual) {
+    const a = st.actual;
+    if (a.fechaUso !== fecha || !a.tiempoLiturgico) a.tiempoLiturgico = lecturas?.tiempo || tiempoPorFecha(fecha);
+    Object.assign(a, { nombre, fechaUso: fecha, comunidad });
+    pintarTodo();
+    return publicarCancionero();
+  }
+  crearBorrador({ nombre, fecha, comunidad, lecturas });
+}
+
+function conectarNuevo() {
+  $("#form-nuevo").addEventListener("submit", enviarNuevo);
+  $("#n-atras").addEventListener("click", () => pasoNuevo(1));
+  $("#n-fecha").addEventListener("change", mostrarDiaNuevo);
+}
+
+// ============ PUBLICAR ============
+// Guarda el cancionero y lo abre en el editor (iframe oculto, editor/?misa=…&publicar=1), que arma la
+// carpeta con la página .html en el Drive igual que «Guardar en Drive» y avisa por postMessage.
+
+let publicando = false;
+
+function pasoPublicar(texto, valor) {
+  $("#p-paso").textContent = texto;
+  $("#p-barra").value = valor;
+}
+
+async function publicarCancionero() {
+  const a = st.actual;
+  if (!a || !editable() || publicando) return;
+  if (!a.nombre || !COMUNIDADES.some((c) => c.slug === a.comunidad) || !puedeEditar(a.comunidad)) return abrirNuevo({ editar: true });
+  if (!a.momentos.some((m) => m.canciones.length)) return avisar("Elegí al menos una canción antes de publicar.", true);
+  publicando = true;
+  const dlg = $("#dlg-publicar");
+  $("#p-titulo").textContent = `Publicando «${a.nombre}»`;
+  $("#p-avance").hidden = false;
+  $("#p-listo").hidden = true;
+  $("#p-copiar").hidden = $("#p-whatsapp").hidden = true;
+  $("#p-cerrar").hidden = $("#p-cerrar-x").hidden = true;
+  mostrarError("#p-error", "");
+  pasoPublicar("Guardando el cancionero…", 0);
+  dlg.showModal();
+  try {
+    // Al publicar, las sugerencias quedan como elegidas
+    const momentos = a.momentos.map((m) => ({ momento: m.momento, canciones: m.canciones.map(({ sugerida, ...c }) => c) }));
+    let r = await llamarApi("guardarMisa", {
+      token: token(),
+      misa: { id: a.borrador ? undefined : a.id, nombre: a.nombre, comunidad: a.comunidad, fechaUso: a.fechaUso,
+        tiempoLiturgico: a.tiempoLiturgico, coroId: a.coroId, momentos }
+    });
+    await aplicarMisaGuardada(r.misa);
+    pasoPublicar("Armando la página del cancionero…", 0.05);
+    const fin = await publicarEnDrive(r.misa.id);
+    pasoPublicar("Guardando el enlace…", 0.97);
+    r = await llamarApi("guardarMisa", { token: token(), misa: { ...r.misa, drive: { folderId: fin.folderId, htmlId: fin.htmlId } } });
+    if (!r.misa.drive) throw new Error("El servidor no guardó el enlace de la página publicada.");
+    await aplicarMisaGuardada(r.misa);
+    mostrarPublicado(r.misa, fin);
+  } catch (err) {
+    $("#p-avance").hidden = true;
+    $("#p-titulo").textContent = "No se pudo publicar";
+    mostrarError("#p-error", err.message + (st.actual && !st.actual.borrador ? " El cancionero sí quedó guardado: podés volver a publicar." : ""));
+  } finally {
+    publicando = false;
+    $("#p-cerrar").hidden = $("#p-cerrar-x").hidden = false;
+  }
+}
+
+function publicarEnDrive(id) {
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement("iframe");
+    iframe.className = "publicador";
+    iframe.title = "Armando la página del cancionero";
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.src = `./editor/?misa=${encodeURIComponent(id)}&publicar=1`;
+    let reloj = 0;
+    const vigilar = () => {
+      clearTimeout(reloj);
+      reloj = setTimeout(() => terminar(new Error("El editor no respondió a tiempo. Revisá la conexión y publicá de nuevo.")), 180000);
+    };
+    const alMensaje = (e) => {
+      if (e.origin !== location.origin || e.source !== iframe.contentWindow) return;
+      const d = e.data || {};
+      if (d.misa !== id) return;
+      if (d.mcPublicar === "avance") {
+        vigilar();
+        pasoPublicar(d.texto || "Armando la página…", 0.05 + 0.9 * (d.valor || 0));
+      } else if (d.mcPublicar === "listo") terminar(null, d);
+      else if (d.mcPublicar === "error") terminar(new Error(d.mensaje || "No se pudo armar la página del cancionero."));
+    };
+    function terminar(err, datos) {
+      clearTimeout(reloj);
+      removeEventListener("message", alMensaje);
+      iframe.remove();
+      if (err) reject(err);
+      else resolve(datos);
+    }
+    addEventListener("message", alMensaje);
+    vigilar();
+    document.body.append(iframe);
+  });
+}
+
+function mostrarPublicado(misa, fin) {
+  const ver = misa.drive?.htmlId ? urlVer(misa.drive.htmlId) : "";
+  $("#p-titulo").textContent = "Publicado ✓";
+  $("#p-avance").hidden = true;
+  $("#p-listo").hidden = false;
+  const n = misa.momentos.reduce((t, m) => t + m.canciones.length, 0);
+  $("#p-mensaje").textContent = `«${misa.nombre}» quedó guardado en la web con ${n} ${n === 1 ? "canción" : "canciones"} ` +
+    `y ya aparece en la página de ${misa.comunidadNombre || nombreComunidad(misa.comunidad)}.`;
+  $("#p-ver").hidden = !ver;
+  $("#p-ver").href = ver;
+  $("#p-editar").href = urlEditor(misa.drive.folderId);
+  const notas = [
+    fin.faltantes && `${fin.faltantes} ${fin.faltantes === 1 ? "canción ya no está" : "canciones ya no están"} en la Biblioteca y no ${fin.faltantes === 1 ? "entró" : "entraron"} en la página.`
+  ].filter(Boolean);
+  $("#p-notas").hidden = !notas.length;
+  $("#p-notas").textContent = notas.join(" ");
+  $("#p-copiar").hidden = $("#p-whatsapp").hidden = !ver;
+  $("#p-copiar").dataset.url = ver;
+  $("#p-whatsapp").href = "https://wa.me/?text=" + encodeURIComponent(
+    `Cancionero «${misa.nombre}» (${misa.comunidadNombre || nombreComunidad(misa.comunidad)}${misa.fechaUso ? ", " + fechaLarga(misa.fechaUso) : ""}): ${ver}`);
+}
+
+function conectarPublicar() {
+  $("#dlg-publicar").addEventListener("cancel", (e) => { if (publicando) e.preventDefault(); });
+  $("#p-copiar").addEventListener("click", (e) => {
+    const b = e.currentTarget;
+    navigator.clipboard?.writeText(b.dataset.url).then(() => { b.textContent = "Enlace copiado ✓"; }, () => prompt("Copiá el enlace:", b.dataset.url));
+    setTimeout(() => { b.textContent = "Copiar enlace"; }, 2500);
+  });
 }
 
 // ============ DIÁLOGO: GUARDAR CANCIONERO ============
@@ -759,21 +1266,8 @@ async function guardarCancionero(e) {
       momentos: a.momentos
     };
     const r = await llamarApi("guardarMisa", { token: token(), misa, ensayos: ensayos || undefined });
-    if (st.comunidad && st.comunidad !== r.misa.comunidad) {
-      st.comunidad = r.misa.comunidad;
-      pintarSelectorComunidad();
-      await cargarMisas();
-    } else {
-      st.misas = [r.misa, ...st.misas.filter((x) => x.id !== r.misa.id)]
-        .sort((x, y) => String(y.fechaUso || y.creado).localeCompare(String(x.fechaUso || x.creado)));
-    }
-    st.actual = structuredClone(r.misa);
-    st.original = firma(st.actual);
     $("#dlg-guardar").close();
-    mostrarCancionDelMomento();
-    pintarMisas();
-    pintarBiblioteca();
-    actualizarUrl();
+    await aplicarMisaGuardada(r.misa);
     avisar(`Se guardó «${r.misa.nombre}».`);
   } catch (err) {
     mostrarError("#g-error", err.message);
@@ -781,6 +1275,22 @@ async function guardarCancionero(e) {
     boton.disabled = false;
     boton.textContent = "Guardar";
   }
+}
+
+async function aplicarMisaGuardada(misa) {
+  if (st.comunidad && st.comunidad !== misa.comunidad) {
+    st.comunidad = misa.comunidad;
+    pintarSelectorComunidad();
+    await cargarMisas();
+  }
+  st.misas = [misa, ...st.misas.filter((x) => x.id !== misa.id)]
+    .sort((x, y) => String(y.fechaUso || y.creado).localeCompare(String(x.fechaUso || x.creado)));
+  st.actual = structuredClone(misa);
+  st.original = firma(st.actual);
+  mostrarCancionDelMomento();
+  pintarMisas();
+  pintarBiblioteca();
+  actualizarUrl();
 }
 
 async function borrarCancionero() {
@@ -1504,7 +2014,14 @@ function conectarEventos() {
     pintarMisas();
   });
 
-  $("#btn-nuevo").addEventListener("click", nuevoCancionero);
+  $("#btn-nuevo").addEventListener("click", () => abrirNuevo());
+
+  document.querySelectorAll(".bib-pestanas .modo").forEach((b) => b.addEventListener("click", () => cambiarPestana(b.dataset.pestana)));
+  $("#lista-lecturas").addEventListener("click", (e) => {
+    if (!e.target.closest('[data-accion="reintentar-lecturas"]')) return;
+    st.lecturas.delete(st.actual?.fechaUso);
+    pintarLecturas();
+  });
 
   $("#lista-misas").addEventListener("click", (e) => {
     const b = e.target.closest("[data-accion]");
@@ -1514,6 +2031,8 @@ function conectarEventos() {
     else if (accion === "momento") elegirMomento(+b.dataset.i);
     else if (accion === "quitar-momento") quitarMomento(+b.dataset.i);
     else if (accion === "guardar") abrirGuardar();
+    else if (accion === "sugerir") volverASugerir();
+    else if (accion === "publicar") publicarCancionero();
     else if (accion === "descartar") descartarCambios();
     else if (accion === "cerrar") cerrarMisa();
   });
@@ -1556,11 +2075,13 @@ function conectarEventos() {
   const buscar = $("#buscar");
   buscar.addEventListener("input", () => {
     st.busqueda = buscar.value;
+    if (st.pestana !== "canciones") cambiarPestana("canciones");
     pintarBiblioteca();
   });
   $("#form-buscar").addEventListener("submit", (e) => {
     e.preventDefault();
     st.busqueda = buscar.value;
+    cambiarPestana("canciones");
     pintarBiblioteca();
     if (movil()) abrirCajon("biblioteca");
   });
@@ -1576,12 +2097,14 @@ function conectarEventos() {
   new ResizeObserver(() => document.body.style.setProperty("--cab-h", cabecera.offsetHeight + "px")).observe(cabecera);
 
   window.addEventListener("beforeunload", (e) => {
-    if (sucio()) {
+    if (sucio() || publicando) {
       e.preventDefault();
       e.returnValue = "";
     }
   });
 
+  conectarNuevo();
+  conectarPublicar();
   conectarGuardar();
   conectarCoro();
   conectarSubir();
