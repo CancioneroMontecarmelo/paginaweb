@@ -93,6 +93,7 @@ clasp update-deployment <ID de la implementación> -d "descripción"
 | `js/liturgia.js` | Calendario litúrgico y cantos sugeridos (común a Misas e Inicio) |
 | `ver.html` | Muestra un cancionero guardado en el Drive (`ver.html?id=…`) |
 | `js/config.js` | Dirección del Apps Script (`apiUrl`) e ID de cliente de Google (`googleClientId`) |
+| `scripts/video-a-webm.py` | Comando: audio de videos o enlaces a WebM y subida a la Biblioteca |
 | `respaldo-antes-drive/` | Copia de los audios y cancioneros anteriores al Drive |
 
 ## Inicio (`inicio.html`)
@@ -169,6 +170,9 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
 - **▶ Atril**: abre las canciones del cancionero, en orden y en el tono elegido, en el atril del editor
   (pestaña nueva, `editor/?atril=1&misa=<id>`), incluso con cambios todavía sin guardar. No toca las
   pestañas que cada uno tenga abiertas en el editor.
+- **Cancionero activo**: el que está abierto en Misas. En el editor, el botón **🎼 Atril** ofrece abrirlo
+  («Abrir … (activo en Misas)» o «Seguir con las pestañas abiertas»); si después cambia en Misas, el
+  editor avisa con **Actualizar**. Se comunica por `localStorage` (`mc-activo`), en el mismo navegador.
 - **Panel izquierdo — Biblioteca**, con dos pestañas:
   - **Canciones**: al tocar un momento, lista todas las canciones del sitio con esa etiqueta; al marcarla
     queda en el cancionero (reemplaza a la sugerida) y se muestra en el centro.
@@ -231,3 +235,32 @@ quedan como elegidas.
   de la pantalla Misas, que lo abre). En el celular se toca la zona y se eligen desde Archivos, Drive o
   la grabadora; en Android y iPad también se puede arrastrar desde la pantalla dividida.
 - `js/audio-webm.js` hace la conversión con WebCodecs y `js/vendor/webm-muxer.mjs` (MIT) arma el WebM.
+
+### Convertir videos a WebM (`scripts/video-a-webm.py`)
+
+Comando para la computadora: saca el audio de **archivos de video** (mp4, mkv, mov…) o de **enlaces**
+(YouTube, Vimeo, TikTok…), lo deja en WebM (Opus, 48 kHz, 96 kbps estéreo o 64 kbps mono, como el
+navegador) y lo **sube a la Biblioteca** con título, etiquetas, letra y voz.
+
+```bash
+scripts/video-a-webm.py https://youtu.be/XXXX --cancion "Santo Fones" --etiquetas "Santo, Tiempo ordinario"
+scripts/video-a-webm.py soprano.mp4 tenor.mp4 --cancion "Gloria" --voz soprano --voz tenor --letra gloria.txt
+scripts/video-a-webm.py ensayo.mov --sin-subir --salida ~/Música/webm     # solo convertir
+```
+
+- **Necesita** Python 3 y `ffmpeg` (`sudo apt install ffmpeg`). Para los enlaces usa `yt-dlp`; si el de
+  la distribución está viejo y YouTube lo rechaza, el script baja y usa su propia copia al día
+  (`~/.local/share/montecarmelo/yt-dlp`).
+- **Clave**: la primera vez la pide. Se copia en el sitio, **Identificarse → Copiar clave para el script**
+  (la misma sesión, dura 90 días y da tus mismos permisos), y queda en `~/.config/montecarmelo/sesion.json`.
+  `--olvidar-clave` la borra.
+- Con `--cancion`, todos los videos son audios de esa canción (`--voz` y `--nombre` se repiten, uno por
+  video y en orden). Sin `--cancion`, cada video es una canción con el título del video o del archivo.
+- `--letra`: `.txt` con acordes sobre la letra, ChordPro (`[Do]Noche de [Sol]paz`) o un `.md` del editor.
+  `--etiquetas` se escriben como en el editor (`entrada` → «Entrada»). También `--tono`, `--autor` y
+  `--comunidad` (dueña de la canción nueva; por defecto la tuya).
+- Si la canción **ya está en la Biblioteca** (mismo título), el audio se le suma y las etiquetas nuevas se
+  agregan a las que tenía. Su letra solo se reemplaza con `--letra`, y si ya tenía letra pregunta antes
+  (`--si` responde que sí).
+- Siempre deja en `--salida` (por defecto, la carpeta actual) el `.webm` y el `.md` de la canción, que se
+  pueden abrir en el editor o subir después desde **Misas → Canciones y audios**. Máximo 30 MB por audio.

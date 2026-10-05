@@ -610,7 +610,7 @@ const ACTIONS = {
   tagSearch: tagSearchDialog,
 
   modeEdit: () => setMode('edit'),
-  modeAtril: () => setMode('atril'),
+  modeAtril: () => mcAtrilActivo(),
   toggleMode: () => setMode(state.mode === 'edit' ? 'atril' : 'edit'),
   fullscreen: toggleFullscreen,
   toggleComments: () => { state.showComments = !state.showComments; applyState(); toast(state.showComments ? 'Comentarios visibles' : 'Comentarios ocultos', 1500); },

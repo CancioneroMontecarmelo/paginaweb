@@ -675,6 +675,84 @@ async function mcAtrilMisa(id) {
   }
 }
 
+// Botón 🎼 Atril del editor: ofrece el cancionero abierto en la pantalla Misas, que lo deja en «mc-activo»
+// (js/misas.js, guardarActivo). «t» es su versión: cambia solo cuando cambia el contenido.
+const MC_ACTIVO_KEY = 'mc-activo';
+const MC_ACTIVO_VISTO = 'mc-activo-visto';
+
+function mcLeerActivo() {
+  try {
+    const a = JSON.parse(localStorage.getItem(MC_ACTIVO_KEY));
+    return a?.id && Array.isArray(a.momentos) && Date.now() - a.t < 12 * 3600e3 ? a : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+const mcActivoCargado = a => state.mcMisa?.id === a.id && state.mcMisa.t >= a.t;
+
+async function mcAtrilActivo() {
+  const a = EFIMERO ? null : mcLeerActivo();
+  if (!a || mcActivoCargado(a) || sessionStorage.getItem(MC_ACTIVO_VISTO) === a.id + '@' + a.t) return setMode('atril');
+  const cambiado = state.mcMisa?.id === a.id;
+  const eleccion = await showModal({
+    title: 'Cancionero activo en Misas',
+    body: `<p>En la pantalla Misas está abierto <b>«${escapeHtml(a.nombre || 'Cancionero')}»</b>${a.fechaUso ? ` (${escapeHtml(a.fechaUso)})` : ''}${
+      cambiado ? ', con cambios que todavía no están en estas pestañas' : ''}.</p>
+      <p class="hint">¿Lo abrimos en el atril? Sus canciones reemplazan a las pestañas abiertas.</p>`,
+    buttons: [
+      { label: 'Seguir con las pestañas abiertas', value: 'seguir' },
+      { label: `Abrir «${a.nombre || 'Cancionero'}»`, primary: true, value: 'abrir' }
+    ]
+  });
+  if (eleccion === 'abrir') return mcCargarActivo(a);
+  if (eleccion === 'seguir') sessionStorage.setItem(MC_ACTIVO_VISTO, a.id + '@' + a.t);
+  setMode('atril');
+}
+
+async function mcCargarActivo(a) {
+  mcQuitarAvisoActivo();
+  if (!await saveBeforeClosing('Antes de abrir el cancionero de Misas')) return;
+  try {
+    if (!MC_API) throw new Error('El Drive de la parroquia todavía no está conectado.');
+    const { songs, faltantes } = await mcCancionesDeMisa(a, (i, n) =>
+      toast(`Abriendo «${a.nombre}»: canción ${i + 1} de ${n}…`, 60000));
+    if (!songs.length) throw new Error('Ninguna canción del cancionero está en la Biblioteca.');
+    replaceOrAddTabs(songs, true);
+    setActiveBook(a.nombre || 'Cancionero de misa', null, `Misas · ${MC_COMUNIDADES[a.comunidad] || 'Parroquia'}`);
+    // Lo que se guarde desde aquí es un cancionero nuevo en el Drive, no el que estaba abierto antes
+    state.mcDrive = null;
+    state.mcMisa = { id: a.id, t: a.t };
+    state.cancioneroClean = bookSignature();
+    setMode('atril');
+    refresh();
+    toast(faltantes ? `${faltantes} ${faltantes === 1 ? 'canción ya no está' : 'canciones ya no están'} en la Biblioteca.`
+      : `«${a.nombre}» abierto en el atril`, faltantes ? 5000 : 2500);
+  } catch (e) {
+    mcError('No se pudo abrir el cancionero de Misas', e);
+  }
+}
+
+// Si el cancionero cargado cambia en Misas con el editor abierto, se avisa para actualizarlo
+function mcQuitarAvisoActivo() {
+  $('#mcAvisoActivo')?.remove();
+}
+
+function mcAvisarActivo() {
+  if (EFIMERO) return;
+  const a = mcLeerActivo();
+  if (!a || state.mcMisa?.id !== a.id || mcActivoCargado(a)) return;
+  mcQuitarAvisoActivo();
+  const aviso = el('div', 'install-hint');
+  aviso.id = 'mcAvisoActivo';
+  aviso.innerHTML = `<span>«${escapeHtml(a.nombre || 'Cancionero')}» cambió en Misas</span>
+    <button type="button" class="btn primary">Actualizar</button>
+    <button type="button" class="panel-close" aria-label="Cerrar">×</button>`;
+  aviso.querySelector('.btn').onclick = () => mcCargarActivo(mcLeerActivo() || a);
+  aviso.querySelector('.panel-close').onclick = mcQuitarAvisoActivo;
+  document.body.appendChild(aviso);
+}
+
 // ============ ABRIR ============
 async function mcListar() {
   let r;
@@ -789,5 +867,8 @@ async function driveOpenFolder(folderId) {
 // ============ INICIO ============
 function driveInit() {
   mcPintarSesion();
-  window.addEventListener('storage', e => { if (e.key === MC_SESION) mcPintarSesion(); });
+  window.addEventListener('storage', e => {
+    if (e.key === MC_SESION) mcPintarSesion();
+    if (e.key === MC_ACTIVO_KEY) mcAvisarActivo();
+  });
 }

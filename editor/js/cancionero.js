@@ -440,6 +440,7 @@ function replaceOrAddTabs(newDocs, replace) {
   if (replace) {
     docs.forEach(d => { revokeDocAudios(d); revokeDocSheets(d); forgetFileHandle(d.id); });
     docs = [];
+    state.mcMisa = null;
   } else {
     docs = docs.filter(d => !isBlank(d));
   }

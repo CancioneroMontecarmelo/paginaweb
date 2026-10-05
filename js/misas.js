@@ -173,6 +173,7 @@ function pintarSelectorComunidad() {
 // ============ PANEL IZQUIERDO: CANCIONEROS ============
 
 function pintarMisas() {
+  guardarActivo();
   const cont = $("#lista-misas");
   $("#btn-nuevo").hidden = !puedeEditar(st.comunidad || undefined);
   const lista = st.misas.slice();
@@ -262,6 +263,7 @@ function cerrarMisa() {
   st.original = "";
   st.momento = -1;
   st.vista = null;
+  soltarActivo();
   pintarTodo();
   actualizarUrl();
 }
@@ -355,15 +357,36 @@ function moverMomento(desde, hacia) {
   return true;
 }
 
+const copiaParaAtril = (a) => ({
+  id: a.id, nombre: a.nombre || "Cancionero nuevo", comunidad: a.comunidad, fechaUso: a.fechaUso, tiempoLiturgico: a.tiempoLiturgico,
+  momentos: a.momentos.map((m) => ({ momento: m.momento, canciones: m.canciones.map(({ cancionId, desplazamiento }) => ({ cancionId, desplazamiento })) }))
+});
+
+// El cancionero abierto aquí es el «activo»: el botón Atril del editor lo ofrece (editor/js/nube.js, mcAtrilActivo).
+// «t» cambia solo cuando cambia el contenido, para que el editor sepa si ya lo tiene cargado.
+const MC_ACTIVO = "mc-activo";
+let activoFirma = "";
+function guardarActivo() {
+  const a = st.actual;
+  if (!a || !a.momentos.some((m) => m.canciones.length)) return;
+  const copia = copiaParaAtril(a);
+  const f = JSON.stringify(copia);
+  if (f === activoFirma) return;
+  try {
+    localStorage.setItem(MC_ACTIVO, JSON.stringify({ ...copia, t: Date.now() }));
+    activoFirma = f;
+  } catch (_) { /* sin espacio: el editor sigue con sus pestañas */ }
+}
+function soltarActivo() {
+  activoFirma = "";
+  try { localStorage.removeItem(MC_ACTIVO); } catch (_) {}
+}
+
 function abrirAtril() {
   const a = st.actual;
   if (!a) return;
   if (!a.momentos.some((m) => m.canciones.length)) return avisar("Este cancionero todavía no tiene canciones.", true);
-  const copia = {
-    id: a.id, nombre: a.nombre || "Cancionero nuevo", comunidad: a.comunidad, fechaUso: a.fechaUso, tiempoLiturgico: a.tiempoLiturgico,
-    momentos: a.momentos.map((m) => ({ momento: m.momento, canciones: m.canciones.map(({ cancionId, desplazamiento }) => ({ cancionId, desplazamiento })) })),
-    t: Date.now()
-  };
+  const copia = { ...copiaParaAtril(a), t: Date.now() };
   let copiada = true;
   try {
     localStorage.setItem("mc-atril", JSON.stringify(copia));
@@ -1137,6 +1160,7 @@ async function borrarCancionero() {
   try {
     await llamarApi("borrarMisa", { token: token(), id: a.id });
     st.misas = st.misas.filter((x) => x.id !== a.id);
+    soltarActivo();
     st.actual = null;
     st.original = "";
     st.momento = -1;
@@ -2012,6 +2036,7 @@ function conectarEventos() {
       return;
     }
     st.comunidad = e.target.value;
+    if (st.actual) soltarActivo();
     st.actual = null;
     st.original = "";
     st.momento = -1;
@@ -2046,6 +2071,9 @@ function conectarEventos() {
     else if (accion === "cerrar") cerrarMisa();
   });
   conectarArrastreMomentos();
+  // Al pasar al editor (otra pestaña) queda al día lo que se cambió sin repintar la lista, como el tono
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") guardarActivo(); });
+  window.addEventListener("blur", guardarActivo);
   $("#lista-misas").addEventListener("change", (e) => {
     if (e.target.id !== "nuevo-momento") return;
     let nombre = e.target.value;

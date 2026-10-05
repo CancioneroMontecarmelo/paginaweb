@@ -53,8 +53,10 @@
       <div class="acciones-form">
         <a class="btn btn-primario" href="./noticias.html">Ir a noticias</a>
         <a class="btn btn-secundario" href="./editor/" id="sesion-editor" hidden>Abrir el editor</a>
+        <button type="button" class="btn btn-secundario" data-clave hidden title="Para el comando scripts/video-a-webm.py, que sube audios a la Biblioteca desde tu computadora">Copiar clave para el script</button>
         <button type="button" class="btn btn-secundario" data-salir>Cerrar sesión</button>
       </div>
+      <p class="msg-ok" data-clave-msg hidden></p>
     </section>
 
     <!-- PANEL DE RESPONSABLES -->
@@ -63,8 +65,10 @@
       <div class="acciones-form">
         <button type="button" class="btn btn-primario" id="btn-admins">Administradores y permisos</button>
         <a class="btn btn-secundario" href="./editor/">Abrir el editor</a>
+        <button type="button" class="btn btn-secundario" data-clave title="Para el comando scripts/video-a-webm.py, que sube audios a la Biblioteca desde tu computadora">Copiar clave para el script</button>
         <button type="button" class="btn btn-secundario" data-salir>Cerrar sesión</button>
       </div>
+      <p class="msg-ok" data-clave-msg hidden></p>
 
       <h2 class="auth-h2">Registro de entradas</h2>
       <div id="lista-auditoria" class="lista-auditoria"></div>
@@ -173,7 +177,23 @@
         " · " + (NOMBRES_ROL[s.rol] || s.rol) + (s.comunidad && s.rol !== "visitante" ? " · " + nombreComunidad(s.comunidad) : ""));
       mensaje("sesion-aviso", aviso || "");
       $("sesion-editor").hidden = !puedeEditar();
+      $("panel-sesion").querySelector("[data-clave]").hidden = !puedeEditar();
     }
+
+    // La misma sesión del sitio (dura 90 días) sirve para subir audios con scripts/video-a-webm.py
+    document.querySelectorAll("[data-clave]").forEach((b) =>
+      b.addEventListener("click", async () => {
+        const msg = b.closest("section").querySelector("[data-clave-msg]");
+        const clave = sesionActual()?.token || "";
+        msg.hidden = false;
+        try {
+          await navigator.clipboard.writeText(clave);
+          msg.textContent = "Clave copiada. Pegala cuando el script la pida (se guarda en tu computadora). No la compartas: da tus mismos permisos.";
+        } catch (_) {
+          msg.textContent = "Copiá esta clave y pegala en el script: " + clave;
+        }
+      })
+    );
 
     document.querySelectorAll("[data-salir]").forEach((b) =>
       b.addEventListener("click", () => {
