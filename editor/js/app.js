@@ -417,51 +417,63 @@ function showSyntax() {
     body: `<table class="syntax-table">${rows.map(([a, b]) =>
       `<tr><td>${a}</td><td><code>${escapeHtml(b)}</code></td></tr>`).join('')}</table>
       <p class="hint" style="margin-top:10px">Al importar se acepta también formato ChordPro (<code>[G]Noche de [D]paz</code>).
-      Cada pestaña es una canción; con <b>Archivo → Guardar cancionero</b> se guardan todas juntas.</p>`
+      Cada pestaña es una canción; con <b>Archivo → Guardar cancionero en el Drive</b> se guardan todas juntas.</p>`
   });
 }
 
 // ============ MENÚ ============
 const MENUS = [
   { label: 'Archivo', items: [
-    { label: 'Nuevo cancionero…', action: 'newBook' },
-    { label: 'Nueva pestaña', action: 'new', key: 'Ctrl+Alt+N' },
-    { label: 'Abrir colección…', action: 'openCollection', key: 'Ctrl+Alt+O' },
-    { sep: true },
-    { label: 'Abrir…', action: 'open', key: 'Ctrl+O' },
-    { label: 'Guardar', action: 'save', key: 'Ctrl+S' },
-    { label: 'Guardar como…', action: 'saveAs', key: 'Ctrl+Shift+S' },
-    { sep: true },
-    { label: 'Importar en esta canción…', action: 'import' },
-    { label: 'Cerrar pestaña', action: 'closeTab', key: 'Ctrl+Alt+W' },
-    { sep: true },
-    { group: 'Cancionero (todas las pestañas)' },
-    { label: 'Guardar cancionero (.m3u8)', action: 'saveBook', key: 'Ctrl+Alt+S' },
-    { label: 'Guardar cancionero como…', action: 'saveBookAs' },
-    { label: 'Abrir cancionero…', action: 'openBook' },
-    { label: 'Guardar en Drive de la parroquia…', action: 'driveSave' },
-    { label: 'Abrir desde Drive de la parroquia…', action: 'driveOpen' },
-    { label: 'Compartir cancionero (WhatsApp)…', action: 'shareBook' },
-    { label: 'Imprimir cancionero…', action: 'printBook' },
-    { label: 'Tríptico para la asamblea (solo letra)…', action: 'printTriptych' },
-    { label: 'Exportar cancionero', submenu: [
-      { label: 'Para proyectar (.pptx)…', action: 'exportBookPptx' },
-      { label: 'Word (.docx)…', action: 'exportBookDocx' },
-      { label: 'OpenDocument (.odt)…', action: 'exportBookOdt' },
-      { label: 'Página web (.html)…', action: 'exportBookHtml' }
+    { label: 'Nuevo', submenu: [
+      { label: 'Canción', action: 'new', key: 'Ctrl+Alt+N' },
+      { label: 'Cancionero…', action: 'newBook' }
+    ]},
+    { label: 'Abrir', submenu: [
+      { group: 'Canción' },
+      { label: 'De la Biblioteca de la parroquia…', action: 'openSongBib' },
+      { label: 'De este equipo…', action: 'open', key: 'Ctrl+O' },
+      { group: 'Cancionero' },
+      { label: 'Del Drive de la parroquia…', action: 'driveOpen' },
+      { label: 'De este equipo…', action: 'openBook' },
+      { label: 'Colección de este equipo…', action: 'openCollection', key: 'Ctrl+Alt+O' }
     ]},
     { sep: true },
-    { group: 'Canción actual' },
+    { group: 'Guardar (en el Drive de la parroquia)' },
+    { label: 'Guardar canción en la Biblioteca', action: 'saveSongBib', key: 'Ctrl+S' },
+    { label: 'Guardar cancionero en el Drive…', action: 'driveSave', key: 'Ctrl+Alt+S' },
+    { label: 'Guardar como (en este equipo)', submenu: [
+      { label: 'Canción (.md)…', action: 'saveAs', key: 'Ctrl+Shift+S' },
+      { label: 'Cancionero (.m3u8)…', action: 'saveBookAs' }
+    ]},
+    { sep: true },
+    { label: 'Compartir', submenu: [
+      { label: 'Por WhatsApp…', action: 'shareWhatsApp' },
+      { label: 'Por correo electrónico…', action: 'shareEmail' },
+      { label: 'Enviar el archivo del cancionero…', action: 'shareBook' }
+    ]},
     { label: 'Exportar', submenu: [
-      { label: 'Para proyectar (.pptx)…', action: 'exportPptx' },
+      { group: 'Cancionero (todas las pestañas)' },
+      { label: 'PowerPoint, para proyectar (.pptx)…', action: 'exportBookPptx' },
+      { label: 'Word (.docx)…', action: 'exportBookDocx' },
+      { label: 'OpenDocument (.odt)…', action: 'exportBookOdt' },
+      { label: 'Página web (.html)…', action: 'exportBookHtml' },
+      { label: 'Lista en este equipo (.m3u8)…', action: 'saveBookAs' },
+      { group: 'Canción actual' },
+      { label: 'PowerPoint, para proyectar (.pptx)…', action: 'exportPptx' },
       { label: 'Word (.docx)…', action: 'exportDocx' },
       { label: 'OpenDocument (.odt)…', action: 'exportOdt' },
       { label: 'Página web (.html)…', action: 'exportHtml' },
       { label: 'Texto (.txt)…', action: 'exportTxt' },
       { label: 'Markdown (.md)…', action: 'exportMd' }
     ]},
-    { label: 'Imprimir canción…', action: 'print', key: 'Ctrl+P' },
+    { label: 'Imprimir', submenu: [
+      { label: 'Canción…', action: 'print', key: 'Ctrl+P' },
+      { label: 'Cancionero…', action: 'printBook' },
+      { label: 'Tríptico para la asamblea (solo letra)…', action: 'printTriptych' }
+    ]},
     { sep: true },
+    { label: 'Importar en esta canción…', action: 'import' },
+    { label: 'Cerrar pestaña', action: 'closeTab', key: 'Ctrl+Alt+W' },
     { label: 'Abrir ejemplo', action: 'example' }
   ]},
   { label: 'Editar', items: [
@@ -563,6 +575,10 @@ const ACTIONS = {
   saveBookAs: () => saveCancioneroDialog(true),
   openBook: openSongs,
   shareBook: shareBookDialog,
+  shareWhatsApp: () => mcCompartir('whatsapp'),
+  shareEmail: () => mcCompartir('correo'),
+  openSongBib: mcAbrirCancionBib,
+  saveSongBib: mcGuardarCancion,
   driveSave: driveSaveDialog,
   driveOpen: driveOpenDialog,
   newBook: newBookDialog,
@@ -673,11 +689,11 @@ document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   let act = null;
   if (e.altKey) {
-    act = { KeyN: 'new', KeyO: 'openCollection', KeyW: 'closeTab', KeyM: 'comment', KeyS: 'saveBook', KeyP: 'togglePanel', KeyE: 'tagDialog', KeyD: 'toggleNight', ArrowRight: 'nextTab', ArrowLeft: 'prevTab' }[e.code] || null;
+    act = { KeyN: 'new', KeyO: 'openCollection', KeyW: 'closeTab', KeyM: 'comment', KeyS: 'driveSave', KeyP: 'togglePanel', KeyE: 'tagDialog', KeyD: 'toggleNight', ArrowRight: 'nextTab', ArrowLeft: 'prevTab' }[e.code] || null;
   } else if (e.shiftKey) {
     act = { z: 'redo', f: 'fullscreen', s: 'saveAs' }[k] || null;
   } else {
-    act = { z: 'undo', y: 'redo', o: 'open', s: 'save', p: 'print', e: 'toggleMode',
+    act = { z: 'undo', y: 'redo', o: 'open', s: 'saveSongBib', p: 'print', e: 'toggleMode',
             b: 'bold', i: 'italic', u: 'underline', '\\': 'clearFormat' }[k] || null;
     if (k === 'a' && state.mode === 'atril' && !inOtherField) act = 'selectAll';
   }

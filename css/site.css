@@ -828,3 +828,508 @@ a:hover {
   }
 }
 
+.lista-libro {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lista-libro li {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.2);
+}
+
+.lista-libro li p {
+  margin: 0 0 0.25rem;
+}
+
+.lista-libro li.oculto {
+  opacity: 0.55;
+}
+
+/* ============ Inicio: marquesina de actividades ============ */
+
+.marquesina {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+  padding: 0.55rem 0.75rem;
+  background: rgba(42, 36, 28, 0.55);
+  border: 1px solid rgba(255, 254, 249, 0.25);
+  border-radius: 0.4rem;
+  backdrop-filter: blur(6px);
+  animation: hero-in 1s ease 0.35s both;
+}
+
+.marquesina-rotulo {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 560;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fachada);
+}
+
+.marquesina-ventana {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, #000 2rem, #000 calc(100% - 2rem), transparent);
+}
+
+.marquesina-ventana:focus-visible {
+  outline: 2px solid var(--fachada);
+  outline-offset: 2px;
+}
+
+.marquesina-cinta {
+  display: flex;
+  width: max-content;
+  white-space: nowrap;
+}
+
+.marquesina-cinta.anima {
+  animation: marquesina var(--duracion, 30s) linear infinite;
+}
+
+.marquesina-ventana:hover .marquesina-cinta,
+.marquesina-ventana:focus .marquesina-cinta {
+  animation-play-state: paused;
+}
+
+@keyframes marquesina {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquesina-grupo {
+  display: flex;
+  align-items: center;
+  padding-right: 2.5rem;
+}
+
+.marquesina-item {
+  font-size: 0.95rem;
+  padding: 0 0.5rem;
+}
+
+.marquesina-item b {
+  color: var(--fachada);
+  font-weight: 560;
+}
+
+.marquesina-item .m-com {
+  font-size: 0.8rem;
+  padding: 0.05rem 0.4rem;
+  margin: 0 0.25rem;
+  border: 1px solid rgba(255, 254, 249, 0.4);
+  border-radius: 1rem;
+}
+
+.marquesina-sep {
+  color: var(--fachada);
+  padding: 0 0.75rem;
+}
+
+.marquesina-agregar {
+  flex: none;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  color: var(--blanco);
+  background: var(--terracota);
+  border: none;
+  border-radius: var(--radio);
+  cursor: pointer;
+}
+
+.marquesina-agregar:hover {
+  background: var(--terracota-oscura);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquesina-ventana {
+    overflow-x: auto;
+    mask-image: none;
+  }
+
+  .marquesina-cinta.anima {
+    animation: none;
+  }
+}
+
+@media (max-width: 40rem) {
+  .marquesina {
+    flex-wrap: wrap;
+  }
+
+  .marquesina-ventana {
+    flex-basis: 100%;
+    order: 3;
+  }
+}
+
+/* ============ Inicio: calendario litúrgico ============ */
+
+.lit-cargando,
+.aviso {
+  color: var(--texto-suave);
+}
+
+.lit-hoy {
+  display: flex;
+  overflow: hidden;
+  background: var(--blanco);
+  border: 1px solid rgba(154, 79, 46, 0.2);
+  border-radius: 0.5rem;
+  box-shadow: 0 0.5rem 1.5rem rgba(42, 36, 28, 0.08);
+}
+
+.lit-hoy > .lit-cargando {
+  padding: 1.25rem;
+  margin: 0;
+}
+
+.lit-franja {
+  flex: none;
+  width: 0.6rem;
+  background: var(--color-lit);
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.12);
+}
+
+.lit-cuerpo {
+  padding: 1.1rem 1.35rem 1.25rem;
+  min-width: 0;
+}
+
+.lit-fecha {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.lit-fecha::first-letter {
+  text-transform: uppercase;
+}
+
+.lit-cuerpo h3 {
+  margin: 0.15rem 0 0.85rem;
+  font-family: var(--fuente-display);
+  font-size: clamp(1.25rem, 3vw, 1.6rem);
+  font-weight: 600;
+  color: var(--verde);
+}
+
+.lit-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.6rem 1.25rem;
+  margin: 0;
+}
+
+.lit-datos dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--texto-suave);
+}
+
+.lit-datos dd {
+  margin: 0.1rem 0 0;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.lit-punto {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: var(--color-lit);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.lit-nota {
+  margin: 0.85rem 0 0;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.lit-semana {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin: 0.85rem 0 0;
+  padding: 0;
+}
+
+.lit-semana button {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.55rem 0.3rem;
+  font: inherit;
+  color: var(--texto);
+  background: rgba(255, 254, 249, 0.6);
+  border: 1px solid rgba(154, 79, 46, 0.2);
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+
+.lit-semana button:hover {
+  border-color: var(--terracota);
+}
+
+.lit-semana button[aria-pressed="true"] {
+  background: var(--blanco);
+  border-color: var(--verde);
+  box-shadow: 0 0 0 1px var(--verde);
+}
+
+.lit-semana button.domingo .lit-dnum {
+  color: var(--terracota);
+}
+
+.lit-dsem {
+  font-size: 0.75rem;
+  text-transform: capitalize;
+  color: var(--texto-suave);
+}
+
+.lit-dnum {
+  font-family: var(--fuente-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.lit-dtit {
+  font-size: 0.7rem;
+  line-height: 1.25;
+  text-align: center;
+  color: var(--texto-suave);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 40rem) {
+  .lit-dtit {
+    display: none;
+  }
+}
+
+/* ============ Inicio: próximo domingo ============ */
+
+.domingo-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+
+.domingo-tarjeta {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.15rem;
+  background: rgba(255, 254, 249, 0.7);
+  border: 1px dashed rgba(154, 79, 46, 0.35);
+  border-radius: 0.5rem;
+}
+
+.domingo-tarjeta.lista {
+  background: var(--blanco);
+  border-style: solid;
+  border-color: rgba(47, 74, 56, 0.35);
+}
+
+.domingo-tarjeta h3 {
+  margin: 0;
+  font-family: var(--fuente-display);
+  font-size: 1.15rem;
+  color: var(--verde);
+}
+
+.domingo-estado {
+  margin: 0.15rem 0 0.6rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.domingo-tarjeta.lista .domingo-estado {
+  color: var(--verde);
+  font-weight: 500;
+}
+
+.domingo-momentos {
+  list-style: none;
+  margin: 0 0 0.85rem;
+  padding: 0;
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+.domingo-momentos li {
+  padding: 0.2rem 0;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.12);
+}
+
+.domingo-momentos li span {
+  display: inline-block;
+  min-width: 7.5rem;
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+}
+
+.domingo-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.domingo-acciones .btn {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.88rem;
+}
+
+/* ============ Inicio: libro de visitas y colaborar ============ */
+
+.visitas-columnas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 48rem) {
+  .visitas-columnas {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-noticia .check-linea {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: var(--texto);
+}
+
+.form-noticia .check-linea input {
+  width: auto;
+}
+
+.form-noticia small {
+  font-weight: 400;
+  color: var(--texto-suave);
+}
+
+.campo-trampa {
+  position: absolute !important;
+  left: -10000px !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0;
+}
+
+.msg-error[hidden],
+.msg-ok[hidden] {
+  display: none;
+}
+
+.visitas-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 36rem;
+  overflow: auto;
+}
+
+.visitas-lista li {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.2);
+}
+
+.visitas-lista blockquote {
+  margin: 0;
+  font-family: var(--fuente-display);
+  font-size: 1.02rem;
+  line-height: 1.5;
+}
+
+.visita-firma {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.btn-ocultar {
+  margin-left: 0.4rem;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.1rem 0.5rem;
+  background: none;
+  border: 1px solid rgba(154, 79, 46, 0.4);
+  border-radius: var(--radio);
+  color: var(--terracota);
+  cursor: pointer;
+}
+
+.dos-col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.85rem;
+}
+
+.dos-col > div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.form-colaborar {
+  max-width: 40rem;
+}
+
+.dlg-actividad {
+  width: min(40rem, 96vw);
+}
+
+.act-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.act-lista li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.2);
+}
+
+.act-lista li span {
+  flex: 1;
+  min-width: 0;
+}
+
+.act-lista li small {
+  display: block;
+  color: var(--texto-suave);
+}
+
+.act-lista .btn {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.82rem;
+}
+

@@ -9,7 +9,9 @@
  * Drive:
  *   MonteCarmelo/
  *     sistema/usuarios.json · auditoria.json                     (privados)
+ *     sistema/libro.json · visitantes.json                       (libro de visitas y visitantes externos, privados)
  *     indice.json                                                (lista pública de cancioneros)
+ *     actividades.json                                           (actividades de las comunidades, pública)
  *     Lecturas/<fecha>.json                                      (lecturas del día ya leídas)
  *     Cancioneros/<comunidad>/<fecha>_<slug>/
  *        cancionero.m3u8 · canciones/*.md · audios/* · <slug>.html
@@ -62,6 +64,9 @@ function doGet(e) {
     if (p.accion === 'audio') return json_(audioBiblioteca_(p.id));
     if (p.accion === 'misas') return json_(listarMisas_(p));
     if (p.accion === 'lecturas') return json_(lecturas_(p.fecha));
+    if (p.accion === 'calendario') return json_(calendario_(p));
+    if (p.accion === 'actividades') return json_(actividades_(p));
+    if (p.accion === 'visitas') return json_(visitas_());
     return json_({ ok: true, app: 'MonteCarmelo', version: 3 });
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
@@ -114,7 +119,12 @@ var ACCIONES = {
   guardarEnsayos: guardarEnsayos_,
   listarCoros: listarCoros_,
   guardarCoro: guardarCoro_,
-  borrarCoro: borrarCoro_
+  borrarCoro: borrarCoro_,
+  guardarActividad: guardarActividad_,
+  borrarActividad: borrarActividad_,
+  firmarLibro: firmarLibro_,
+  ocultarVisita: ocultarVisita_,
+  listarVisitantes: listarVisitantes_
 };
 
 function json_(obj) {
@@ -329,6 +339,7 @@ function entrarGoogle_(d) {
     return x;
   });
   if (u.activo === false) throw new Error('Esta cuenta no tiene acceso. Contactá a la parroquia.');
+  if (!ROLES[u.rol]) registrarVisitante_(u.email, u.nombre || g.nombre, 'google');
   auditar_({ tipo: 'entrada', email: u.email, nombre: u.nombre, rol: u.rol, comunidad: u.comunidad });
   return { token: crearToken_(u), sesion: sesionPublica_(u) };
 }
@@ -350,6 +361,7 @@ function entrarVisitante_(d) {
     }
     guardarUsuarios_(lista);
   });
+  if (!conPermisos) registrarVisitante_(email, nombre, 'correo');
   auditar_({ tipo: 'entrada_visitante', email: email, nombre: nombre });
   return {
     sesion: { email: email, nombre: nombre || email, rol: 'visitante', comunidad: '', activo: true },
@@ -717,6 +729,15 @@ function cabeceraMd_(texto, nombreArchivo) {
   return { titulo: titulo.slice(0, 150), tono: String(meta.tono || '').slice(0, 40), etiquetas: etiquetas.slice(0, 40), audios: audios };
 }
 
+// true si el .md no tiene letra (solo título, cabecera y audios): canción subida solo con su audio
+function soloAudioMd_(texto) {
+  var t = String(texto || '').replace(/\r\n?/g, '\n').replace(/^---\n[\s\S]*?\n---/, '');
+  var bloque = t.match(/(`{3,}|~{3,})[^\n]*\n([\s\S]*?)\n\1/);
+  var cuerpo = bloque ? bloque[2] : t.replace(/^#\s+.*$/m, '').replace(/^\*\*[^*\n]+:\*\*.*$/gm, '')
+    .replace(/<audio\b[^>]*>(\s*<\/audio>)?/gi, '').replace(/!?\[[^\]]*\]\([^)]*\)/g, '');
+  return !cuerpo.trim();
+}
+
 function enCarpeta_(archivo, carpeta) {
   var padres = archivo.getParents();
   while (padres.hasNext()) if (padres.next().getId() === carpeta.getId()) return true;
@@ -750,6 +771,7 @@ function registrarEnBiblioteca_(items, comunidad, u) {
       else f = carpeta.createFile(slug_(it.cab.titulo) + '.md', it.texto, 'text/markdown');
       var e = {
         id: id, titulo: it.cab.titulo, tono: it.cab.tono, etiquetas: it.cab.etiquetas, mdId: f.getId(),
+        soloAudio: soloAudioMd_(it.texto),
         audios: it.audios.length ? it.audios : (previa ? previa.audios : []),
         comunidad: (previa && previa.comunidad) || comunidad || '',
         autor: (previa && previa.autor) || u.email, actualizado: ahora_()
@@ -1268,6 +1290,192 @@ function tiempoDeTitulo_(titulo) {
   ];
   for (var i = 0; i < reglas.length; i++) if (reglas[i][0].test(t)) return reglas[i][1];
   return '';
+}
+
+// Resumen de varios días seguidos para el calendario de Inicio (usa las mismas lecturas y su caché)
+function calendario_(p) {
+  var desde = fecha_(p.desde) || hoyChile_();
+  var dias = Math.max(1, Math.min(14, Math.round(Number(p.dias) || 7)));
+  var cache = CacheService.getScriptCache();
+  var clave = 'cal-v1-' + desde + '-' + dias;
+  var guardado = cache.get(clave);
+  if (guardado) return JSON.parse(guardado);
+  var base = new Date(desde + 'T12:00:00Z');
+  var lista = [], completos = true;
+  for (var i = 0; i < dias; i++) {
+    var f = Utilities.formatDate(new Date(base.getTime() + i * 86400000), 'UTC', 'yyyy-MM-dd');
+    try {
+      var l = lecturas_(f).lecturas;
+      lista.push({ fecha: f, disponible: l.disponible, dia: l.dia, titulo: l.titulo, color: l.color, tiempo: l.tiempo });
+      if (!l.disponible) completos = false;
+    } catch (err) {
+      lista.push({ fecha: f, disponible: false, error: String(err.message || err) });
+      completos = false;
+    }
+  }
+  var r = { ok: true, desde: desde, dias: lista };
+  try { cache.put(clave, JSON.stringify(r), completos ? 21600 : 1800); } catch (_) {}
+  return r;
+}
+
+function hoyChile_() {
+  return Utilities.formatDate(new Date(), 'America/Santiago', 'yyyy-MM-dd');
+}
+
+// ==================== ACTIVIDADES DE LAS COMUNIDADES ====================
+// actividades.json (público): lo que se muestra en la marquesina de Inicio. Las publica quien puede
+// editar en esa comunidad; las de toda la parroquia, los responsables y sacerdotes.
+
+function leerActividades_() {
+  var data = leerJson_(raiz_(), 'actividades.json', null);
+  if (!data || !data.actividades) data = { v: 1, actividades: [] };
+  return data;
+}
+
+function actividades_(p) {
+  var hoy = hoyChile_();
+  var lista = leerActividades_().actividades.filter(function (a) { return p && p.todas ? true : a.fecha >= hoy; });
+  lista.sort(function (a, b) { return (a.fecha + a.hora).localeCompare(b.fecha + b.hora); });
+  return { ok: true, actividades: lista.slice(0, 60) };
+}
+
+function guardarActividad_(d) {
+  var u = conPrivilegios_(usuarioDeToken_(d.token));
+  var a = d.actividad || {};
+  var comunidad = a.comunidad === 'parroquia' || COMUNIDADES[a.comunidad] ? a.comunidad : '';
+  if (!comunidad) throw new Error('Elegí la comunidad de la actividad.');
+  if (!puedeEditar_(u, comunidad)) throw new Error('No tenés permiso para publicar actividades de esa comunidad.');
+  var x = {
+    fecha: fecha_(a.fecha), hora: /^\d{2}:\d{2}$/.test(String(a.hora || '')) ? a.hora : '',
+    comunidad: comunidad, titulo: texto_(a.titulo, 120), descripcion: texto_(a.descripcion, 400), lugar: texto_(a.lugar, 120)
+  };
+  if (!x.fecha) throw new Error('Elegí la fecha de la actividad.');
+  if (!x.titulo) throw new Error('Escribí el título de la actividad.');
+  var limite = Utilities.formatDate(new Date(Date.now() - 60 * 86400000), 'America/Santiago', 'yyyy-MM-dd');
+  var r = conCandado_(function () {
+    var data = leerActividades_();
+    var previa = a.id ? data.actividades.filter(function (v) { return v.id === a.id; })[0] : null;
+    if (previa && !puedeEditar_(u, previa.comunidad)) throw new Error('No tenés permiso para cambiar esa actividad.');
+    if (previa) Object.assign(previa, x, { modificado: ahora_(), modificadoPor: u.email });
+    else data.actividades.push(previa = Object.assign({ id: 'act-' + Date.now(), autor: u.email, autorNombre: u.nombre || u.email, creado: ahora_() }, x));
+    data.actividades = data.actividades.filter(function (v) { return v.fecha >= limite; });
+    escribirJson_(raiz_(), 'actividades.json', data);
+    return previa;
+  });
+  auditar_({ tipo: 'actividad', email: u.email, nombre: u.nombre, titulo: r.titulo, comunidad: r.comunidad });
+  return { actividad: r };
+}
+
+function borrarActividad_(d) {
+  var u = conPrivilegios_(usuarioDeToken_(d.token));
+  var r = conCandado_(function () {
+    var data = leerActividades_();
+    var a = data.actividades.filter(function (v) { return v.id === d.id; })[0];
+    if (!a) throw new Error('Esa actividad ya no está.');
+    if (!puedeEditar_(u, a.comunidad)) throw new Error('No tenés permiso para quitar esa actividad.');
+    data.actividades = data.actividades.filter(function (v) { return v !== a; });
+    escribirJson_(raiz_(), 'actividades.json', data);
+    return a;
+  });
+  auditar_({ tipo: 'actividad_quitada', email: u.email, nombre: u.nombre, titulo: r.titulo, comunidad: r.comunidad });
+  return {};
+}
+
+// ==================== LIBRO DE VISITAS Y VISITANTES ====================
+// sistema/libro.json (privado): mensajes de otras parroquias y personas. Se muestran en Inicio sin el
+// correo; los responsables pueden ocultarlos. sistema/visitantes.json: cuentas sin privilegios que entraron.
+
+function leerLibro_() {
+  var data = leerJson_(sistema_(), 'libro.json', null);
+  if (!data || !data.mensajes) data = { v: 1, mensajes: [] };
+  return data;
+}
+
+function visitas_() {
+  return {
+    ok: true,
+    mensajes: leerLibro_().mensajes.filter(function (m) { return !m.oculto; }).slice(0, 100).map(function (m) {
+      return { id: m.id, nombre: m.nombre, parroquia: m.parroquia, ciudad: m.ciudad, mensaje: m.mensaje, colaborar: !!m.colaborar, cuando: m.cuando };
+    })
+  };
+}
+
+// Sin sesión: la protección es el campo trampa, los largos máximos y un máximo de firmas por minuto
+// (Apps Script no informa la IP de quien llama, así que el límite es para todo el sitio)
+function firmarLibro_(d) {
+  if (String(d.sitio || '').trim()) return {};
+  var m = {
+    nombre: texto_(d.nombre, 80), parroquia: texto_(d.parroquia, 120), ciudad: texto_(d.ciudad, 80),
+    mensaje: texto_(d.mensaje, 1000), colaborar: d.colaborar === true, correo: normEmail_(d.correo).slice(0, 120)
+  };
+  if (!m.nombre) throw new Error('Escribí tu nombre.');
+  if (m.mensaje.length < 3) throw new Error('Escribí un mensaje.');
+  if (m.correo && !emailValido_(m.correo)) throw new Error('El correo no es válido (puedes dejarlo vacío).');
+  if (/https?:\/\/|www\./i.test(m.mensaje + m.nombre + m.parroquia)) throw new Error('El mensaje no puede llevar enlaces.');
+  var cache = CacheService.getScriptCache();
+  var minuto = 'libro-' + Math.floor(Date.now() / 60000);
+  var n = Number(cache.get(minuto) || 0);
+  if (n >= 5) throw new Error('Hay muchas firmas en este momento. Probá de nuevo en un minuto.');
+  cache.put(minuto, String(n + 1), 120);
+  var huella = 'libro-h-' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, m.nombre + '|' + m.mensaje, Utilities.Charset.UTF_8));
+  if (cache.get(huella)) return {};
+  cache.put(huella, '1', 21600);
+  m.id = 'lv-' + Date.now();
+  m.cuando = ahora_();
+  conCandado_(function () {
+    var data = leerLibro_();
+    data.mensajes.unshift(m);
+    data.mensajes = data.mensajes.slice(0, 2000);
+    escribirJson_(sistema_(), 'libro.json', data);
+  });
+  if (m.colaborar) {
+    correo_(CORREO_PARROQUIA, 'Libro de visitas: quieren colaborar con temas nuevos',
+      m.nombre + (m.parroquia ? ' (' + m.parroquia + ')' : '') + (m.ciudad ? ', ' + m.ciudad : '') + ' escribió en el libro de visitas:\n\n' +
+      m.mensaje + '\n\n' + (m.correo ? 'Correo: ' + m.correo : 'No dejó correo.'));
+  }
+  return { mensaje: { id: m.id, nombre: m.nombre, parroquia: m.parroquia, ciudad: m.ciudad, mensaje: m.mensaje, colaborar: m.colaborar, cuando: m.cuando } };
+}
+
+function ocultarVisita_(d) {
+  var yo = usuarioDeToken_(d.token);
+  exigirResponsable_(yo);
+  conCandado_(function () {
+    var data = leerLibro_();
+    var m = data.mensajes.filter(function (x) { return x.id === d.id; })[0];
+    if (!m) throw new Error('Ese mensaje ya no está.');
+    m.oculto = d.oculto !== false;
+    escribirJson_(sistema_(), 'libro.json', data);
+  });
+  return {};
+}
+
+function registrarVisitante_(email, nombre, via) {
+  try {
+    conCandado_(function () {
+      var lista = leerJson_(sistema_(), 'visitantes.json', []);
+      var x = lista.filter(function (v) { return v.email === email; })[0];
+      if (!x) lista.push(x = { email: email, nombre: nombre || '', primera: ahora_(), veces: 0 });
+      if (nombre) x.nombre = nombre;
+      x.ultima = ahora_();
+      x.veces = (x.veces || 0) + 1;
+      x.via = via;
+      escribirJson_(sistema_(), 'visitantes.json', lista);
+    });
+  } catch (err) {
+    console.warn('No se pudo anotar el visitante: ' + err);
+  }
+}
+
+function listarVisitantes_(d) {
+  exigirResponsable_(usuarioDeToken_(d.token));
+  var lista = leerJson_(sistema_(), 'visitantes.json', []);
+  var conRol = {};
+  leerUsuarios_().forEach(function (u) { if (ROLES[u.rol]) conRol[normEmail_(u.email)] = true; });
+  return {
+    visitantes: lista.filter(function (v) { return !conRol[v.email]; })
+      .sort(function (a, b) { return String(b.ultima).localeCompare(String(a.ultima)); }),
+    libro: leerLibro_().mensajes.slice(0, 300)
+  };
 }
 
 /** Ejecutar a mano desde el editor de Apps Script (una vez, y otra si cambian los permisos) para autorizar

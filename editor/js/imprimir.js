@@ -17,7 +17,7 @@ const TRIPTYCH_PAD = { x: 8, y: 9 };
 const PRINT_OPTS_KEY = 'canciotras.impresion';
 const PRINT_DEFAULTS = {
   papel: 'carta', orientacion: 'vertical', acordes: true, unaHoja: true, columnas: 'auto', letra: 12,
-  comentarios: true, portada: true, titulo: '', subtitulo: '', hojas: 2, portadaTriptico: false, secciones: true
+  comentarios: true, portada: true, titulo: '', subtitulo: '', hojas: 0, portadaTriptico: false, secciones: true
 };
 
 function loadPrintOpts() {
@@ -297,10 +297,10 @@ function layoutSongs() {
 const fmtPt = pt => String(pt).replace('.', ',');
 
 // ============ TRÍPTICO ============
-// Hoja apaisada doblada en tres (plegado envolvente). Orden de lectura en cada hoja:
-// 1 portada, 2-3-4 interior, 5 solapa, 6 contraportada. Cara exterior: 5 6 1; interior: 2 3 4.
-const TRIPTYCH_FACES = [[4, 5, 0], [1, 2, 3]];
-const PANEL_ROLE = ['portada', 'interior izquierda', 'interior centro', 'interior derecha', 'solapa', 'contraportada'];
+// Hoja apaisada en tres paneles, en orden de lectura: cara 1 = paneles 1-2-3 y, al dar vuelta la hoja,
+// cara 2 = 4-5-6. Cada canción empieza en un panel nuevo (seis por hoja; la séptima abre la hoja 2) y
+// todas llevan la misma letra: la mayor con la que la más larga cabe en su panel.
+const TRIPTYCH_FACES = [[0, 1, 2], [3, 4, 5]];
 
 function layoutTriptych() {
   const o = pv.opts;
@@ -310,41 +310,70 @@ function layoutTriptych() {
   const W = p.h, H = p.w, panelW = W / 3;
   const colW = panelW - 2 * TRIPTYCH_PAD.x, colHmm = H - 2 * TRIPTYCH_PAD.y;
   const colH = colHmm * PX_PER_MM - 2;
-  const title = o.titulo.trim() || state.cancioneroName || 'Cancionero';
-  const index = o.portadaTriptico
-    ? `<ol>${list.map(d => `<li>${escapeHtml(d.title.trim() || 'Sin título')}</li>`).join('')}</ol>` : '';
-  const cover = { id: 'portada', line: 0, keepNext: !o.portadaTriptico, units: [{ html:
-    `<div class="pv-cover"><div class="pv-cover-title">${escapeHtml(title)}</div>` +
-    (o.subtitulo.trim() ? `<div class="pv-cover-sub">${escapeHtml(o.subtitulo.trim())}</div>` : '') + index + '</div>' }] };
-  const items = [cover];
-  list.forEach((d, i) => {
-    const its = songItems(d, o, true);
-    if (i === 0 && o.portadaTriptico) its[0].breakBefore = true;
-    items.push(...its);
-  });
   const cls = 'pv-lyrics pv-tri';
-  const maxPanels = (+o.hojas || 1) * 6;
-  let fit = fitFont(items, colW, colH, cls, maxPanels, PRINT_MIN_PT, TRIPTYCH_MAX_PT, false);
-  const fits = !!fit;
-  if (!fit) fit = { pt: PRINT_MIN_PT, cols: packColumns(measureItems(items, colW, PRINT_MIN_PT, cls).list, colH) };
-  const sheets = Math.ceil(fit.cols.length / 6);
+  const nombre = d => d.title.trim() || 'Sin título';
+
+  const songs = list.map(d => {
+    const its = songItems(d, o, true);
+    its[0].breakBefore = true;
+    return { d, its };
+  });
+  let pt = TRIPTYCH_MAX_PT, marca = null;
+  for (const s of songs) {
+    const r = fitFont(s.its, colW, colH, cls, 1, PRINT_MIN_PT, pt, false);
+    if (!r) { pt = PRINT_MIN_PT; marca = s.d; break; }
+    if (r.pt < pt) { pt = r.pt; marca = s.d; }
+  }
+  const cols = packColumns(measureItems(songs.flatMap(s => s.its), colW, pt, cls).list, colH);
+
+  const panels = cols.map(col => ({ col, pt }));
+  if (o.portadaTriptico) {
+    const title = o.titulo.trim() || state.cancioneroName || 'Cancionero';
+    const cover = { id: 'portada', line: 0, units: [{ html:
+      `<div class="pv-cover"><div class="pv-cover-title">${escapeHtml(title)}</div>` +
+      (o.subtitulo.trim() ? `<div class="pv-cover-sub">${escapeHtml(o.subtitulo.trim())}</div>` : '') +
+      `<ol>${list.map(d => `<li>${escapeHtml(nombre(d))}</li>`).join('')}</ol></div>` }] };
+    const fc = fitFont([cover], colW, colH, cls, 1, PRINT_MIN_PT, TRIPTYCH_MAX_PT, false);
+    panels.unshift({ col: [{ it: cover, from: 0, to: 1 }], pt: fc ? fc.pt : PRINT_MIN_PT, cover: true });
+  }
+
+  const panelesDe = new Map();
+  panels.forEach((pn, i) => pn.col.forEach(s => {
+    if (!s.it.doc) return;
+    const v = panelesDe.get(s.it.doc) || [];
+    if (!v.includes(i)) v.push(i);
+    panelesDe.set(s.it.doc, v);
+  }));
+  const needed = Math.ceil(panels.length / 6);
+  const sheets = +o.hojas ? Math.min(+o.hojas, needed) : needed;
+  const afuera = list.filter(d => (panelesDe.get(d.id)?.[0] ?? 0) >= sheets * 6);
+
   let html = '';
   for (let s = 0; s < sheets; s++) {
     TRIPTYCH_FACES.forEach((face, fi) => {
-      const panels = face.map((r, slot) => {
-        const idx = s * 6 + r, col = fit.cols[idx];
+      const inner = face.map((r, slot) => {
+        const idx = s * 6 + r, pn = panels[idx];
+        const doc = pn && !pn.cover ? list.find(d => d.id === pn.col[0]?.it.doc) : null;
+        const sigue = doc && panelesDe.get(doc.id)[0] !== idx;
+        const rotulo = pn?.cover ? 'portada' : doc ? escapeHtml(nombre(doc)) + (sigue ? ' (sigue)' : '') : 'vacío';
         return `<div class="pv-panel" style="left:${slot * panelW}mm;width:${panelW}mm">` +
-          `<div class="pv-num pv-only">${idx + 1} · ${PANEL_ROLE[r]}</div>` +
-          (col ? colHtml(col, fit.pt, cls, `position:absolute;left:${TRIPTYCH_PAD.x}mm;top:${TRIPTYCH_PAD.y}mm;width:${colW}mm;height:${colHmm}mm`) : '') +
+          `<div class="pv-num pv-only">${idx + 1} · ${rotulo}</div>` +
+          (pn ? colHtml(pn.col, pn.pt, cls, `position:absolute;left:${TRIPTYCH_PAD.x}mm;top:${TRIPTYCH_PAD.y}mm;width:${colW}mm;height:${colHmm}mm`) : '') +
           '</div>';
       }).join('');
-      html += pageHtml(W, H, panels, `Hoja ${s + 1} · ${fi ? 'cara interior (al reverso)' : 'cara exterior (portada)'}`);
+      html += pageHtml(W, H, inner, `Hoja ${s + 1} · cara ${fi + 1} (paneles ${s * 6 + fi * 3 + 1}-${s * 6 + fi * 3 + 3})`);
     });
   }
   pv.pageW = W; pv.pageH = H;
-  const status = `<p><b>${sheets} ${sheets === 1 ? 'hoja' : 'hojas'} (${sheets * 2} caras) · letra de ${fmtPt(fit.pt)} pt</b></p>` +
-    (fits ? '' : `<p class="pv-warn">⚠ No cabe en ${o.hojas} ${+o.hojas === 1 ? 'hoja' : 'hojas'} ni con la letra más chica; quita canciones o permite más hojas.</p>`) +
-    '<p>Imprime a <b>doble cara, girando por el borde corto</b>. Después dobla la hoja en tres con la portada hacia afuera.</p>';
+
+  const largas = list.filter(d => (panelesDe.get(d.id) || []).length > 1);
+  const status = `<p><b>${sheets} ${sheets === 1 ? 'hoja' : 'hojas'} (${sheets * 2} caras) · letra de ${fmtPt(pt)} pt</b></p>` +
+    (marca && songs.length > 1 && pt < TRIPTYCH_MAX_PT ? `<p class="hint">El tamaño lo marca «${escapeHtml(nombre(marca))}», la más larga.</p>` : '') +
+    largas.map(d => `<p class="pv-warn">⚠ «${escapeHtml(nombre(d))}» no cabe en un panel ni con la letra de ${fmtPt(PRINT_MIN_PT)} pt: sigue en el panel siguiente.</p>`).join('') +
+    (afuera.length ? `<p class="pv-warn">⚠ No caben en ${sheets} ${sheets === 1 ? 'hoja' : 'hojas'}: ${afuera.map(d => '«' + escapeHtml(nombre(d)) + '»').join(', ')}. ` +
+      'Elige «Las necesarias» o quita canciones.</p>' : '') +
+    '<p>Imprime a <b>doble cara, girando por el borde corto</b>: al dar vuelta la hoja, el panel 4 queda detrás del 3. ' +
+    'Se lee de izquierda a derecha, cara 1 y después cara 2; doblada en zigzag, cada panel queda como una página.</p>';
   return { html, status };
 }
 
@@ -378,12 +407,13 @@ function pvSideHtml() {
     }
   } else {
     h += `<div class="pv-group pv-question"><b>Para el público o la asamblea</b>
-        <span class="hint">Solo letra, lo más grande posible sin pasarse de las hojas elegidas.</span>
-        ${seg('hojas', o.hojas, [[1, '1 hoja (2 caras)'], [2, '2 hojas (4 caras)']])}</div>
+        <span class="hint">Solo letra, una canción por panel: cara 1 = paneles 1-2-3, cara 2 = 4-5-6 (seis por hoja).
+          La letra es la más grande con la que la canción más larga cabe en su panel.</span>
+        <b>Hojas</b>${seg('hojas', o.hojas, [[0, 'Las necesarias'], [1, '1 hoja'], [2, '2 hojas']])}</div>
       <div class="pv-group"><b>Portada</b>
-        <input type="text" data-opt="titulo" value="${escapeHtml(o.titulo)}" placeholder="${escapeHtml(state.cancioneroName || 'Título')}">
-        <input type="text" data-opt="subtitulo" value="${escapeHtml(o.subtitulo)}" placeholder="Subtítulo (fecha, celebración…)">
-        ${check('portadaTriptico', o.portadaTriptico, 'Portada aparte, con índice')}
+        ${check('portadaTriptico', o.portadaTriptico, 'Portada en el panel 1 (título e índice)')}
+        ${o.portadaTriptico ? `<input type="text" data-opt="titulo" value="${escapeHtml(o.titulo)}" placeholder="${escapeHtml(state.cancioneroName || 'Título')}">
+        <input type="text" data-opt="subtitulo" value="${escapeHtml(o.subtitulo)}" placeholder="Subtítulo (fecha, celebración…)">` : ''}
         ${check('secciones', o.secciones, 'Títulos de sección (Coro, Estrofa…)')}</div>
       <div class="pv-group"><b>Papel</b>${paperSelect(o)}</div>`;
   }

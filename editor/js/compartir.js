@@ -136,7 +136,7 @@ async function openSharedBook(pkg) {
   applyState();
   refresh();
   toast(`Cancionero «${pkg.titulo}» recibido: ${opened.length} ${opened.length === 1 ? 'canción' : 'canciones'}. ` +
-    'Guárdalo con Archivo → Guardar cancionero para tenerlo en tu carpeta.', 7000);
+    'Guárdalo con Archivo → Guardar como (en este equipo) → Cancionero para tenerlo en tu carpeta.', 7000);
   return true;
 }
 

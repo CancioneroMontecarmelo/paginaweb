@@ -89,14 +89,65 @@ clasp update-deployment <ID de la implementación> -d "descripción"
 | `comunidades/` | Página de cada comunidad: noticias y cancioneros publicados |
 | `noticias/` | Blog estático por comunidad (JSON) |
 | `misas.html` | Pantalla Misas: cancioneros de misa de todas las comunidades, Biblioteca de canciones, coros y ensayos |
+| `inicio.html` + `js/inicio.js` | Inicio: actividades, calendario litúrgico, próximo domingo, libro de visitas y Colaborar |
+| `js/liturgia.js` | Calendario litúrgico y cantos sugeridos (común a Misas e Inicio) |
 | `ver.html` | Muestra un cancionero guardado en el Drive (`ver.html?id=…`) |
 | `js/config.js` | Dirección del Apps Script (`apiUrl`) e ID de cliente de Google (`googleClientId`) |
 | `respaldo-antes-drive/` | Copia de los audios y cancioneros anteriores al Drive |
 
+## Inicio (`inicio.html`)
+
+- **Marquesina de actividades** debajo de los botones: fecha, hora, comunidad, título y una descripción
+  breve, pasando como un teleprompter (se detiene con el mouse encima; con «reducir movimiento» queda
+  quieta y se desliza a mano). Quien puede editar en una comunidad ve **+ Actividad** para publicar,
+  cambiar o quitar las suyas (las de toda la parroquia, los responsables y sacerdotes). Se guardan en
+  `MonteCarmelo/actividades.json`.
+- **Calendario litúrgico**: el día de hoy con su celebración, tiempo, semana, color y santoral (la
+  memoria o fiesta que nombra el título de las lecturas; si no hay, «Feria»), y los próximos 7 días
+  (tocar uno lo muestra arriba). Sale de las lecturas de eucaristiadiaria.cl (GET `calendario`, con la
+  misma caché que las lecturas); si un día todavía no está publicado, el tiempo y el color se calculan.
+- **Próximo domingo**, para las cuatro comunidades: si ya hay cancionero para esa fecha se muestran sus
+  cantos y el enlace; si no, la **sugerencia automática** (las mismas reglas de Misas) y **Armarlo en
+  Misas**, que abre `misas.html?comunidad=…&nuevo=<fecha>` con el cancionero nuevo ya preparado.
+- **Libro de visitas**: otras parroquias y personas dejan nombre, parroquia o comunidad, ciudad y país,
+  un mensaje y si quieren **colaborar con temas nuevos** (con correo opcional, que no se publica; a la
+  parroquia le llega un aviso). Sin cuenta: lo protegen un campo trampa, largos máximos y un máximo de
+  firmas por minuto. Los responsables pueden ocultar mensajes (en Inicio o en Identificarse).
+- **Colaborar**: el mismo formulario del editor («Ayúdanos a seguir trabajando»), que llega al correo
+  de la parroquia por FormSubmit.
+- **Visitantes externos**: las cuentas sin privilegios que entran (con Google o solo con el correo)
+  quedan anotadas con su primera y última visita y cuántas veces entraron; se ven en Identificarse, en
+  el panel de responsables, junto con todos los mensajes del libro.
+
+En el Drive: `MonteCarmelo/actividades.json` (público), `MonteCarmelo/sistema/libro.json` y
+`MonteCarmelo/sistema/visitantes.json` (privados).
+
+## Editor: menú Archivo
+
+- **Nuevo** ▸ Canción · Cancionero.
+- **Abrir** ▸ Canción de la Biblioteca de la parroquia (buscador por título o etiqueta; marca las que
+  tienen **solo audio** para escribirles la letra) o de este equipo · Cancionero del Drive, de este
+  equipo o de la colección.
+- **Guardar** es siempre en el Drive de la parroquia: **Guardar canción en la Biblioteca** (Ctrl+S) sube
+  sus audios del equipo convertidos a WebM y la deja en la Biblioteca; si ya había una canción con el
+  mismo título subida solo con su audio, quedan unidas. **Guardar cancionero en el Drive…** (Ctrl+Alt+S).
+- **Guardar como (en este equipo)** ▸ Canción `.md` (Ctrl+Mayús+S) · Cancionero `.m3u8`.
+- **Compartir** ▸ por WhatsApp o por correo con el vínculo a su página (`ver.html`); si el cancionero
+  todavía no está en el Drive, ofrece guardarlo o enviar el archivo.
+- **Exportar** ▸ PowerPoint, Word, ODT, HTML, Markdown y texto. **Imprimir** ▸ canción, cancionero o tríptico.
+
+### Tríptico
+
+Hoja apaisada en tres paneles, en orden de lectura: **cara 1 = paneles 1-2-3** y, al dar vuelta la hoja,
+**cara 2 = 4-5-6** (impresión a doble cara girando por el borde corto). Va **una canción por panel**, todas
+con la misma letra: la más grande con la que la canción más larga cabe en su panel. Si una no cabe ni con
+la letra mínima, sigue en el panel siguiente y se avisa. Seis canciones por hoja: la séptima abre la hoja 2.
+**Hojas**: 1, 2 o «Las necesarias». La portada (título, subtítulo e índice) es opcional y ocupa el panel 1.
+
 ## Flujo del coro
 
 1. Abrí el **Editor**, escribí o abrí las canciones (una por pestaña) y vinculá sus audios.
-2. **☁ Guardar en Drive** → identificate, elegí comunidad y fecha.
+2. **Archivo → Guardar cancionero en el Drive** → identificate, elegí comunidad y fecha.
 3. Se guarda en `MonteCarmelo/Cancioneros/<Comunidad>/<fecha>_<nombre>/` (canciones `.md`, lista `.m3u8`,
    audios y una página `.html` con los audios adentro) y aparece en la página de la comunidad.
 4. Desde la página de la comunidad: **Ver** (para todos) o **Editar** (para quien tenga permiso).
@@ -140,7 +191,7 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
     con acordes (`TXXX` «MP3EDITAG», antes «CIC»), el título, el artista y los momentos y tiempos
     litúrgicos (`TXXX` «LITURGICAL_MOMENTS» / «LITURGICAL_SEASONS», y `TCON`): todo eso pasa al `.md`
     (`js/etiquetas-audio.js`). Sin etiquetas, la canción queda solo con su título y audio; la letra se
-    completa después en el editor: al guardar en el Drive una canción con el mismo título, queda unida a
+    completa después en el editor (**Archivo → Abrir → De la Biblioteca** y **Guardar canción en la Biblioteca**): queda unida a
     sus audios.
 
 En el Drive: `MonteCarmelo/Biblioteca/` (canciones y audios + `biblioteca.json`), `MonteCarmelo/misas.json`

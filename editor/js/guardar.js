@@ -143,7 +143,7 @@ async function songsFolder() {
     body: `<p>Elige la carpeta <b>${SONGS_FOLDER}</b> dentro de <b>Música</b>.
         Si eliges Música, Cancionero Universal usa (o crea) <b>Música/${SONGS_FOLDER}</b>.</p>
       <p class="hint">Solo se pregunta esta vez: desde ahora Guardar y Abrir empiezan siempre en esa carpeta.
-        Puedes cambiarla en <b>Archivo → Abrir colección</b>.</p>`,
+        Puedes cambiarla en <b>Archivo → Abrir → Colección de este equipo</b>.</p>`,
     buttons: [{ label: 'Cancelar' }, { label: 'Elegir carpeta', primary: true, value: 'pick' }]
   });
   return go ? pickSongsFolder() : null;

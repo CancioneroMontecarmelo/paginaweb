@@ -68,6 +68,17 @@
 
       <h2 class="auth-h2">Registro de entradas</h2>
       <div id="lista-auditoria" class="lista-auditoria"></div>
+
+      <h2 class="auth-h2">Visitantes externos</h2>
+      <p class="aviso">Cuentas sin privilegios que entraron al sitio (con Google o solo con el correo).</p>
+      <table class="tabla-personas tabla-visitantes">
+        <thead><tr><th>Persona</th><th>Primera visita</th><th>Última visita</th><th>Veces</th></tr></thead>
+        <tbody id="tabla-visitantes"></tbody>
+      </table>
+
+      <h2 class="auth-h2">Libro de visitas</h2>
+      <p class="aviso">Los mensajes se muestran en Inicio sin el correo. Ocultá los que no correspondan.</p>
+      <ul class="lista-libro" id="lista-libro"></ul>
     </section>
   </main>
 
@@ -125,6 +136,7 @@
       eliminarUsuario,
       leerAuditoria,
       comunidadesOpciones,
+      llamarApi,
       ROLES
     } from "./js/auth.js";
 
@@ -151,6 +163,7 @@
         $("panel-quien").append("Sesión: ", Object.assign(document.createElement("strong"), { textContent: s.nombre }),
           " (" + NOMBRES_ROL[s.rol] + ") · " + s.email);
         refrescarAuditoria();
+        refrescarVisitantes();
         return;
       }
       mostrar("panel-sesion");
@@ -210,6 +223,50 @@
         );
       } catch (err) {
         la.textContent = err.message;
+      }
+    }
+
+    // ============ VISITANTES EXTERNOS Y LIBRO DE VISITAS ============
+
+    const fechaCorta = (iso) => (iso ? new Date(iso).toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" }) : "");
+    const celda = (texto, clase) => Object.assign(document.createElement("td"), { textContent: texto, className: clase || "" });
+
+    async function refrescarVisitantes() {
+      const tb = $("tabla-visitantes"), libro = $("lista-libro");
+      try {
+        const r = await llamarApi("listarVisitantes", { token: sesionActual()?.token || "" });
+        tb.replaceChildren(...(r.visitantes.length ? r.visitantes.map((v) => {
+          const tr = document.createElement("tr");
+          tr.append(celda((v.nombre && v.nombre !== v.email ? v.nombre + " · " : "") + v.email + (v.via === "correo" ? " (solo correo)" : ""), "persona"),
+            celda(fechaCorta(v.primera)), celda(fechaCorta(v.ultima)), celda(String(v.veces || 1)));
+          return tr;
+        }) : [Object.assign(document.createElement("tr"), { innerHTML: '<td colspan="4" class="aviso">Todavía no entró nadie de afuera.</td>' })]));
+        libro.replaceChildren(...(r.libro.length ? r.libro.map((m) => {
+          const li = document.createElement("li");
+          li.classList.toggle("oculto", !!m.oculto);
+          const texto = document.createElement("p");
+          texto.textContent = m.mensaje;
+          const firma = document.createElement("p");
+          firma.className = "aviso";
+          firma.textContent = [m.nombre, m.parroquia, m.ciudad, m.correo, fechaCorta(m.cuando)].filter(Boolean).join(" · ") +
+            (m.colaborar ? " · quiere colaborar con temas nuevos" : "") + (m.oculto ? " · oculto" : "");
+          const b = Object.assign(document.createElement("button"), { type: "button", className: "btn-chico", textContent: m.oculto ? "Mostrar" : "Ocultar" });
+          b.addEventListener("click", async () => {
+            b.disabled = true;
+            try {
+              await llamarApi("ocultarVisita", { token: sesionActual()?.token || "", id: m.id, oculto: !m.oculto });
+              refrescarVisitantes();
+            } catch (err) {
+              b.disabled = false;
+              firma.textContent = err.message;
+            }
+          });
+          li.append(texto, firma, b);
+          return li;
+        }) : [Object.assign(document.createElement("li"), { className: "aviso", textContent: "Todavía no hay mensajes en el libro de visitas." })]));
+      } catch (err) {
+        tb.replaceChildren();
+        libro.replaceChildren(Object.assign(document.createElement("li"), { className: "aviso", textContent: err.message }));
       }
     }
 

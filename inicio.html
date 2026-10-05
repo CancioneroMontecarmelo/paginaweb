@@ -30,10 +30,31 @@
       <p class="hero-lead">Cancioneros, noticias y música para cada celebración de nuestra parroquia.</p>
       <div class="hero-ctas">
         <a class="btn btn-primario" href="#comunidades">Comunidades</a>
+        <a class="btn btn-fantasma" href="#proximo-domingo">Próximo domingo</a>
         <a class="btn btn-fantasma" href="./login.html">Identificarse</a>
       </div>
     </div>
+    <div class="marquesina" id="marquesina" aria-label="Próximas actividades de las comunidades">
+      <span class="marquesina-rotulo">Próximas actividades</span>
+      <div class="marquesina-ventana" tabindex="0">
+        <div class="marquesina-cinta" id="marquesina-cinta"><span class="marquesina-item">Cargando actividades…</span></div>
+      </div>
+      <button type="button" class="marquesina-agregar" id="btn-actividad" hidden>+ Actividad</button>
+    </div>
   </header>
+
+  <section class="seccion" id="liturgia" aria-labelledby="liturgia-titulo">
+    <h2 id="liturgia-titulo">Calendario litúrgico</h2>
+    <p class="lead">El día de hoy y la semana, según las lecturas de <a href="https://www.eucaristiadiaria.cl" target="_blank" rel="noopener">eucaristiadiaria.cl</a>.</p>
+    <div class="lit-hoy" id="lit-hoy" aria-live="polite"><p class="lit-cargando">Cargando el calendario…</p></div>
+    <ol class="lit-semana" id="lit-semana" aria-label="Los próximos siete días"></ol>
+  </section>
+
+  <section class="seccion" id="proximo-domingo" aria-labelledby="domingo-titulo">
+    <h2 id="domingo-titulo">Próximo domingo</h2>
+    <p class="lead" id="domingo-sub">Lo que se canta en cada comunidad.</p>
+    <div class="domingo-grilla" id="domingo-grilla"><p class="lit-cargando">Buscando los cancioneros…</p></div>
+  </section>
 
   <section class="seccion reseña" id="reseña">
     <h2>Nuestra parroquia</h2>
@@ -81,13 +102,93 @@
     </ul>
   </section>
 
+  <section class="seccion" id="visitas" aria-labelledby="visitas-titulo">
+    <h2 id="visitas-titulo">Libro de visitas</h2>
+    <p class="lead">¿Usas este cancionero en tu parroquia o comunidad? Déjanos un saludo. Si quieres, ofrécenos tu ayuda con temas nuevos.</p>
+    <div class="visitas-columnas">
+      <form class="form-noticia form-visitas" id="form-visitas" novalidate>
+        <label for="v-nombre">Nombre</label>
+        <input id="v-nombre" name="nombre" maxlength="80" autocomplete="name" required>
+        <label for="v-parroquia">Parroquia o comunidad</label>
+        <input id="v-parroquia" name="parroquia" maxlength="120">
+        <label for="v-ciudad">Ciudad y país</label>
+        <input id="v-ciudad" name="ciudad" maxlength="80" placeholder="Santiago, Chile">
+        <label for="v-mensaje">Mensaje</label>
+        <textarea id="v-mensaje" name="mensaje" maxlength="1000" required></textarea>
+        <label class="check-linea"><input type="checkbox" id="v-colaborar"> Quiero colaborar con temas nuevos</label>
+        <label for="v-correo">Correo <small>(opcional, no se publica; para responderte)</small></label>
+        <input id="v-correo" name="correo" type="email" maxlength="120" autocomplete="email">
+        <input class="campo-trampa" id="v-sitio" name="sitio" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <p class="msg-error" id="v-error" hidden></p>
+        <div class="acciones-form"><button type="submit" class="btn btn-primario" id="v-enviar">Firmar el libro</button></div>
+      </form>
+      <ol class="visitas-lista" id="visitas-lista" aria-live="polite"><li class="lit-cargando">Cargando mensajes…</li></ol>
+    </div>
+  </section>
+
+  <section class="seccion" id="colaborar" aria-labelledby="colaborar-titulo">
+    <h2 id="colaborar-titulo">Colaborar</h2>
+    <p class="lead">El cancionero es gratuito y lo desarrollamos con cariño para servir a comunidades, coros y músicos.
+      Si te es útil y quieres ayudar (con canciones, ideas, correcciones o económicamente), escríbenos y te responderemos.</p>
+    <form class="form-noticia form-colaborar" id="form-colaborar" novalidate>
+      <div class="dos-col">
+        <div><label for="c-nombre">Nombre</label><input id="c-nombre" autocomplete="name" maxlength="80"></div>
+        <div><label for="c-correo">Correo <small>(para poder responderte)</small></label><input id="c-correo" type="email" autocomplete="email" maxlength="120"></div>
+      </div>
+      <label for="c-motivo">Motivo</label>
+      <select id="c-motivo">
+        <option>Quiero colaborar con canciones o audios</option>
+        <option>Quiero colaborar económicamente</option>
+        <option>Sugerencia o idea</option>
+        <option>Encontré un error</option>
+        <option>Otro</option>
+      </select>
+      <label for="c-mensaje">Mensaje</label>
+      <textarea id="c-mensaje" maxlength="2000" placeholder="Cuéntanos de dónde nos escribes y en qué te podemos ayudar"></textarea>
+      <label class="check-linea"><input type="checkbox" id="c-publicar"> Pueden publicar mi nombre en la lista de agradecimientos</label>
+      <input class="campo-trampa" id="c-trampa" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="msg-error" id="c-error" hidden></p>
+      <p class="msg-ok" id="c-ok" hidden></p>
+      <div class="acciones-form"><button type="submit" class="btn btn-primario" id="c-enviar">Enviar</button></div>
+    </form>
+  </section>
+
   <footer class="pie">
     <p>Parroquia Nuestra Señora del Monte Carmelo · <a href="./editor/">Abrir editor de cancioneros</a></p>
   </footer>
 
-  <script type="module">
-    import { initNavSitio } from "./js/auth.js";
-    initNavSitio();
-  </script>
+  <dialog class="dlg-admins dlg-actividad" id="dlg-actividad" aria-labelledby="act-titulo-dlg">
+    <form method="dialog" class="dlg-cabeza">
+      <h2 id="act-titulo-dlg">Actividades de las comunidades</h2>
+      <button type="submit" class="btn btn-secundario" aria-label="Cerrar">Cerrar</button>
+    </form>
+    <div class="dlg-cuerpo">
+      <form class="form-noticia" id="form-actividad" novalidate>
+        <input type="hidden" id="a-id">
+        <div class="dos-col">
+          <div><label for="a-fecha">Fecha</label><input type="date" id="a-fecha" required></div>
+          <div><label for="a-hora">Hora <small>(opcional)</small></label><input type="time" id="a-hora"></div>
+        </div>
+        <label for="a-comunidad">Comunidad</label>
+        <select id="a-comunidad"></select>
+        <label for="a-titulo">Título</label>
+        <input id="a-titulo" maxlength="120" placeholder="Ensayo del coro, catequesis, kermés…" required>
+        <label for="a-lugar">Lugar <small>(opcional)</small></label>
+        <input id="a-lugar" maxlength="120">
+        <label for="a-descripcion">Descripción breve <small>(opcional)</small></label>
+        <textarea id="a-descripcion" maxlength="400" rows="3"></textarea>
+        <p class="msg-error" id="a-error" hidden></p>
+        <div class="acciones-form">
+          <button type="button" class="btn btn-secundario" id="a-nueva" hidden>Nueva actividad</button>
+          <button type="submit" class="btn btn-primario" id="a-guardar">Publicar actividad</button>
+        </div>
+      </form>
+      <h3 class="auth-h2">Próximas actividades que puedes cambiar</h3>
+      <ul class="act-lista" id="act-lista"></ul>
+    </div>
+  </dialog>
+
+  <script src="./editor/js/etiquetas.js"></script>
+  <script type="module" src="./js/inicio.js"></script>
 </body>
 </html>

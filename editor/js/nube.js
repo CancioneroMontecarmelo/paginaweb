@@ -108,7 +108,7 @@ function mcConfigurado() {
   showModal({
     title: 'Drive de la parroquia',
     body: `<p>El Drive de la parroquia todavía no está conectado: falta la dirección del Apps Script en <code>js/config.js</code>.</p>
-      <p class="hint">Mientras tanto puedes guardar el cancionero en tu equipo con <b>Archivo → Guardar cancionero</b>.</p>`
+      <p class="hint">Mientras tanto puedes guardar el cancionero en tu equipo con <b>Archivo → Guardar como (en este equipo) → Cancionero</b>.</p>`
   });
   return false;
 }
@@ -373,6 +373,209 @@ function mcGuardado(opts, nCanciones, armado, htmlId) {
       ] : [])
     ]
   });
+}
+
+// ============ BIBLIOTECA DE LA PARROQUIA (canciones sueltas) ============
+// Archivo → Abrir → Canción de la Biblioteca y Archivo → Guardar canción en la Biblioteca. Es la misma
+// Biblioteca de la pantalla Misas: una canción subida ahí solo con su audio se abre aquí, se le escribe
+// la letra y al guardarla queda completa y unida a sus audios (el Apps Script la reconoce por el título).
+const mcDriveAudioUrl = fileId => 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(fileId);
+const mcIdCancion = titulo => 'c-' + (String(titulo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'cancionero');
+
+async function mcAbrirCancionBib() {
+  if (!mcConfigurado()) return;
+  toast('Buscando canciones en la Biblioteca…', 30000);
+  let lista;
+  try { lista = (await mcLeerPublico({ accion: 'biblioteca' })).canciones || []; } catch (e) { mcError('No se pudo abrir la Biblioteca', e); return; }
+  toast('');
+  if (!lista.length) {
+    showModal({ title: 'Biblioteca de la parroquia', body: '<p>Todavía no hay canciones en la Biblioteca.</p>' });
+    return;
+  }
+  const plano = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  let elegida = null;
+  await showModal({
+    title: 'Abrir canción de la Biblioteca',
+    wide: true,
+    body: `<div class="mc-campos"><label for="mcBuscarBib">Buscar</label>
+        <input type="search" id="mcBuscarBib" placeholder="Título o etiqueta" autocomplete="off"></div>
+      <ul class="mc-lista mc-lista-bib">${lista.map(c => `<li data-q="${escapeHtml(plano(c.titulo + ' ' + (c.etiquetas || []).join(' ')))}">
+        <span>${escapeHtml(c.titulo)}${c.soloAudio ? ' <em class="mc-solo-audio">solo audio</em>' : ''}
+          <small>${escapeHtml([c.tono, (c.etiquetas || []).slice(0, 5).join(', '), (c.audios || []).length ? `♪ ${(c.audios || []).length}` : '']
+            .filter(Boolean).join(' · '))}</small></span>
+        <button type="button" class="btn primary" data-id="${escapeHtml(c.id)}">Abrir</button></li>`).join('')}</ul>`,
+    onOpen: d => {
+      const q = d.querySelector('#mcBuscarBib');
+      q.oninput = () => {
+        const t = plano(q.value.trim());
+        d.querySelectorAll('.mc-lista-bib li').forEach(li => { li.hidden = !!t && !li.dataset.q.includes(t); });
+      };
+      q.focus();
+      d.querySelectorAll('[data-id]').forEach(b => { b.onclick = () => { elegida = b.dataset.id; d.close(); }; });
+    },
+    buttons: [{ label: 'Cancelar' }]
+  });
+  if (!elegida) return;
+  toast('Abriendo la canción…', 30000);
+  try {
+    const r = await mcLeerPublico({ accion: 'cancion', id: elegida });
+    const data = parseMarkdown(r.texto, (r.cancion?.titulo || 'cancion') + '.md');
+    if (!data.tags?.length && r.cancion?.etiquetas) data.tags = r.cancion.etiquetas;
+    const d = makeDoc({ ...data, title: data.title || r.cancion?.titulo || 'Sin título' });
+    markClean(d);
+    replaceOrAddTabs([d], false);
+    const sinLetra = !d.text.trim();
+    if (sinLetra) setMode('edit');
+    refresh();
+    toast(sinLetra ? 'Esta canción tiene solo audio: escribe la letra y los acordes y guárdala con Ctrl+S.'
+      : `«${d.title}» abierta desde la Biblioteca`, 5000);
+  } catch (e) {
+    mcError('No se pudo abrir la canción', e);
+  }
+}
+
+async function mcGuardarCancion() {
+  if (!mcConfigurado()) return;
+  syncFromEditor();
+  const d = cur();
+  if (isBlank(d)) { toast('La canción está vacía'); return; }
+  const titulo = d.title.trim();
+  if (!titulo) { toast('Escribe el título de la canción antes de guardarla', 4000); titleEl.focus(); return; }
+  const s = await mcEntrar('Para guardar la canción en la Biblioteca de la parroquia entra con tu cuenta de Google.');
+  if (!s) return;
+  if (s.rol === 'visitante') {
+    showModal({
+      title: 'Biblioteca de la parroquia',
+      body: `<p>Entraste como <b>${escapeHtml(s.email)}</b>, que todavía no tiene permisos para guardar canciones.</p>
+        <p class="hint">Pídeselos al administrador de la parroquia. Mientras tanto puedes guardarla en este equipo.</p>`,
+      buttons: [{ label: 'Cerrar' }, { label: 'Guardar en este equipo…', primary: true, onClick: () => { setTimeout(() => saveSong(true)); } }]
+    });
+    return;
+  }
+  let previa = null;
+  try {
+    previa = ((await mcLeerPublico({ accion: 'biblioteca' })).canciones || []).find(c => c.id === mcIdCancion(titulo)) || null;
+  } catch (e) { mcError('No se pudo guardar en la Biblioteca', e); return; }
+  if (previa && !previa.soloAudio) {
+    const seguir = await showModal({
+      title: 'Ya está en la Biblioteca',
+      body: `<p>Ya hay una canción <b>«${escapeHtml(previa.titulo)}»</b> en la Biblioteca. ¿Reemplazar su letra y acordes con los de esta pestaña?</p>
+        <p class="hint">Sus audios se conservan. Si es otra canción, cancela y cámbiale el título.</p>`,
+      buttons: [{ label: 'Cancelar' }, { label: 'Reemplazar', primary: true, value: true }]
+    });
+    if (!seguir) return;
+  }
+
+  showModal({
+    title: 'Guardando en la Biblioteca',
+    body: `<p class="mc-paso">Preparando «${escapeHtml(titulo)}»…</p><progress class="mc-progreso" max="1" value="0"></progress>
+      <p class="hint">No cierres esta página hasta que termine.</p>`,
+    buttons: []
+  });
+  const dlg = $('#modal');
+  const avance = (texto, valor = 0) => {
+    if (!dlg.querySelector('.mc-progreso')) return;
+    dlg.querySelector('.mc-paso').textContent = texto;
+    dlg.querySelector('.mc-progreso').value = valor;
+  };
+  try {
+    const voz = a => (a.voice && a.voice !== 'todas' ? a.voice : '');
+    const enviados = [], enMd = [];
+    let faltan = 0;
+    const locales = d.audios.filter(a => a.kind === 'local');
+    let conv = null;
+    for (const a of d.audios) {
+      if (a.kind !== 'local') {
+        enviados.push({ nombre: a.name, voz: voz(a), url: a.src });
+        enMd.push({ name: a.name, src: a.src, voice: a.voice });
+        continue;
+      }
+      const n = locales.indexOf(a) + 1;
+      const blob = a.objectUrl ? await fetch(a.objectUrl).then(r => r.blob()).catch(() => null) : null;
+      if (!blob) { faltan++; continue; }
+      conv ||= await import(new URL('../js/audio-webm.js', document.baseURI).href);
+      const archivo = new File([blob], fileBase(a.src, true) || (a.name || 'audio') + '.' + (mediaExt(a.src) || 'mp3'), { type: blob.type });
+      const r = await conv.aWebm(archivo, x => avance(`Audio ${n} de ${locales.length}: convirtiendo a WebM ${Math.round(x * 100)} %`, (n - 1 + x * 0.7) / (locales.length + 1)));
+      if (r.archivo.size > MC_MAX_ARCHIVO) throw new Error(`El audio «${a.name}» pesa más de 30 MB.`);
+      avance(`Audio ${n} de ${locales.length}: subiendo…`, (n - 0.3) / (locales.length + 1));
+      const sub = await mcApi('subirAudioBiblioteca', {
+        token: s.token, nombre: r.archivo.name, mime: r.archivo.type || 'audio/webm', base64: await mcBase64(r.archivo), cancion: titulo, voz: voz(a)
+      });
+      enviados.push({ nombre: a.name, voz: voz(a), fileId: sub.fileId });
+      enMd.push({ name: a.name, src: mcDriveAudioUrl(sub.fileId), voice: a.voice });
+    }
+    // Los audios que la canción ya tenía en la Biblioteca siguen siendo suyos
+    for (const a of previa?.audios || []) {
+      if (enviados.some(x => (a.fileId && (x.fileId === a.fileId || String(x.url || '').includes(a.fileId))) || (a.url && x.url === a.url))) continue;
+      enviados.push(a.fileId ? { nombre: a.nombre, voz: a.voz, fileId: a.fileId } : { nombre: a.nombre, voz: a.voz, url: a.url });
+      enMd.push({ name: a.nombre || 'Audio', src: a.fileId ? mcDriveAudioUrl(a.fileId) : a.url, voice: a.voz || 'todas' });
+    }
+    avance('Guardando la canción en la Biblioteca…', locales.length / (locales.length + 1));
+    const r = await mcApi('subirCancion', {
+      token: s.token, md: buildMarkdown(d, enMd), nombre: titulo + '.md', comunidad: previa?.comunidad || s.comunidad || '', audios: enviados
+    });
+    markClean(d);
+    refresh();
+    dlg.close();
+    const c = r.cancion;
+    const momentos = (c.etiquetas || []).filter(t => typeof TAG_FAMILIES !== 'undefined' &&
+      TAG_FAMILIES.catolico.groups[0].tags.some(m => tagNorm(m) === tagNorm(t)));
+    showModal({
+      title: 'Guardada en la Biblioteca ✓',
+      body: `<p>«${escapeHtml(c.titulo)}» quedó en la Biblioteca de la parroquia con ${(c.audios || []).length} ${(c.audios || []).length === 1 ? 'audio' : 'audios'}${previa?.soloAudio ? ', ya unida a los audios que se habían subido solos' : ''}.</p>
+        <p>${momentos.length ? `En la pantalla Misas aparece en: <b>${escapeHtml(momentos.join(', '))}</b>.`
+          : 'Para que aparezca en los momentos de la pantalla Misas, ponle sus etiquetas (Editar → Tags: Entrada, Comunión…) y vuelve a guardarla.'}</p>
+        ${faltan ? `<p class="hint">${faltan} audio(s) de este equipo no se encontraron (pulsa «Activar audios de la carpeta» y vuelve a guardar).</p>` : ''}`
+    });
+  } catch (e) {
+    if (dlg.open) dlg.close();
+    mcError('No se pudo guardar en la Biblioteca', e);
+  }
+}
+
+// ============ COMPARTIR (WhatsApp o correo) ============
+// Con el cancionero guardado en el Drive se comparte el vínculo a su página; si no, se ofrece guardarlo
+// primero o enviar el archivo .html (Compartir → Enviar el archivo).
+async function mcCompartir(medio) {
+  syncFromEditor();
+  const songs = docs.filter(d => !isBlank(d));
+  if (!songs.length) { toast('No hay canciones abiertas para compartir'); return; }
+  const drive = state.mcDrive;
+  const sinCambios = drive?.htmlId && songs.every(d => !isDirty(d));
+  if (!drive?.htmlId || !sinCambios) {
+    const eleccion = await showModal({
+      title: medio === 'correo' ? 'Compartir por correo' : 'Compartir por WhatsApp',
+      body: drive?.htmlId
+        ? `<p>El cancionero tiene cambios que todavía no están en el Drive. ¿Guardarlo antes de compartir el vínculo?</p>`
+        : `<p>Para compartir un vínculo web, el cancionero tiene que estar guardado en el Drive de la parroquia.</p>
+          <p class="hint">También puedes enviar el archivo .html con las canciones (se abre sin internet).</p>`,
+      buttons: [
+        { label: 'Cancelar' },
+        ...(drive?.htmlId ? [{ label: 'Compartir el vínculo igual', value: 'igual' }] : []),
+        { label: 'Enviar el archivo', value: 'archivo' },
+        { label: 'Guardar en el Drive', primary: true, value: 'guardar' }
+      ]
+    });
+    if (!eleccion) return;
+    if (eleccion === 'archivo') return shareBookDialog();
+    if (eleccion === 'guardar') {
+      await driveSaveDialog();
+      if (!state.mcDrive?.htmlId || docs.some(d => !isBlank(d) && isDirty(d))) return;
+      if ($('#modal').open) $('#modal').close();
+    }
+  }
+  const d = state.mcDrive;
+  const url = mcVerUrl(d.htmlId);
+  const titulo = d.titulo || state.cancioneroName || 'Cancionero';
+  const comunidad = MC_COMUNIDADES[d.comunidad] || '';
+  const texto = `Cancionero «${titulo}»${comunidad ? ` (${comunidad}${d.fecha ? ', ' + d.fecha : ''})` : ''}: ${url}`;
+  if (medio === 'correo') {
+    location.href = `mailto:?subject=${encodeURIComponent('Cancionero: ' + titulo)}&body=${encodeURIComponent(
+      `Hola:\n\nTe comparto el cancionero «${titulo}»${comunidad ? ` de ${comunidad}` : ''}, con la letra, los acordes y los audios:\n\n${url}\n\nSe abre en el navegador, sin instalar nada.`)}`;
+  } else {
+    window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank', 'noopener');
+  }
 }
 
 // ============ PUBLICAR DESDE LA PANTALLA MISAS ============

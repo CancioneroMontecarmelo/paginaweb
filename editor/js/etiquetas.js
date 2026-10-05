@@ -366,7 +366,7 @@ function tagSearchDialog() {
           await openFiles([{ file: await f.handle.getFile(), handle: f.handle }]);
         } else if (e.target.id === 'tsFolder') {
           const dir = await songsDirWithPermission(true, 'read');
-          if (!dir) { toast('Primero añade tu carpeta de canciones (Archivo → Abrir colección…)', 4000); return; }
+          if (!dir) { toast('Primero añade tu carpeta de canciones (Archivo → Abrir → Colección de este equipo…)', 4000); return; }
           e.target.disabled = true;
           e.target.textContent = 'Leyendo la carpeta…';
           folder = await scanSongsFolder(dir);
