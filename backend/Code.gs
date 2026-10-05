@@ -754,6 +754,12 @@ function registrarEnBiblioteca_(items, comunidad, u) {
         comunidad: (previa && previa.comunidad) || comunidad || '',
         autor: (previa && previa.autor) || u.email, actualizado: ahora_()
       };
+      // Canción que estaba solo con audios (subida desde Misas) y ahora llega con letra: el .md nuevo no los
+      // nombra, pero siguen siendo suyos
+      if (!it.audios.length && e.audios.length) {
+        var faltan = e.audios.filter(function (a) { return it.texto.indexOf(a.fileId || a.url) < 0; });
+        if (faltan.length) actualizarAudiosMd_(e, faltan, []);
+      }
       bib.canciones = bib.canciones.filter(function (x) { return x.id !== id; });
       bib.canciones.push(e);
       return e;

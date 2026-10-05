@@ -390,6 +390,27 @@ async function mcLeerPublico(params) {
   return r;
 }
 
+// Canciones de un cancionero de misa, en el orden de sus momentos y transpuestas al tono elegido
+async function mcCancionesDeMisa(misa, avance, conMomento = false) {
+  const elegidas = misa.momentos.flatMap(m => m.canciones.map(c => ({ ...c, momento: m.momento })));
+  const songs = [];
+  for (const [i, c] of elegidas.entries()) {
+    avance(i, elegidas.length);
+    let r;
+    try { r = await mcLeerPublico({ accion: 'cancion', id: c.cancionId }); } catch (_) { continue; }
+    const data = parseMarkdown(r.texto, (r.cancion?.titulo || 'cancion') + '.md');
+    const orig = detectKey(data.text);
+    if (orig && c.desplazamiento) {
+      const idx = mod12(orig.idx + c.desplazamiento);
+      data.text = transposeText(data.text, c.desplazamiento, keyPrefersFlats(idx, orig.minor));
+    }
+    if (!data.tags?.length && r.cancion?.etiquetas) data.tags = r.cancion.etiquetas;
+    const titulo = data.title || r.cancion?.titulo || 'Sin título';
+    songs.push(makeDoc({ ...data, title: conMomento ? `${c.momento}: ${titulo}` : titulo, clean: true }));
+  }
+  return { songs, faltantes: elegidas.length - songs.length };
+}
+
 async function mcPublicarMisa(id) {
   const avisar = (tipo, datos = {}) => {
     if (parent !== window) parent.postMessage({ mcPublicar: tipo, misa: id, ...datos }, location.origin);
@@ -402,21 +423,8 @@ async function mcPublicarMisa(id) {
     avance('Leyendo el cancionero…');
     const misa = ((await mcLeerPublico({ accion: 'misas' })).misas || []).find(m => m.id === id);
     if (!misa) throw new Error('No se encontró el cancionero.');
-    const elegidas = misa.momentos.flatMap(m => m.canciones);
-    const songs = [];
-    for (const [i, c] of elegidas.entries()) {
-      avance(`Preparando la canción ${i + 1} de ${elegidas.length}…`, i, elegidas.length * 4);
-      let r;
-      try { r = await mcLeerPublico({ accion: 'cancion', id: c.cancionId }); } catch (_) { continue; }
-      const data = parseMarkdown(r.texto, (r.cancion?.titulo || 'cancion') + '.md');
-      const orig = detectKey(data.text);
-      if (orig && c.desplazamiento) {
-        const idx = mod12(orig.idx + c.desplazamiento);
-        data.text = transposeText(data.text, c.desplazamiento, keyPrefersFlats(idx, orig.minor));
-      }
-      if (!data.tags?.length && r.cancion?.etiquetas) data.tags = r.cancion.etiquetas;
-      songs.push(makeDoc({ ...data, title: data.title || r.cancion?.titulo || 'Sin título', clean: true }));
-    }
+    const { songs, faltantes } = await mcCancionesDeMisa(misa, (i, n) =>
+      avance(`Preparando la canción ${i + 1} de ${n}…`, i, n * 4));
     if (!songs.length) throw new Error('Ninguna canción del cancionero está en la Biblioteca.');
     docs = songs;
     activate(songs[0].id);
@@ -426,9 +434,40 @@ async function mcPublicarMisa(id) {
     };
     const fin = await mcSubirCancionero(songs, opts, s, (texto, hecho, total) =>
       avance(texto, 1 + 3 * (total ? hecho / total : 0), 4), () => {}, false);
-    avisar('listo', { folderId: fin.folderId, htmlId: fin.htmlId, faltantes: elegidas.length - songs.length });
+    avisar('listo', { folderId: fin.folderId, htmlId: fin.htmlId, faltantes });
   } catch (e) {
     avisar('error', { mensaje: e.message || String(e) });
+  }
+}
+
+// Botón «Atril» de la pantalla Misas: editor/?atril=1&misa=<id>. Usa la copia que la pantalla Misas deja en
+// este navegador (con los cambios todavía sin guardar) o, si se abre desde otro lado, la guardada en el Drive.
+const MC_ATRIL_KEY = 'mc-atril';
+
+async function mcAtrilMisa(id) {
+  try {
+    let misa = null;
+    try {
+      const copia = JSON.parse(localStorage.getItem(MC_ATRIL_KEY));
+      if (copia?.id === id && Date.now() - copia.t < 12 * 3600e3) misa = copia;
+    } catch (_) {}
+    if (!misa) {
+      if (!MC_API) throw new Error('El Drive de la parroquia todavía no está conectado.');
+      toast('Buscando el cancionero…', 60000);
+      misa = ((await mcLeerPublico({ accion: 'misas' })).misas || []).find(m => m.id === id);
+    }
+    if (!misa) throw new Error('No se encontró el cancionero: puede que lo hayan borrado.');
+    const { songs, faltantes } = await mcCancionesDeMisa(misa, (i, n) =>
+      toast(`Abriendo «${misa.nombre}»: canción ${i + 1} de ${n}…`, 60000), true);
+    if (!songs.length) throw new Error('Ninguna canción del cancionero está en la Biblioteca.');
+    docs = songs;
+    state.cancioneroName = misa.nombre || 'Cancionero de misa';
+    activate(songs[0].id);
+    setMode('atril');
+    toast(faltantes ? `${faltantes} ${faltantes === 1 ? 'canción ya no está' : 'canciones ya no están'} en la Biblioteca.` : '', 5000);
+  } catch (e) {
+    toast('');
+    showModal({ title: 'No se pudo abrir el atril', body: `<p>${escapeHtml(e.message || String(e))}</p>` });
   }
 }
 

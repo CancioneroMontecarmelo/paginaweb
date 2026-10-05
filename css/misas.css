@@ -337,6 +337,71 @@
   background: rgba(139, 30, 30, 0.08);
 }
 
+.momento {
+  position: relative;
+}
+
+.arrastrar {
+  flex: none;
+  align-self: center;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.35rem 0.15rem;
+  border: none;
+  background: none;
+  color: var(--texto-suave);
+  cursor: grab;
+  border-radius: var(--radio);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.arrastrar:hover,
+.arrastrar:focus-visible {
+  color: var(--terracota);
+  background: rgba(154, 79, 46, 0.08);
+}
+
+.momentos.ordenando,
+.momentos.ordenando * {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.momento.arrastrando {
+  z-index: 5;
+  background: var(--blanco);
+  border-radius: var(--radio);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  opacity: 0.95;
+}
+
+.momento.marca-antes::before,
+.momento.marca-despues::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--terracota);
+}
+
+.momento.marca-antes::before {
+  top: -2px;
+}
+
+.momento.marca-despues::after {
+  bottom: -2px;
+}
+
+.btn-atril {
+  font-weight: 560;
+}
+
 .momento-agregar {
   display: flex;
   gap: 0.3rem;
@@ -1101,6 +1166,31 @@
 .archivo-item.con-error .estado {
   color: #b3261e;
   white-space: normal;
+}
+
+.archivo-item .a-cancion-caja {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.archivo-item .a-cancion {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--texto);
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.archivo-item .a-meta {
+  grid-column: 1 / -1;
+  color: var(--verde);
 }
 
 .archivo-item .a-escuchar {

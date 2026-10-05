@@ -2,7 +2,7 @@
 // Editor de cancioneros Monte Carmelo (Cancionero Universal) sin conexión: con internet siempre se carga la versión más nueva
 // (y se guarda una copia); sin internet, o si la red tarda, se usa la copia guardada.
 
-const CACHE = 'mc-editor-5';
+const CACHE = 'mc-editor-6';
 const NET_TIMEOUT = 3000;
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/canciotras.css',

@@ -110,8 +110,14 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
   guardado en el cancionero).
 - **Panel derecho — Cancioneros**: los cancioneros de misa ya creados (nombre, fecha, tiempo litúrgico) y
   sus momentos (Entrada, Gloria, Santo…). **+ Agregar nuevo** pide primero el nombre y después la fecha
-  de la misa; entonces se despliegan los momentos, cada uno con un **canto sugerido** (marcado
-  «sugerida») que se cambia tocando el momento.
+  de la misa; entonces se despliegan los momentos (Entrada, Acto penitencial, Gloria, Salmo, Aleluya,
+  **Post evangelio**, Ofertorio, Santo, Cordero, Comunión, Acción de gracias y Salida), cada uno con un
+  **canto sugerido** (marcado «sugerida») que se cambia tocando el momento. Los momentos se **reordenan
+  arrastrando** su asa ⠿ (con el mouse o el dedo; con el teclado, flechas ↑ ↓), por si el sacerdote o la
+  liturgia piden otro orden.
+- **▶ Atril**: abre las canciones del cancionero, en orden y en el tono elegido, en el atril del editor
+  (pestaña nueva, `editor/?atril=1&misa=<id>`), incluso con cambios todavía sin guardar. No toca las
+  pestañas que cada uno tenga abiertas en el editor.
 - **Panel izquierdo — Biblioteca**, con dos pestañas:
   - **Canciones**: al tocar un momento, lista todas las canciones del sitio con esa etiqueta; al marcarla
     queda en el cancionero (reemplaza a la sugerida) y se muestra en el centro.
@@ -128,6 +134,14 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
 - **Canciones y audios**: agrega canciones `.md` nuevas con sus audios, o audios a una canción que ya
   está en la Biblioteca (también con el botón **+ Audio** debajo de la canción del centro). También se
   agregan solas las canciones de cada cancionero guardado desde el editor.
+  - **Solo audios** (sin `.md`): cada audio dice a qué canción va (se propone el título de sus etiquetas
+    o del nombre del archivo; los de igual título van juntos). Si esa canción ya está en la Biblioteca, el
+    audio se le suma sin tocar su letra; si no, se crea. Los MP3 trabajados en **Editag** traen la letra
+    con acordes (`TXXX` «MP3EDITAG», antes «CIC»), el título, el artista y los momentos y tiempos
+    litúrgicos (`TXXX` «LITURGICAL_MOMENTS» / «LITURGICAL_SEASONS», y `TCON`): todo eso pasa al `.md`
+    (`js/etiquetas-audio.js`). Sin etiquetas, la canción queda solo con su título y audio; la letra se
+    completa después en el editor: al guardar en el Drive una canción con el mismo título, queda unida a
+    sus audios.
 
 En el Drive: `MonteCarmelo/Biblioteca/` (canciones y audios + `biblioteca.json`), `MonteCarmelo/misas.json`
 (público), `MonteCarmelo/Lecturas/<fecha>.json` (lecturas ya leídas) y en `MonteCarmelo/sistema/` los

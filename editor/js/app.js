@@ -702,11 +702,13 @@ function init() {
   buildMenubar(MENUS);
   bindTabs();
   if (EFIMERO) {
+    if (ATRIL_MISA) loadViewPrefs();
     docs = [makeDoc({ title: '', text: '' })];
     activeId = docs[0].id;
     applyState();
     activate(activeId);
-    mcPublicarMisa(new URLSearchParams(location.search).get('misa'));
+    if (ATRIL_MISA) mcAtrilMisa(MC_PARAMS.get('misa'));
+    else mcPublicarMisa(MC_PARAMS.get('misa'));
     return;
   }
   const restored = loadSession();

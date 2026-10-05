@@ -224,10 +224,22 @@ function redo() {
 // ============ SESIÓN (guardado automático en el navegador) ============
 const STORE_KEY = 'montecarmelo-editor.v1';
 const OLD_STORE_KEY = 'montecarmelo-editor.v0';
-// editor/?publicar=1 es el editor que la pantalla Misas abre oculto para publicar: no restaura ni pisa
-// las pestañas que el usuario tenga guardadas en este navegador
-const EFIMERO = new URLSearchParams(location.search).get('publicar') === '1';
+// editor/?publicar=1 es el editor que la pantalla Misas abre oculto para publicar y editor/?atril=1 el que
+// abre su botón «Atril»: no restauran ni pisan las pestañas que el usuario tenga guardadas en este navegador
+const MC_PARAMS = new URLSearchParams(location.search);
+const ATRIL_MISA = MC_PARAMS.get('atril') === '1' && !!MC_PARAMS.get('misa');
+const EFIMERO = MC_PARAMS.get('publicar') === '1' || ATRIL_MISA;
 let saveTimer = null;
+
+// Solo las preferencias de vista guardadas (tamaño de letra, notación, modo noche…), sin pestañas ni Drive
+function loadViewPrefs() {
+  let data = null;
+  try { data = JSON.parse(localStorage.getItem(STORE_KEY)); } catch (_) {}
+  const s = data?.state || {};
+  for (const k of ['notation', 'showComments', 'fontSize', 'highlight', 'bannerHidden', 'scrollSpeed', 'night']) {
+    if (s[k] !== undefined) state[k] = s[k];
+  }
+}
 
 function saveNow() {
   clearTimeout(saveTimer);

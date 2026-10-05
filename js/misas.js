@@ -15,6 +15,7 @@
 import { llamarApi, sesionActual, puedeEditar, initNavSitio, comunidadesOpciones, ROLES } from "./auth.js";
 import { COMUNIDADES } from "./comunidades.js";
 import { aWebm, esAudio, esAudioWebm, grabador } from "./audio-webm.js";
+import { leerEtiquetasAudio } from "./etiquetas-audio.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => escapeHtml(s == null ? "" : s);
@@ -24,13 +25,14 @@ const movil = () => matchMedia("(max-width: 960px)").matches;
 const grupoCatolico = (nombre) => TAG_FAMILIES.catolico.groups.find((g) => g.name === nombre).tags;
 const MOMENTOS_MISA = grupoCatolico("Momentos de la misa");
 const TIEMPOS = grupoCatolico("Tiempos litúrgicos");
-const MOMENTOS_BASE = ["Entrada", "Acto penitencial", "Gloria", "Salmo responsorial", "Aleluya", "Ofertorio",
-  "Santo", "Cordero de Dios", "Comunión", "Acción de gracias", "Salida"];
+const MOMENTOS_BASE = ["Entrada", "Acto penitencial", "Gloria", "Salmo responsorial", "Aleluya", "Post evangelio",
+  "Ofertorio", "Santo", "Cordero de Dios", "Comunión", "Acción de gracias", "Salida"];
 
 // Etiquetas que valen para el mismo momento (la primera es la que se muestra)
 const SINONIMOS = [
   ["Acto penitencial", "Señor ten piedad (Kyrie)", "Señor ten piedad", "Perdón", "Piedad", "Kyrie"],
   ["Aleluya", "Aclamación al Evangelio", "Aclamación"],
+  ["Post evangelio", "Postevangelio", "Después del Evangelio"],
   ["Ofertorio", "Presentación de los dones", "Ofrenda", "Ofrendas"],
   ["Santo", "Sanctus"],
   ["Cordero de Dios", "Cordero", "Agnus", "Agnus Dei"],
@@ -241,10 +243,12 @@ function pintarMisas() {
 function momentosHtml() {
   const a = st.actual;
   const ed = editable();
+  const mover = ed && a.momentos.length > 1;
   const items = a.momentos.map((m, i) => {
     const titulos = m.canciones.map((c) => esc(tituloDe(c.cancionId)) +
       (c.sugerida && ed ? ' <em class="sugerida" title="La sugirió el sistema: tocá el momento para cambiarla">sugerida</em>' : "")).join(" · ");
-    return `<li class="momento${i === st.momento ? " activo" : ""}">
+    return `<li class="momento${i === st.momento ? " activo" : ""}" data-i="${i}">
+      ${mover ? `<button type="button" class="arrastrar" data-i="${i}" title="Arrastrá para cambiar el orden (o usá las flechas ↑ ↓)" aria-label="Mover ${esc(m.momento)}">⠿</button>` : ""}
       <button type="button" class="momento-boton" data-accion="momento" data-i="${i}">
         <b>${esc(m.momento)}</b>
         <span class="canciones-momento${titulos ? "" : " vacio"}">${titulos || esc(ed ? "Elegí una canción →" : "Sin canción")}</span>
@@ -259,6 +263,7 @@ function momentosHtml() {
       <option value="">+ Agregar momento…</option>${faltan.map((m) => `<option>${esc(m)}</option>`).join("")}
       <option value="__otro">Otro…</option></select></div>` : ""}
     <div class="misa-acciones">
+      <button type="button" class="btn-chico btn-atril" data-accion="atril" title="Abre las canciones de este cancionero en el atril del editor, en una pestaña nueva">▶ Atril</button>
       ${ed ? `<button type="button" class="btn-chico" data-accion="guardar">${a.borrador ? "Guardar…" : sucio() ? "Guardar cambios…" : "Fechas y ensayos…"}</button>` : ""}
       ${ed && st.biblioteca.length ? '<button type="button" class="btn-chico" data-accion="sugerir" title="Vuelve a elegir los cantos de los momentos que siguen con la sugerencia del sistema o vacíos">Volver a sugerir</button>' : ""}
       ${ed && sucio() && !a.borrador ? '<button type="button" class="btn-chico" data-accion="descartar">Descartar cambios</button>' : ""}
@@ -382,6 +387,36 @@ function quitarMomento(i) {
   mostrarCancionDelMomento();
   pintarMisas();
   pintarBiblioteca();
+}
+
+// El sacerdote o la liturgia pueden pedir otro orden: el momento elegido sigue elegido donde quede
+function moverMomento(desde, hacia) {
+  const lista = st.actual?.momentos;
+  if (!lista || hacia === desde || hacia < 0 || hacia >= lista.length) return false;
+  const activo = lista[st.momento];
+  lista.splice(hacia, 0, lista.splice(desde, 1)[0]);
+  if (activo) st.momento = lista.indexOf(activo);
+  pintarMisas();
+  return true;
+}
+
+function abrirAtril() {
+  const a = st.actual;
+  if (!a) return;
+  if (!a.momentos.some((m) => m.canciones.length)) return avisar("Este cancionero todavía no tiene canciones.", true);
+  const copia = {
+    id: a.id, nombre: a.nombre || "Cancionero nuevo", comunidad: a.comunidad, fechaUso: a.fechaUso, tiempoLiturgico: a.tiempoLiturgico,
+    momentos: a.momentos.map((m) => ({ momento: m.momento, canciones: m.canciones.map(({ cancionId, desplazamiento }) => ({ cancionId, desplazamiento })) })),
+    t: Date.now()
+  };
+  let copiada = true;
+  try {
+    localStorage.setItem("mc-atril", JSON.stringify(copia));
+  } catch (_) {
+    copiada = false; // el atril lee la versión guardada
+  }
+  if (a.borrador && !copiada) return avisar("Guardá el cancionero para abrirlo en el atril.", true);
+  window.open(new URL("editor/?atril=1&misa=" + encodeURIComponent(a.id), location.href).href, "_blank");
 }
 
 function mostrarCancionDelMomento() {
@@ -782,7 +817,9 @@ async function pintarLienzo() {
   const tono = orig ? { idx: mod12(orig.idx + d), minor: orig.minor } : null;
   const texto = orig && d ? transposeText(cancion.text, d, keyPrefersFlats(tono.idx, tono.minor)) : cancion.text;
   mcCancionActual = { tags: cancion.tags || entrada.etiquetas };
-  box.innerHTML = renderSong(cancion.title || entrada.titulo, texto, tono);
+  box.innerHTML = cancion.text.trim() ? renderSong(cancion.title || entrada.titulo, texto, tono)
+    : `<div class="lienzo-vacio"><p><b>${esc(cancion.title || entrada.titulo)}</b></p>
+      <p>Por ahora esta canción tiene solo audio: la letra y los acordes se agregan en el editor.</p></div>`;
   pintarTrasponedor();
   pintarAudios(entrada);
 }
@@ -1523,8 +1560,10 @@ function conectarCoro() {
 }
 
 // ============ DIÁLOGO: CANCIONES Y AUDIOS ============
-// Canción nueva (.md + audios) o audios para una canción de la Biblioteca. Los audios se convierten a
-// WebM en el navegador apenas se agregan, se suben a Biblioteca/audios y quedan vinculados al .md.
+// Canción nueva (.md + audios, o solo audios) o audios para una canción de la Biblioteca. Los audios se
+// convierten a WebM en el navegador apenas se agregan, se suben a Biblioteca/audios y quedan vinculados
+// al .md. Con solo audios, el .md se arma con lo que traen sus etiquetas (Editag: letra y acordes, título,
+// momentos) o queda solo con el título, para completarlo después en el editor.
 
 const nombreBase = (ruta) => String(ruta || "").split(/[\\/]/).pop().normalize("NFC").toLowerCase();
 const sinExtension = (n) => String(n || "").replace(/\.[^.]+$/, "");
@@ -1534,6 +1573,14 @@ const plano = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g
 const MAX_SUBIDA = 30 * 1024 * 1024;
 
 const sub = { modo: "nueva", items: [], cancionId: "", grabacion: null, reloj: 0, cadena: Promise.resolve(), seq: 0, subiendo: false };
+
+// «01 - Santo_santo (soprano).mp3» → «Santo santo (soprano)»
+const tituloDeArchivo = (n) => sinExtension(n).replace(/[_]+/g, " ").replace(/^\s*\d{1,3}\s*[-.)]\s*/, "").replace(/\s+/g, " ").trim();
+// Mismo id que da el Apps Script (slug_ en Code.gs) a la canción de ese título
+const idDeTitulo = (t) => "c-" + (String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "cancionero");
+// En «Canción nueva» sin ningún .md, cada audio dice a qué canción va (por su título)
+const soloAudios = () => sub.modo === "nueva" && !sub.items.some((i) => i.tipo === "md");
 
 function archivoBase64(f) {
   return new Promise((ok, mal) => {
@@ -1569,9 +1616,11 @@ async function agregarArchivos(lista, { grabacion = false } = {}) {
   const avisos = [];
   for (const f of lista) {
     if (esAudio(f)) {
+      const meta = grabacion ? null : await leerEtiquetasAudio(f).catch(() => null);
       const it = {
-        id: ++sub.seq, tipo: "audio", archivo: f, grabacion, voz: "", estado: "En espera…",
+        id: ++sub.seq, tipo: "audio", archivo: f, grabacion, voz: "", estado: "En espera…", meta,
         nombre: grabacion ? "Grabación " + new Date().toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" }) : sinExtension(f.name),
+        cancion: meta?.titulo || (grabacion ? "" : tituloDeArchivo(f.name)),
         url: grabacion ? URL.createObjectURL(f) : ""
       };
       it.conversion = sub.cadena = sub.cadena.then(() => convertirItem(it));
@@ -1631,11 +1680,21 @@ function nodoItem(it) {
       <span class="archivo-nombre">${esc(it.datos?.title || it.archivo.name)}</span>
       <small class="estado">${esc(it.error || it.estado)}</small>${quitar}`
     : `<span class="tipo">${it.grabacion ? "Grabación" : "Audio"}</span>
-      <input type="text" class="a-nombre" value="${esc(it.nombre)}" aria-label="Nombre del audio" maxlength="150">
+      <input type="text" class="a-nombre" value="${esc(it.nombre)}" aria-label="Nombre del audio" title="Nombre del audio" maxlength="150">
       <select class="a-voz" aria-label="Voz">${opcionesVoz(it.voz)}</select>
       <small class="estado">${esc(it.error || it.estado)}</small>${quitar}
+      ${soloAudios() ? `<label class="a-cancion-caja">Canción
+        <input type="text" class="a-cancion" value="${esc(it.cancion)}" maxlength="150" placeholder="Título de la canción">
+      </label>${metaHtml(it.meta)}` : ""}
       ${it.url ? `<audio class="a-escuchar" controls preload="metadata" src="${esc(it.url)}"></audio>` : ""}`;
   return li;
+}
+
+function metaHtml(meta) {
+  if (!meta) return "";
+  const partes = [meta.letra ? (meta.conAcordes ? "Trae letra y acordes" : "Trae la letra (sin acordes)") : "",
+    meta.etiquetas.length ? "Etiquetas: " + meta.etiquetas.join(", ") : ""].filter(Boolean);
+  return partes.length ? `<small class="a-meta">${esc(partes.join(" · "))}</small>` : "";
 }
 
 function pintarListaSubir() {
@@ -1693,10 +1752,12 @@ function pintarSubir() {
   });
   $("#s-existente").hidden = nueva;
   $("#s-comunidad-caja").hidden = !nueva;
-  $("#s-zona-que").textContent = nueva ? "las canciones (.md) y sus audios" : "los audios de esta canción";
-  $("#s-archivos").accept = (nueva ? ".md,.markdown,.txt,text/markdown,text/plain," : "") + "audio/*,video/*,.webm,.weba,.opus,.m4a";
+  $("#s-zona-que").textContent = nueva ? "las canciones (.md) y sus audios, o solo audios" : "los audios de esta canción";
+  $("#s-archivos").accept = (nueva ? ".md,.markdown,.txt,text/markdown,text/plain," : "") + "audio/*,video/*,.webm,.weba,.opus,.m4a,.mp3";
   $("#s-ayuda").textContent = nueva
-    ? "Con una sola canción, todos los audios se le vinculan; con varias, cada audio va a la canción cuyo .md lo nombra. Los audios se convierten a WebM y se guardan en el Drive de la parroquia."
+    ? "Con una sola canción (.md), todos los audios se le vinculan; con varias, cada audio va a la canción cuyo .md lo nombra. " +
+      "También se pueden subir solo audios: cada uno queda como canción con el título que le pongas (los de igual título van juntos) " +
+      "y, si el MP3 trae letra y acordes en sus etiquetas (Editag), se usan. La letra se completa después en el editor: al guardar en el Drive una canción con el mismo título, queda unida a sus audios."
     : "Elegí la canción y agregá los audios: se convierten a WebM, se guardan en el Drive de la parroquia y quedan vinculados a su .md.";
   $("#s-enviar").textContent = nueva ? "Subir" : "Vincular audios";
   if (!nueva) {
@@ -1817,10 +1878,80 @@ function actualizarCancionBib(c) {
   pintarActuales();
 }
 
+// .md con lo que trae el audio (letra y acordes de Editag, etiquetas) o solo con el título
+function mdDeAudio({ titulo, artista, letra, etiquetas }) {
+  let texto = String(letra || "");
+  if (texto && looksLikeChordPro(texto)) texto = chordProToText(texto).text;
+  const tono = texto ? detectKey(texto) : null;
+  const out = ["---", `titulo: ${JSON.stringify(titulo)}`];
+  if (tono) out.push(`tono: ${JSON.stringify(keyLabel(tono, true))}`);
+  if (etiquetas.length) out.push(`etiquetas: ${tagsToMeta(etiquetas)}`);
+  if (artista) out.push(`autor: ${JSON.stringify(artista)}`);
+  out.push(`exportado: ${hoyIso()}`, "---", "", `# ${titulo}`, "");
+  if (tono) out.push(`**Tono:** ${keyLabel(tono, true)}`, "");
+  const ticks = Math.max(2, ...(texto.match(/`+/g) || []).map((s) => s.length));
+  const valla = "`".repeat(ticks + 1);
+  out.push(valla + "cancion", texto, valla);
+  return out.join("\n") + "\n";
+}
+
+// Solo audios: los que dicen la misma canción van juntos. Si la canción ya está en la Biblioteca, los audios
+// se le suman (su letra no se toca); si no, se crea con el .md que arma mdDeAudio.
+async function subirSoloAudios(audios, estado) {
+  const grupos = new Map();
+  for (const it of audios) {
+    const titulo = (it.cancion || "").trim().slice(0, 150) || it.nombre.trim() || tituloDeArchivo(it.archivo.name);
+    const id = idDeTitulo(titulo);
+    if (!grupos.has(id)) grupos.set(id, { titulo, audios: [] });
+    grupos.get(id).audios.push(it);
+  }
+  for (const id of grupos.keys()) {
+    const previa = st.porId.get(id);
+    if (previa?.comunidad && !puedeEditar(previa.comunidad)) {
+      throw new Error(`«${previa.titulo}» ya está en la Biblioteca y es de otra comunidad: cambiá el título de la canción.`);
+    }
+  }
+  const comunidad = $("#s-comunidad").value;
+  const nuevas = [], sumadas = [];
+  let n = 0;
+  for (const [id, g] of grupos) {
+    estado.textContent = `Canción ${++n} de ${grupos.size}: «${g.titulo}»…`;
+    const previa = st.porId.get(id);
+    const lista = await subirAudiosItems(g.audios, previa?.titulo || g.titulo);
+    if (previa) {
+      const r = await llamarApi("vincularAudio", { token: token(), cancionId: id, audios: lista });
+      actualizarCancionBib(r.cancion);
+      sumadas.push(r.cancion.titulo);
+      continue;
+    }
+    const metas = g.audios.map((a) => a.meta).filter(Boolean);
+    const conLetra = metas.find((m) => m.conAcordes) || metas.find((m) => m.letra);
+    const md = mdDeAudio({
+      titulo: g.titulo,
+      artista: (conLetra || metas[0])?.artista || "",
+      letra: conLetra?.letra || "",
+      etiquetas: uniqueTags(metas.flatMap((m) => m.etiquetas).map(canonicalTag))
+    });
+    const r = await llamarApi("subirCancion", { token: token(), md, nombre: g.titulo + ".md", comunidad, audios: lista });
+    st.textos.delete(r.cancion.id);
+    nuevas.push(r.cancion.titulo);
+  }
+  await cargarBiblioteca();
+  pintarBiblioteca();
+  if (st.vista) pintarLienzo();
+  const nombres = (ts) => ts.map((t) => `«${t}»`).join(", ");
+  return ["Listo:",
+    nuevas.length ? `${nuevas.length === 1 ? "se creó la canción" : "se crearon las canciones"} ${nombres(nuevas)}.` : "",
+    sumadas.length ? `Se sumaron audios a ${nombres(sumadas)}, que ya ${sumadas.length === 1 ? "estaba" : "estaban"} en la Biblioteca.` : "",
+    nuevas.length ? "La letra y los acordes que falten se completan en el editor: al guardar en el Drive una canción con el mismo título, queda unida a sus audios." : ""
+  ].filter(Boolean).join(" ");
+}
+
 async function subirCancionesNuevas(estado) {
   const mds = sub.items.filter((i) => i.tipo === "md");
   const audios = sub.items.filter((i) => i.tipo === "audio");
-  if (!mds.length) throw new Error("Agregá al menos una canción (.md). Para sumar audios a una canción que ya está en la Biblioteca, usá «Agregar audio a una canción».");
+  if (!mds.length && !audios.length) throw new Error("Agregá canciones (.md) o audios: arrastralos, elegilos o grabalos.");
+  if (!mds.length) return subirSoloAudios(audios, estado);
   const ilegible = mds.find((m) => !m.datos);
   if (ilegible) throw new Error(`No se pudo leer «${ilegible.archivo.name}».`);
   const grupos = mds.map((m) => ({ m, locales: (m.datos.audios || []).filter((a) => a.kind === "local"), audios: [] }));
@@ -1928,7 +2059,7 @@ function conectarSubir() {
     if (it && e.target.classList.contains("a-nombre")) {
       it.nombre = e.target.value;
       it.tocado = true;
-    }
+    } else if (it && e.target.classList.contains("a-cancion")) it.cancion = e.target.value;
   });
   lista.addEventListener("change", (e) => {
     const it = sub.items.find((i) => i.id === +e.target.closest("li")?.dataset.id);
@@ -1988,6 +2119,82 @@ function conectarSubir() {
   });
 }
 
+// ============ ORDEN DE LOS MOMENTOS (arrastrar y soltar) ============
+// Con eventos de puntero (mouse, dedo o lápiz) desde el asa ⠿ de cada momento; con el teclado, flechas.
+
+function conectarArrastreMomentos() {
+  const cont = $("#lista-misas");
+  let arr = null;
+
+  const limpiarMarcas = () => cont.querySelectorAll(".marca-antes, .marca-despues")
+    .forEach((x) => x.classList.remove("marca-antes", "marca-despues"));
+
+  const terminar = (soltar) => {
+    if (!arr) return;
+    const { desde, hacia, movio } = arr;
+    clearInterval(arr.auto);
+    arr.li.classList.remove("arrastrando");
+    arr.li.style.transform = "";
+    arr.ul.classList.remove("ordenando");
+    limpiarMarcas();
+    arr = null;
+    if (soltar && movio && moverMomento(desde, hacia)) {
+      cont.querySelector(`.arrastrar[data-i="${hacia}"]`)?.focus({ preventScroll: true });
+    }
+  };
+
+  const ubicar = () => {
+    const otros = [...arr.ul.querySelectorAll(":scope > .momento")].filter((x) => x !== arr.li);
+    arr.hacia = otros.filter((x) => {
+      const r = x.getBoundingClientRect();
+      return arr.y > r.top + r.height / 2;
+    }).length;
+    arr.li.style.transform = `translateY(${arr.y - arr.y0 + cont.scrollTop - arr.scroll0}px)`;
+    limpiarMarcas();
+    if (arr.hacia < otros.length) otros[arr.hacia].classList.add("marca-antes");
+    else otros.at(-1)?.classList.add("marca-despues");
+  };
+
+  cont.addEventListener("pointerdown", (e) => {
+    const asa = e.target.closest(".arrastrar");
+    if (!asa || e.button > 0 || !editable()) return;
+    e.preventDefault();
+    asa.setPointerCapture(e.pointerId);
+    const li = asa.closest(".momento");
+    arr = { desde: +asa.dataset.i, hacia: +asa.dataset.i, li, ul: li.parentElement, y0: e.clientY, y: e.clientY,
+      scroll0: cont.scrollTop, movio: false, auto: 0 };
+  });
+  cont.addEventListener("pointermove", (e) => {
+    if (!arr) return;
+    arr.y = e.clientY;
+    if (!arr.movio) {
+      if (Math.abs(arr.y - arr.y0) < 5) return;
+      arr.movio = true;
+      arr.li.classList.add("arrastrando");
+      arr.ul.classList.add("ordenando");
+      // Cerca del borde del panel, la lista se desplaza sola
+      arr.auto = setInterval(() => {
+        const r = cont.getBoundingClientRect();
+        const paso = arr.y < r.top + 40 ? -8 : arr.y > r.bottom - 40 ? 8 : 0;
+        if (!paso) return;
+        cont.scrollTop += paso;
+        ubicar();
+      }, 30);
+    }
+    ubicar();
+  });
+  cont.addEventListener("pointerup", () => terminar(true));
+  cont.addEventListener("pointercancel", () => terminar(false));
+  cont.addEventListener("lostpointercapture", () => terminar(true));
+  cont.addEventListener("keydown", (e) => {
+    const asa = e.target.closest(".arrastrar");
+    if (!asa || !["ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    const i = +asa.dataset.i, j = i + (e.key === "ArrowUp" ? -1 : 1);
+    if (moverMomento(i, j)) cont.querySelector(`.arrastrar[data-i="${j}"]`)?.focus();
+  });
+}
+
 // ============ EVENTOS E INICIO ============
 
 function conectarEventos() {
@@ -2033,9 +2240,11 @@ function conectarEventos() {
     else if (accion === "guardar") abrirGuardar();
     else if (accion === "sugerir") volverASugerir();
     else if (accion === "publicar") publicarCancionero();
+    else if (accion === "atril") abrirAtril();
     else if (accion === "descartar") descartarCambios();
     else if (accion === "cerrar") cerrarMisa();
   });
+  conectarArrastreMomentos();
   $("#lista-misas").addEventListener("change", (e) => {
     if (e.target.id !== "nuevo-momento") return;
     let nombre = e.target.value;

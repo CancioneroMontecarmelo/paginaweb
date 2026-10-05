@@ -11,7 +11,7 @@ const TAG_FAMILIES = {
       'kyrie', 'perdon', 'piedad', 'agnus', 'sanctus', 'ofertorio', 'comunion', 'virgen', 'maria'],
     groups: [
       { name: 'Momentos de la misa', tags: ['Entrada', 'Acto penitencial', 'Señor ten piedad (Kyrie)', 'Gloria', 'Salmo responsorial',
-        'Aclamación al Evangelio', 'Aleluya', 'Credo', 'Oración de los fieles', 'Ofertorio', 'Presentación de los dones',
+        'Aclamación al Evangelio', 'Aleluya', 'Post evangelio', 'Credo', 'Oración de los fieles', 'Ofertorio', 'Presentación de los dones',
         'Santo', 'Aclamación memorial', 'Amén', 'Padre Nuestro', 'Paz', 'Cordero de Dios', 'Comunión',
         'Acción de gracias', 'Salida', 'Envío', 'Canto a María'] },
       { name: 'Tiempos litúrgicos', tags: ['Adviento', 'Navidad', 'Epifanía', 'Tiempo ordinario', 'Cuaresma',
