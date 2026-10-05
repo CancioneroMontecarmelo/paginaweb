@@ -85,7 +85,7 @@ class Ventana(Gtk.ApplicationWindow):
         guia.set_markup(
             "<b>1.</b> Elegí la carpeta donde el editor guarda tus canciones (.md).   "
             "<b>2.</b> Mirá qué pasa con cada una: las <span foreground='#1a7f37'><b>nuevas</b></span> y las "
-            "<span foreground='#b35900'><b>cambiadas</b></span> ya vienen marcadas.   "
+            "<span foreground='#b35900'><b>cambiadas</b></span> ya vienen marcadas; las que ya están en la Biblioteca no aparecen.   "
             "<b>3.</b> Tocá <b>Subir las marcadas</b>: quedan en la Biblioteca de la parroquia "
             "(Drive de cancionerolitugico@gmail.com) con sus audios en WebM.")
         caja.pack_start(guia, False, False, 0)
@@ -155,9 +155,9 @@ class Ventana(Gtk.ApplicationWindow):
         caja.pack_start(fila, False, False, 0)
 
         fila = Gtk.Box(spacing=8)
-        recomendadas = Gtk.Button(label="Marcar las recomendadas")
-        recomendadas.connect("clicked", lambda *_: self.marcar_todas(None))
-        fila.pack_start(recomendadas, False, False, 0)
+        todas = Gtk.Button(label="Seleccionar todas")
+        todas.connect("clicked", lambda *_: self.marcar_todas(True))
+        fila.pack_start(todas, False, False, 0)
         ninguna = Gtk.Button(label="Desmarcar todas")
         ninguna.connect("clicked", lambda *_: self.marcar_todas(False))
         fila.pack_start(ninguna, False, False, 0)
@@ -264,10 +264,12 @@ class Ventana(Gtk.ApplicationWindow):
                                                    "No se pudo leer la Biblioteca (¿hay internet?). Tocá «Revisar de nuevo».", False)
             else:
                 codigo, estado, consejo, marcar = mc.estado_cancion(c, biblioteca.get(c["id"]), repetida)
-            c["codigo"], c["recomendada"] = codigo, marcar
+            c["codigo"] = codigo
             if self.elegidos:
                 marcar = c["ruta"].resolve() in self.elegidos and codigo not in ("repetida", "sin-conexion")
             cuenta[codigo] = cuenta.get(codigo, 0) + 1
+            if codigo == "igual":
+                continue
             self.lista.append([marcar, c["titulo"], estado, COLORES[codigo], mc.resumen_audios(c), consejo, str(c["ruta"]),
                                codigo not in ("repetida", "sin-conexion")])
         if not canciones:
@@ -275,6 +277,10 @@ class Ventana(Gtk.ApplicationWindow):
         else:
             texto = f"<b>{len(canciones)} canciones</b> en {GLib.markup_escape_text(carpeta.name or str(carpeta))}: " + \
                 ", ".join(f"{n} {RESUMEN[cod][n > 1]}" for cod, n in sorted(cuenta.items(), key=lambda x: ORDEN[x[0]]))
+            if cuenta.get("igual") == len(canciones):
+                texto += ". Ya están todas en la Biblioteca: no queda nada por subir"
+            elif cuenta.get("igual"):
+                texto += " (esas no se muestran)"
             texto += ". Los cancioneros (.m3u8) se suben desde el editor: Archivo → Guardar cancionero en el Drive."
         self.lbl_resumen.set_markup(texto if canciones else GLib.markup_escape_text(texto))
         if error:
@@ -297,8 +303,7 @@ class Ventana(Gtk.ApplicationWindow):
     def marcar_todas(self, valor):
         for fila in self.lista:
             if fila[C_ACTIVA]:
-                c = self.canciones.get(fila[C_RUTA], {})
-                fila[C_MARCA] = c.get("recomendada", False) if valor is None else valor
+                fila[C_MARCA] = valor
         self.contar_marcadas()
 
     def contar_marcadas(self):
@@ -363,12 +368,20 @@ class Ventana(Gtk.ApplicationWindow):
                     biblioteca[e["id"]] = e
                     hechas.append(e["titulo"])
                     GLib.idle_add(self.anotar, f"  ✓ En la Biblioteca, con {len(e.get('audios') or [])} audio(s).")
+                    GLib.idle_add(self.quitar_fila, str(c["ruta"]))
                 except Exception as err:  # una canción con problemas no frena a las demás
                     fallas.append((c["titulo"], str(err)))
                     GLib.idle_add(self.anotar, f"  ✗ No se pudo subir: {err}")
             GLib.idle_add(self.terminar, hechas, fallas)
 
         threading.Thread(target=tarea, daemon=True).start()
+
+    def quitar_fila(self, ruta):
+        for fila in self.lista:
+            if fila[C_RUTA] == ruta:
+                self.lista.remove(fila.iter)
+                break
+        return False
 
     def avanzar(self, i, total, titulo):
         self.progreso.set_fraction(i / total)

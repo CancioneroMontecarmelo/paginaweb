@@ -245,8 +245,10 @@ de la parroquia (Drive de cancionerolitugico@gmail.com):
 
 - Cada canción muestra su estado frente a la Biblioteca y qué conviene hacer: **Nueva** (subirla),
   **Está solo con audio** (se le agrega la letra), **Cambiada aquí** (modificada después de la última
-  subida: se reemplaza, conservando sus audios), **Ya está** (no hace falta) o **Título repetido** (dos
-  archivos con el mismo título; hay que cambiar uno en el editor). Las nuevas y cambiadas vienen marcadas.
+  subida: se reemplaza, conservando sus audios) o **Título repetido** (dos archivos con el mismo título;
+  hay que cambiar uno en el editor). Las nuevas y cambiadas vienen marcadas; **Seleccionar todas** y
+  **Desmarcar todas** cambian la selección. Las que ya están en la Biblioteca no se muestran (el resumen
+  las cuenta) y cada canción sale de la lista apenas termina de subirse.
 - Al subir, los audios de la computadora se convierten a WebM y se suben; los videos (YouTube…) también,
   si se deja marcada la opción (si no, quedan como enlace); los enlaces a mp3 quedan como enlace. Un audio
   que ya estaba en la canción no se vuelve a subir. Usa la misma clave que `video-a-webm.py`
