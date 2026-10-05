@@ -104,6 +104,8 @@ var ACCIONES = {
   listar: listar_,
   subirAudioBiblioteca: subirAudioBiblioteca_,
   subirCancion: subirCancion_,
+  vincularAudio: vincularAudio_,
+  desvincularAudio: desvincularAudio_,
   guardarMisa: guardarMisa_,
   borrarMisa: borrarMisa_,
   leerEnsayos: leerEnsayos_,
@@ -658,6 +660,38 @@ function desescapar_(s) {
   return String(s || '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 }
 
+function escaparAtributo_(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Id de un archivo de Drive a partir de sus enlaces habituales (uc?id=…, open?id=…, /file/d/…)
+function idDeDrive_(url) {
+  var m = String(url || '').match(/^https?:\/\/(?:drive|docs)\.google\.com\/(?:.*[?&]id=|file\/d\/)([\w-]{20,})/i);
+  return m ? m[1] : '';
+}
+
+function urlAudioDrive_(fileId) {
+  return 'https://drive.google.com/uc?export=download&id=' + fileId;
+}
+
+// Un audio con enlace: si apunta a un archivo de Biblioteca/audios queda como fileId (reproducción con respaldo)
+function audioDeEnlace_(nombre, voz, url, audiosBib) {
+  var id = idDeDrive_(url);
+  if (id) {
+    try {
+      if (enCarpeta_(DriveApp.getFileById(id), audiosBib)) return { nombre: nombre, voz: voz, fileId: id };
+    } catch (_) { /* no es nuestro: queda como enlace */ }
+  }
+  return { nombre: nombre || url, voz: voz, url: url };
+}
+
+// Etiqueta <audio> con el mismo formato que escribe el editor (editor/js/markdown.js)
+function etiquetaAudio_(a) {
+  var src = a.fileId ? urlAudioDrive_(a.fileId) : a.url;
+  var voz = a.voz && a.voz !== 'todas' ? ' data-voz="' + escaparAtributo_(a.voz) + '"' : '';
+  return '<audio controls src="' + escaparAtributo_(src) + '" title="' + escaparAtributo_(a.nombre || 'Audio') + '"' + voz + '></audio>';
+}
+
 // Título, tono, etiquetas y audios de una canción .md del editor
 function cabeceraMd_(texto, nombreArchivo) {
   var t = String(texto || '').replace(/\r\n?/g, '\n');
@@ -731,13 +765,14 @@ function registrarEnBiblioteca_(items, comunidad, u) {
 
 function indexarEnBiblioteca_(carpeta, comunidad, u) {
   var archivos = listarArchivos_(carpeta, '', []);
+  var audiosBib = carpetaBiblioteca_('audios');
   var porRuta = {};
   archivos.forEach(function (f) { porRuta[f.ruta] = f; });
   var items = archivos.filter(function (f) { return /^canciones\/[^\/]+\.md$/i.test(f.ruta); }).map(function (f) {
     var texto = DriveApp.getFileById(f.id).getBlob().getDataAsString('UTF-8');
     var cab = cabeceraMd_(texto, f.ruta.split('/').pop());
     var audios = cab.audios.map(function (a) {
-      if (/^https?:/i.test(a.src)) return { nombre: a.nombre || a.src, voz: a.voz, url: a.src };
+      if (/^https?:/i.test(a.src)) return audioDeEnlace_(a.nombre, a.voz, a.src, audiosBib);
       var ruta;
       try { ruta = decodeURIComponent(a.src); } catch (_) { ruta = a.src; }
       var fa = porRuta[ruta.replace(/^(\.\.?\/)+/, '')];
@@ -777,11 +812,108 @@ function subirAudioBiblioteca_(d) {
   conPrivilegios_(usuarioDeToken_(d.token));
   var bytes = Utilities.base64Decode(String(d.base64 || ''));
   if (bytes.length > MAX_ARCHIVO_BYTES) throw new Error('El audio supera los 30 MB');
-  var nombre = String(d.nombre || 'audio').replace(/[\/\\]/g, '-').slice(0, 150);
+  var nombre = nombreAudio_(d);
+  var mime = /\.webm$/i.test(nombre) ? 'audio/webm' : String(d.mime || 'application/octet-stream');
   var id = guardarAudioBiblioteca_(nombre, bytes.length, function (carpeta) {
-    return carpeta.createFile(Utilities.newBlob(bytes, d.mime || 'application/octet-stream', nombre));
+    return carpeta.createFile(Utilities.newBlob(bytes, mime, nombre));
   });
-  return { fileId: id };
+  return { fileId: id, nombre: nombre };
+}
+
+// <canción>-<voz>-<fecha>.<ext>: así la carpeta Biblioteca/audios queda ordenada al abrirla en Drive
+function nombreAudio_(d) {
+  var original = String(d.nombre || 'audio').replace(/[\/\\]/g, '-');
+  var ext = (original.match(/\.([a-z0-9]{2,5})$/i) || [, 'webm'])[1].toLowerCase();
+  var base = slug_(d.cancion || original.replace(/\.[^.]+$/, ''));
+  var voz = d.voz && d.voz !== 'todas' ? '-' + slug_(d.voz) : '';
+  var fecha = d.cancion ? '-' + ahora_().slice(0, 16).replace('T', '-').replace(':', '') : '';
+  return (base + voz + fecha).slice(0, 140) + '.' + ext;
+}
+
+function buscarCancionBib_(bib, id) {
+  var c = bib.canciones.filter(function (x) { return x.id === id; })[0];
+  if (!c) throw new Error('Canción no encontrada en la Biblioteca');
+  return c;
+}
+
+function exigirEditarCancion_(u, c) {
+  if (c.comunidad && !puedeEditar_(u, c.comunidad)) throw new Error('No tenés permiso para modificar esta canción');
+}
+
+// Reescribe en el .md de Drive las etiquetas <audio>: agrega las de `nuevos` y quita las de `quitados`
+function actualizarAudiosMd_(c, nuevos, quitados) {
+  if (!c.mdId) return;
+  var f;
+  try { f = DriveApp.getFileById(c.mdId); } catch (_) { return; }
+  var texto = f.getBlob().getDataAsString('UTF-8').replace(/\r\n?/g, '\n');
+  (quitados || []).forEach(function (a) {
+    texto = texto.replace(/[ \t]*<audio\b[^>]*>(?:\s*<\/audio>)?[ \t]*\n?/gi, function (tag) {
+      var src = desescapar_((tag.match(/\ssrc="([^"]*)"/i) || [])[1] || '');
+      var titulo = desescapar_((tag.match(/\stitle="([^"]*)"/i) || [])[1] || '');
+      var es = a.fileId ? (idDeDrive_(src) === a.fileId || (!/^https?:/i.test(src) && titulo && titulo === a.nombre)) : src === a.url;
+      return es ? '' : tag;
+    });
+  });
+  if (nuevos && nuevos.length) {
+    texto = texto.replace(/\s*$/, '\n\n') + nuevos.map(etiquetaAudio_).join('\n\n') + '\n';
+  }
+  f.setContent(texto.replace(/\n{3,}/g, '\n\n'));
+}
+
+function vincularAudio_(d) {
+  var u = conPrivilegios_(usuarioDeToken_(d.token));
+  var audiosBib = carpetaBiblioteca_('audios');
+  var pedidos = (Array.isArray(d.audios) ? d.audios : []).slice(0, 20).map(function (a) {
+    var f;
+    try { f = DriveApp.getFileById(String(a.fileId || '')); } catch (_) { return null; }
+    if (!enCarpeta_(f, audiosBib)) return null;
+    return { nombre: String(a.nombre || f.getName()).slice(0, 150), voz: String(a.voz || '').slice(0, 30), fileId: f.getId() };
+  }).filter(Boolean);
+  if (!pedidos.length) throw new Error('No hay audios para vincular');
+  var c = conCandado_(function () {
+    var bib = leerBiblioteca_();
+    var c = buscarCancionBib_(bib, String(d.cancionId || ''));
+    exigirEditarCancion_(u, c);
+    var ya = {};
+    (c.audios || []).forEach(function (a) { if (a.fileId) ya[a.fileId] = true; });
+    var nuevos = pedidos.filter(function (a) { return !ya[a.fileId]; });
+    c.audios = (c.audios || []).concat(nuevos);
+    actualizarAudiosMd_(c, nuevos, []);
+    c.actualizado = ahora_();
+    escribirJson_(raiz_(), 'biblioteca.json', bib);
+    return c;
+  });
+  auditar_({ tipo: 'audio_vinculado', email: u.email, nombre: u.nombre, titulo: c.titulo });
+  return { cancion: c };
+}
+
+function desvincularAudio_(d) {
+  var u = conPrivilegios_(usuarioDeToken_(d.token));
+  var fileId = String(d.fileId || ''), url = String(d.url || '');
+  if (!fileId && !url) throw new Error('Falta el audio a quitar');
+  var r = conCandado_(function () {
+    var bib = leerBiblioteca_();
+    var c = buscarCancionBib_(bib, String(d.cancionId || ''));
+    exigirEditarCancion_(u, c);
+    var quitados = (c.audios || []).filter(function (a) { return fileId ? a.fileId === fileId : a.url === url; });
+    if (!quitados.length) throw new Error('Ese audio ya no está en la canción');
+    c.audios = c.audios.filter(function (a) { return quitados.indexOf(a) < 0; });
+    actualizarAudiosMd_(c, [], quitados);
+    c.actualizado = ahora_();
+    escribirJson_(raiz_(), 'biblioteca.json', bib);
+    var enUso = fileId && bib.canciones.some(function (x) {
+      return (x.audios || []).some(function (a) { return a.fileId === fileId; });
+    });
+    return { cancion: c, borrar: fileId && !enUso };
+  });
+  if (r.borrar) {
+    try {
+      var f = DriveApp.getFileById(fileId);
+      if (enCarpeta_(f, carpetaBiblioteca_('audios'))) f.setTrashed(true);
+    } catch (_) { /* ya no estaba */ }
+  }
+  auditar_({ tipo: 'audio_quitado', email: u.email, nombre: u.nombre, titulo: r.cancion.titulo });
+  return { cancion: r.cancion };
 }
 
 function subirCancion_(d) {
@@ -797,10 +929,13 @@ function subirCancion_(d) {
       try { f = DriveApp.getFileById(String(a.fileId)); } catch (_) { return null; }
       return enCarpeta_(f, audiosBib) ? { nombre: nombre || f.getName(), voz: voz, fileId: f.getId() } : null;
     }
-    return /^https?:\/\//i.test(String(a.url || '')) ? { nombre: nombre || a.url, voz: voz, url: String(a.url) } : null;
+    return /^https?:\/\//i.test(String(a.url || '')) ? audioDeEnlace_(nombre, voz, String(a.url), audiosBib) : null;
   }).filter(Boolean);
   var comunidad = COMUNIDADES[d.comunidad] ? d.comunidad : (u.comunidad || '');
   var e = registrarEnBiblioteca_([{ texto: texto, cab: cabeceraMd_(texto, d.nombre), audios: audios }], comunidad, u)[0];
+  // Los audios subidos reemplazan en el .md a su ruta local (misma etiqueta title) por el enlace de Drive
+  var sinEnlace = audios.filter(function (a) { return a.fileId && texto.indexOf(a.fileId) < 0; });
+  if (sinEnlace.length) actualizarAudiosMd_(e, sinEnlace, sinEnlace);
   auditar_({ tipo: 'cancion_subida', email: u.email, nombre: u.nombre, titulo: e.titulo });
   return { cancion: e };
 }

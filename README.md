@@ -116,8 +116,26 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
   realizados con quiénes asistieron.
 - **Coro**: nombre del coro e integrantes (comunidad, fecha de incorporación, voz, instrumentos,
   lectura de partitura, nivel).
-- **Subir canción**: agrega una canción `.md` (y su audio) a la Biblioteca. También se agregan solas las
-  canciones de cada cancionero guardado desde el editor.
+- **Canciones y audios**: agrega canciones `.md` nuevas con sus audios, o audios a una canción que ya
+  está en la Biblioteca (también con el botón **+ Audio** debajo de la canción del centro). También se
+  agregan solas las canciones de cada cancionero guardado desde el editor.
 
 En el Drive: `MonteCarmelo/Biblioteca/` (canciones y audios + `biblioteca.json`), `MonteCarmelo/misas.json`
 (público) y en `MonteCarmelo/sistema/` los archivos privados `coros.json` y `ensayos.json`.
+
+### Audios de la Biblioteca
+
+- Quedan en el Drive de la parroquia, en `MonteCarmelo/Biblioteca/audios`, con nombres ordenados
+  `<canción>-<voz>-<fecha>.webm`.
+- Se convierten a **WebM (Opus)** en el propio navegador antes de subirse (una canción de 4 minutos queda
+  en unos 3 MB). Sirven mp3, m4a, wav, ogg y el audio de un video. Si el equipo no puede convertir
+  (Safari viejo), se sube el archivo original y se avisa. Máximo 30 MB por audio ya convertido.
+- **Grabar con el micrófono**: la toma se escucha antes de subirla y también queda en WebM.
+- Cada audio queda **vinculado al `.md`** de su canción: se agrega al índice (`biblioteca.json`) y se
+  escribe en el `.md` la misma etiqueta que usa el editor,
+  `<audio controls src="https://drive.google.com/uc?export=download&id=…" title="…" data-voz="…"></audio>`.
+  Al quitar un audio se borra la etiqueta, y si ninguna otra canción lo usa el archivo va a la papelera.
+- **Arrastrar y soltar**: en la computadora se sueltan los archivos en el diálogo (o en cualquier parte
+  de la pantalla Misas, que lo abre). En el celular se toca la zona y se eligen desde Archivos, Drive o
+  la grabadora; en Android y iPad también se puede arrastrar desde la pantalla dividida.
+- `js/audio-webm.js` hace la conversión con WebCodecs y `js/vendor/webm-muxer.mjs` (MIT) arma el WebM.

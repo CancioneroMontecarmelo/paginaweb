@@ -46,7 +46,7 @@
       <div class="cab-usuario">
         <span id="info-usuario"></span>
         <button type="button" class="btn-chico" id="btn-coro" hidden>Coro</button>
-        <button type="button" class="btn-chico" id="btn-subir" hidden>Subir canción</button>
+        <button type="button" class="btn-chico" id="btn-subir" hidden>Canciones y audios</button>
       </div>
     </div>
     <div class="cab-trasponer">
@@ -195,22 +195,41 @@
     </form>
   </dialog>
 
-  <!-- Subir canción a la Biblioteca -->
+  <!-- Canciones y audios de la Biblioteca -->
   <dialog class="dlg-misas" id="dlg-subir">
     <form method="dialog" id="form-subir">
       <div class="dlg-cabeza">
-        <h2>Subir canciones a la Biblioteca</h2>
+        <h2>Canciones y audios</h2>
         <button type="button" class="btn-chico" data-cerrar>Cerrar</button>
       </div>
       <div class="dlg-cuerpo">
-        <p class="aviso">Elegí uno o más archivos <b>.md</b> del editor. Los audios que elijas se asocian a la canción si su nombre coincide con el que figura en el .md; si subís una sola canción, se le asocian todos.</p>
-        <div class="form-grilla">
-          <label class="ancho">Canciones (.md)
-            <input type="file" id="s-md" accept=".md,.markdown,.txt,text/markdown" multiple required>
-          </label>
-          <label class="ancho">Audios (opcional)
-            <input type="file" id="s-audios" accept="audio/*,video/mp4" multiple>
-          </label>
+        <div class="modos" role="tablist">
+          <button type="button" class="modo activo" data-modo="nueva" role="tab" aria-selected="true">Canción nueva</button>
+          <button type="button" class="modo" data-modo="existente" role="tab" aria-selected="false">Agregar audio a una canción</button>
+        </div>
+        <p class="aviso" id="s-ayuda"></p>
+        <div class="s-existente" id="s-existente" hidden>
+          <div class="form-grilla">
+            <label>Buscar
+              <input type="text" id="s-buscar" placeholder="Título o etiqueta" autocomplete="off">
+            </label>
+            <label>Canción de la Biblioteca
+              <select id="s-cancion"></select>
+            </label>
+          </div>
+          <ul class="lista-archivos" id="s-actuales"></ul>
+        </div>
+        <div class="zona-soltar" id="s-zona" tabindex="0" role="button" aria-describedby="s-zona-texto">
+          <p id="s-zona-texto"><b>Arrastrá y soltá aquí</b> <span id="s-zona-que"></span></p>
+          <p class="suave">o tocá para elegirlos desde este equipo (archivos, Drive, grabadora…)</p>
+          <input type="file" id="s-archivos" multiple hidden>
+        </div>
+        <div class="grabar-fila">
+          <button type="button" class="btn btn-secundario" id="s-grabar">&#9679; Grabar con el micrófono</button>
+          <span class="suave" id="s-grabando" hidden></span>
+        </div>
+        <ul class="lista-archivos" id="s-lista"></ul>
+        <div class="form-grilla" id="s-comunidad-caja">
           <label>Comunidad
             <select id="s-comunidad"></select>
           </label>

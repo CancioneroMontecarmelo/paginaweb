@@ -4,7 +4,7 @@
  *  - Panel derecho: cancioneros de misa de la comunidad y sus momentos; «Agregar nuevo» crea un borrador.
  *  - Panel izquierdo: la Biblioteca de canciones filtrada por la etiqueta del momento elegido, con checks.
  *  - Centro: la canción con acordes (transpuesta) y sus audios.
- *  - Diálogos: guardar el cancionero (fechas, ensayos y asistencia), coro e integrantes, subir canciones.
+ *  - Diálogos: guardar el cancionero (fechas, ensayos y asistencia), coro e integrantes, canciones y audios.
  *
  * Usa los scripts clásicos del editor cargados antes en la página (acordes, markdown, etiquetas, render)
  * más js/misas-shim.js. Los datos viven en el Drive a través del Apps Script (backend/Code.gs).
@@ -12,6 +12,7 @@
 
 import { llamarApi, sesionActual, puedeEditar, initNavSitio, comunidadesOpciones, ROLES } from "./auth.js";
 import { COMUNIDADES } from "./comunidades.js";
+import { aWebm, esAudio, esAudioWebm, grabador } from "./audio-webm.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => escapeHtml(s == null ? "" : s);
@@ -516,10 +517,13 @@ function pintarBarraMomento() {
     : "");
 }
 
+const reproduceWebm = !!document.createElement("audio").canPlayType('audio/webm; codecs="opus"');
+
 function pintarAudios(entrada) {
   const box = $("#audios");
   const lista = entrada.audios || [];
-  box.hidden = !lista.length;
+  const puedeAgregar = !$("#btn-subir").hidden && (!entrada.comunidad || puedeEditar(entrada.comunidad));
+  box.hidden = !lista.length && !puedeAgregar;
   box.replaceChildren(...lista.map((a) => {
     const div = document.createElement("div");
     div.className = "audio-item";
@@ -550,6 +554,21 @@ function pintarAudios(entrada) {
     }
     return div;
   }));
+  if (lista.some((a) => a.fileId) && !reproduceWebm) {
+    const aviso = document.createElement("small");
+    aviso.className = "aviso-webm";
+    aviso.textContent = "Si un audio no suena: este equipo no reproduce WebM; probá con Chrome o actualizá el sistema.";
+    box.prepend(aviso);
+  }
+  if (puedeAgregar) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn-chico btn-mas-audio";
+    b.textContent = "+ Audio";
+    b.title = "Subir, grabar o quitar audios de esta canción";
+    b.addEventListener("click", () => abrirSubir({ modo: "existente", cancionId: entrada.id }));
+    box.append(b);
+  }
 }
 
 // Si el navegador no puede reproducir el enlace directo de Drive, se pide el audio al Apps Script
@@ -993,9 +1012,18 @@ function conectarCoro() {
   });
 }
 
-// ============ DIÁLOGO: SUBIR CANCIONES ============
+// ============ DIÁLOGO: CANCIONES Y AUDIOS ============
+// Canción nueva (.md + audios) o audios para una canción de la Biblioteca. Los audios se convierten a
+// WebM en el navegador apenas se agregan, se suben a Biblioteca/audios y quedan vinculados al .md.
 
 const nombreBase = (ruta) => String(ruta || "").split(/[\\/]/).pop().normalize("NFC").toLowerCase();
+const sinExtension = (n) => String(n || "").replace(/\.[^.]+$/, "");
+const esMd = (f) => /\.(md|markdown|txt)$/i.test(f.name || "") || /^text\//i.test(f.type || "");
+const mb = (b) => (b / 1048576).toFixed(1).replace(".", ",") + " MB";
+const plano = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const MAX_SUBIDA = 30 * 1024 * 1024;
+
+const sub = { modo: "nueva", items: [], cancionId: "", grabacion: null, reloj: 0, cadena: Promise.resolve(), seq: 0, subiendo: false };
 
 function archivoBase64(f) {
   return new Promise((ok, mal) => {
@@ -1006,79 +1034,448 @@ function archivoBase64(f) {
   });
 }
 
-async function subirCanciones(e) {
-  e.preventDefault();
-  const mds = [...$("#s-md").files];
-  const audios = [...$("#s-audios").files];
+const opcionesVoz = (voz) => opciones([["", "Todas las voces"], ...VOICE_ORDER.map((k) => [k, VOICES[k].label])], voz || "");
+
+function mismoArchivo(src, archivo) {
+  const a = nombreBase(src), b = nombreBase(archivo.name);
+  return a === b || sinExtension(a) === sinExtension(b);
+}
+
+// Nombre y voz de cada audio según la etiqueta <audio> del .md que lo nombra (si el usuario no los cambió)
+function sugerirDesdeMd() {
+  const locales = sub.items.filter((i) => i.tipo === "md" && i.datos)
+    .flatMap((m) => (m.datos.audios || []).filter((a) => a.kind === "local"));
+  for (const it of sub.items) {
+    if (it.tipo !== "audio" || it.tocado || it.grabacion) continue;
+    const info = locales.find((a) => mismoArchivo(a.src, it.archivo));
+    if (!info) continue;
+    it.nombre = info.name || it.nombre;
+    it.voz = info.voice && info.voice !== "todas" && VOICES[info.voice] ? info.voice : it.voz;
+  }
+}
+
+async function agregarArchivos(lista, { grabacion = false } = {}) {
+  mostrarError("#s-error", "");
+  const avisos = [];
+  for (const f of lista) {
+    if (esAudio(f)) {
+      const it = {
+        id: ++sub.seq, tipo: "audio", archivo: f, grabacion, voz: "", estado: "En espera…",
+        nombre: grabacion ? "Grabación " + new Date().toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" }) : sinExtension(f.name),
+        url: grabacion ? URL.createObjectURL(f) : ""
+      };
+      it.conversion = sub.cadena = sub.cadena.then(() => convertirItem(it));
+      sub.items.push(it);
+    } else if (esMd(f)) {
+      if (sub.modo === "existente") {
+        avisos.push(`«${f.name}» es una canción: para subir canciones usá «Canción nueva».`);
+        continue;
+      }
+      let texto = "", datos = null;
+      try {
+        texto = await f.text();
+        datos = parseMarkdown(texto, f.name);
+      } catch (_) { /* queda marcada con error */ }
+      sub.items.push({ id: ++sub.seq, tipo: "md", archivo: f, texto, datos, estado: f.name, error: datos ? "" : "No se pudo leer el archivo" });
+    } else {
+      avisos.push(`«${f.name}» no es una canción (.md) ni un audio.`);
+    }
+  }
+  sugerirDesdeMd();
+  pintarListaSubir();
+  if (avisos.length) mostrarError("#s-error", avisos.join(" "));
+}
+
+async function convertirItem(it) {
+  if (!sub.items.includes(it)) return;
+  it.estado = "Convirtiendo a WebM…";
+  pintarEstado(it);
+  try {
+    const r = await aWebm(it.archivo, (x) => {
+      it.estado = `Convirtiendo a WebM ${Math.round(x * 100)} %`;
+      pintarEstado(it);
+    }, { forzar: it.grabacion });
+    it.listo = r.archivo;
+    it.estado = (esAudioWebm(r.archivo) ? "WebM · " : "") + mb(r.archivo.size) + (r.aviso ? " · " + r.aviso : "");
+    if (r.archivo.size > MAX_SUBIDA) it.error = `Pesa ${mb(r.archivo.size)}: el máximo es 30 MB.`;
+  } catch (e) {
+    it.error = e.message;
+  }
+  pintarEstado(it);
+}
+
+function pintarEstado(it) {
+  const li = document.querySelector(`#s-lista li[data-id="${it.id}"]`);
+  if (!li) return;
+  li.querySelector(".estado").textContent = it.error || it.estado;
+  li.classList.toggle("con-error", !!it.error);
+}
+
+function nodoItem(it) {
+  const li = document.createElement("li");
+  li.className = "archivo-item" + (it.error ? " con-error" : "");
+  li.dataset.id = it.id;
+  const quitar = `<button type="button" class="btn-chico" data-quitar="${it.id}" ${sub.subiendo ? "disabled" : ""}>Quitar</button>`;
+  li.innerHTML = it.tipo === "md"
+    ? `<span class="tipo">Canción</span>
+      <span class="archivo-nombre">${esc(it.datos?.title || it.archivo.name)}</span>
+      <small class="estado">${esc(it.error || it.estado)}</small>${quitar}`
+    : `<span class="tipo">${it.grabacion ? "Grabación" : "Audio"}</span>
+      <input type="text" class="a-nombre" value="${esc(it.nombre)}" aria-label="Nombre del audio" maxlength="150">
+      <select class="a-voz" aria-label="Voz">${opcionesVoz(it.voz)}</select>
+      <small class="estado">${esc(it.error || it.estado)}</small>${quitar}
+      ${it.url ? `<audio class="a-escuchar" controls preload="metadata" src="${esc(it.url)}"></audio>` : ""}`;
+  return li;
+}
+
+function pintarListaSubir() {
+  $("#s-lista").replaceChildren(...sub.items.map(nodoItem));
+}
+
+function quitarItem(id) {
+  const it = sub.items.find((i) => i.id === +id);
+  if (!it) return;
+  if (it.url) URL.revokeObjectURL(it.url);
+  sub.items = sub.items.filter((i) => i !== it);
+  pintarListaSubir();
+}
+
+function limpiarItems() {
+  sub.items.forEach((i) => i.url && URL.revokeObjectURL(i.url));
+  sub.items = [];
+  pintarListaSubir();
+}
+
+const cancionesEditables = () => st.biblioteca.filter((c) => !c.comunidad || puedeEditar(c.comunidad));
+
+function pintarSelectorCancion() {
+  const q = plano($("#s-buscar").value.trim());
+  const lista = cancionesEditables().filter((c) => !q || plano(c.titulo + " " + (c.etiquetas || []).join(" ")).includes(q));
+  const elegida = st.porId.get(sub.cancionId);
+  if (elegida && !lista.includes(elegida)) lista.unshift(elegida);
+  $("#s-cancion").innerHTML = opciones([["", lista.length ? "Elegí la canción…" : "No hay canciones que coincidan"],
+    ...lista.map((c) => [c.id, c.titulo])], sub.cancionId);
+}
+
+function pintarActuales() {
+  const ul = $("#s-actuales");
+  const c = st.porId.get(sub.cancionId);
+  if (!c) {
+    ul.replaceChildren();
+    return;
+  }
+  const audios = c.audios || [];
+  ul.innerHTML = audios.length
+    ? audios.map((a, i) => `<li class="archivo-item">
+        <span class="tipo">Vinculado</span>
+        <span class="archivo-nombre">${esc(a.nombre || "Audio")}${a.voz ? ` <small>· ${esc(VOICES[a.voz]?.label || a.voz)}</small>` : ""}</span>
+        <small class="estado">${a.fileId ? "En el Drive" : "Enlace"}</small>
+        <button type="button" class="btn-chico" data-desvincular="${i}">Quitar</button></li>`).join("")
+    : '<li class="suave">Esta canción todavía no tiene audios.</li>';
+}
+
+function pintarSubir() {
+  const nueva = sub.modo === "nueva";
+  document.querySelectorAll("#dlg-subir .modo").forEach((b) => {
+    const activo = b.dataset.modo === sub.modo;
+    b.classList.toggle("activo", activo);
+    b.setAttribute("aria-selected", String(activo));
+  });
+  $("#s-existente").hidden = nueva;
+  $("#s-comunidad-caja").hidden = !nueva;
+  $("#s-zona-que").textContent = nueva ? "las canciones (.md) y sus audios" : "los audios de esta canción";
+  $("#s-archivos").accept = (nueva ? ".md,.markdown,.txt,text/markdown,text/plain," : "") + "audio/*,video/*,.webm,.weba,.opus,.m4a";
+  $("#s-ayuda").textContent = nueva
+    ? "Con una sola canción, todos los audios se le vinculan; con varias, cada audio va a la canción cuyo .md lo nombra. Los audios se convierten a WebM y se guardan en el Drive de la parroquia."
+    : "Elegí la canción y agregá los audios: se convierten a WebM, se guardan en el Drive de la parroquia y quedan vinculados a su .md.";
+  $("#s-enviar").textContent = nueva ? "Subir" : "Vincular audios";
+  if (!nueva) {
+    pintarSelectorCancion();
+    pintarActuales();
+  }
+  pintarListaSubir();
+}
+
+function cambiarModo(modo) {
+  if (modo === sub.modo || sub.subiendo) return;
+  sub.modo = modo;
+  if (modo === "existente" && sub.items.some((i) => i.tipo === "md")) {
+    sub.items = sub.items.filter((i) => i.tipo !== "md");
+    avisar("Las canciones (.md) se quitaron de la lista: en este modo solo se agregan audios.");
+  }
+  mostrarError("#s-error", "");
+  $("#s-ok").hidden = true;
+  pintarSubir();
+}
+
+function abrirSubir({ modo, cancionId } = {}) {
+  const editables = comunidadesEditables();
+  const s = st.sesion || {};
+  const valor = editables.some((c) => c.slug === st.comunidad) ? st.comunidad : editables.some((c) => c.slug === s.comunidad) ? s.comunidad : "";
+  $("#s-comunidad").innerHTML = opciones([["", "Sin comunidad"], ...editables.map((c) => [c.slug, c.nombre])], valor);
+  if (modo) sub.modo = modo;
+  if (cancionId) {
+    sub.cancionId = cancionId;
+    $("#s-buscar").value = "";
+  }
+  mostrarError("#s-error", "");
+  $("#s-ok").hidden = true;
+  pintarSubir();
+  if (!$("#dlg-subir").open) $("#dlg-subir").showModal();
+}
+
+// ---- Grabar ----
+
+function pintarBotonGrabar() {
+  const b = $("#s-grabar");
+  b.classList.toggle("grabando", !!sub.grabacion);
+  b.innerHTML = sub.grabacion ? "&#9632; Detener la grabación" : "&#9679; Grabar con el micrófono";
+  $("#s-grabando").hidden = !sub.grabacion;
+}
+
+async function alternarGrabacion() {
+  const b = $("#s-grabar");
+  if (sub.grabacion) {
+    const g = sub.grabacion;
+    sub.grabacion = null;
+    clearInterval(sub.reloj);
+    b.disabled = true;
+    const archivo = await g.detener();
+    b.disabled = false;
+    pintarBotonGrabar();
+    await agregarArchivos([archivo], { grabacion: true });
+    return;
+  }
+  mostrarError("#s-error", "");
+  try {
+    sub.grabacion = await grabador();
+  } catch (e) {
+    mostrarError("#s-error", e.message);
+    return;
+  }
+  pintarBotonGrabar();
+  const tic = () => {
+    const seg = Math.floor(sub.grabacion?.segundos || 0);
+    $("#s-grabando").textContent = `Grabando… ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, "0")}`;
+  };
+  tic();
+  sub.reloj = setInterval(tic, 500);
+}
+
+function cancelarGrabacion() {
+  if (!sub.grabacion) return;
+  sub.grabacion.cancelar();
+  sub.grabacion = null;
+  clearInterval(sub.reloj);
+  pintarBotonGrabar();
+}
+
+// ---- Subir ----
+
+async function subirAudiosItems(audios, tituloCancion) {
+  const hechos = [];
+  for (const [i, it] of audios.entries()) {
+    if (!it.fileId) {
+      if (!it.listo && !it.error) {
+        it.estado = "Esperando la conversión…";
+        pintarEstado(it);
+      }
+      await it.conversion;
+      if (it.error) throw new Error(`«${it.nombre}»: ${it.error}`);
+      it.estado = `Subiendo ${i + 1} de ${audios.length}…`;
+      pintarEstado(it);
+      const r = await llamarApi("subirAudioBiblioteca", {
+        token: token(), nombre: it.listo.name, mime: it.listo.type || "audio/webm",
+        base64: await archivoBase64(it.listo), cancion: tituloCancion, voz: it.voz
+      });
+      it.fileId = r.fileId;
+      it.estado = "Subido ✓";
+      pintarEstado(it);
+    }
+    hechos.push({ nombre: it.nombre.trim() || sinExtension(it.archivo.name), voz: it.voz, fileId: it.fileId });
+  }
+  return hechos;
+}
+
+function actualizarCancionBib(c) {
+  st.biblioteca = st.biblioteca.map((x) => (x.id === c.id ? c : x));
+  if (!st.biblioteca.includes(c)) st.biblioteca.push(c);
+  st.porId.set(c.id, c);
+  st.textos.delete(c.id);
+  pintarBiblioteca();
+  if (st.vista?.cancionId === c.id) pintarLienzo();
+  pintarActuales();
+}
+
+async function subirCancionesNuevas(estado) {
+  const mds = sub.items.filter((i) => i.tipo === "md");
+  const audios = sub.items.filter((i) => i.tipo === "audio");
+  if (!mds.length) throw new Error("Agregá al menos una canción (.md). Para sumar audios a una canción que ya está en la Biblioteca, usá «Agregar audio a una canción».");
+  const ilegible = mds.find((m) => !m.datos);
+  if (ilegible) throw new Error(`No se pudo leer «${ilegible.archivo.name}».`);
+  const grupos = mds.map((m) => ({ m, locales: (m.datos.audios || []).filter((a) => a.kind === "local"), audios: [] }));
+  if (grupos.length === 1) grupos[0].audios = audios;
+  else {
+    for (const it of audios) {
+      const g = grupos.find((x) => x.locales.some((a) => mismoArchivo(a.src, it.archivo)));
+      if (!g) throw new Error(`No se sabe a qué canción va «${it.nombre}»: subí de a una canción o usá «Agregar audio a una canción».`);
+      g.audios.push(it);
+    }
+  }
   const comunidad = $("#s-comunidad").value;
-  if (!mds.length) return mostrarError("#s-error", "Elegí al menos un archivo .md.");
-  const grande = audios.find((f) => f.size > 30 * 1024 * 1024);
-  if (grande) return mostrarError("#s-error", `«${grande.name}» supera los 30 MB.`);
+  const subidas = [];
+  for (const [i, g] of grupos.entries()) {
+    estado.textContent = `Canción ${i + 1} de ${grupos.length}: «${g.m.datos.title}»…`;
+    const lista = await subirAudiosItems(g.audios, g.m.datos.title);
+    const enlaces = (g.m.datos.audios || []).filter((a) => a.kind === "url")
+      .map((a) => ({ nombre: a.name, voz: a.voice === "todas" ? "" : a.voice, url: a.src }));
+    const r = await llamarApi("subirCancion", { token: token(), md: g.m.texto, nombre: g.m.archivo.name, comunidad, audios: [...lista, ...enlaces] });
+    g.m.estado = "Subida ✓";
+    pintarEstado(g.m);
+    st.textos.delete(r.cancion.id);
+    subidas.push(r.cancion.titulo);
+  }
+  await cargarBiblioteca();
+  pintarBiblioteca();
+  if (st.vista) pintarLienzo();
+  return `Listo: ${subidas.length === 1 ? "se subió" : "se subieron"} ${subidas.map((t) => `«${t}»`).join(", ")}.`;
+}
+
+async function vincularAudiosExistente(estado) {
+  const c = st.porId.get(sub.cancionId);
+  if (!c) throw new Error("Elegí la canción de la Biblioteca.");
+  const audios = sub.items.filter((i) => i.tipo === "audio");
+  if (!audios.length) throw new Error("Agregá al menos un audio: arrastralo, elegilo o grabalo.");
+  estado.textContent = `Audios para «${c.titulo}»…`;
+  const lista = await subirAudiosItems(audios, c.titulo);
+  const r = await llamarApi("vincularAudio", { token: token(), cancionId: c.id, audios: lista });
+  actualizarCancionBib(r.cancion);
+  return `Listo: ${audios.length === 1 ? "el audio quedó vinculado" : `${audios.length} audios quedaron vinculados`} a «${c.titulo}».`;
+}
+
+async function enviarSubir(e) {
+  e.preventDefault();
+  if (sub.subiendo) return;
+  if (sub.grabacion) return mostrarError("#s-error", "Detené la grabación antes de subir.");
   const boton = $("#s-enviar");
   const estado = $("#s-ok");
+  sub.subiendo = true;
   boton.disabled = true;
   mostrarError("#s-error", "");
   estado.hidden = false;
+  pintarListaSubir();
   try {
-    const canciones = await Promise.all(mds.map(async (f) => {
-      const texto = await f.text();
-      const datos = parseMarkdown(texto, f.name);
-      const locales = (datos.audios || []).filter((a) => a.kind === "local");
-      const propios = mds.length === 1
-        ? audios.map((archivo) => ({ archivo, info: locales.find((a) => nombreBase(a.src) === nombreBase(archivo.name)) }))
-        : locales.map((info) => ({ info, archivo: audios.find((x) => nombreBase(x.name) === nombreBase(info.src)) })).filter((x) => x.archivo);
-      const enlaces = (datos.audios || []).filter((a) => a.kind === "url")
-        .map((a) => ({ nombre: a.name, voz: a.voice === "todas" ? "" : a.voice, url: a.src }));
-      return { f, texto, titulo: datos.title, propios, enlaces };
-    }));
-    const usados = [...new Set(canciones.flatMap((c) => c.propios.map((p) => p.archivo)))];
-    const ids = new Map();
-    for (const [i, archivo] of usados.entries()) {
-      estado.textContent = `Subiendo audio ${i + 1} de ${usados.length}: ${archivo.name}…`;
-      const r = await llamarApi("subirAudioBiblioteca", {
-        token: token(), nombre: archivo.name, mime: archivo.type || "audio/mpeg", base64: await archivoBase64(archivo)
-      });
-      ids.set(archivo, r.fileId);
-    }
-    const subidas = [];
-    for (const [i, c] of canciones.entries()) {
-      estado.textContent = `Subiendo canción ${i + 1} de ${canciones.length}: ${c.titulo}…`;
-      const lista = [
-        ...c.propios.map(({ archivo, info }) => ({
-          nombre: info?.name || archivo.name.replace(/\.[^.]+$/, ""),
-          voz: info && info.voice !== "todas" ? info.voice : "",
-          fileId: ids.get(archivo)
-        })),
-        ...c.enlaces
-      ];
-      const r = await llamarApi("subirCancion", { token: token(), md: c.texto, nombre: c.f.name, comunidad, audios: lista });
-      subidas.push(r.cancion.titulo);
-      st.textos.delete(r.cancion.id);
-    }
-    await cargarBiblioteca();
-    pintarBiblioteca();
-    estado.textContent = `Listo: ${subidas.length === 1 ? "se subió" : "se subieron"} ${subidas.map((t) => `«${t}»`).join(", ")}.`;
-    $("#form-subir").reset();
-    $("#s-comunidad").value = comunidad;
+    estado.textContent = await (sub.modo === "nueva" ? subirCancionesNuevas(estado) : vincularAudiosExistente(estado));
+    limpiarItems();
   } catch (err) {
     estado.hidden = true;
     mostrarError("#s-error", err.message);
   } finally {
+    sub.subiendo = false;
     boton.disabled = false;
+    pintarListaSubir();
+  }
+}
+
+async function desvincular(i) {
+  const c = st.porId.get(sub.cancionId);
+  const a = c?.audios?.[+i];
+  if (!a || !confirm(`¿Quitar «${a.nombre || "Audio"}» de «${c.titulo}»?`)) return;
+  try {
+    const r = await llamarApi("desvincularAudio", { token: token(), cancionId: c.id, ...(a.fileId ? { fileId: a.fileId } : { url: a.url }) });
+    actualizarCancionBib(r.cancion);
+    avisar(`Se quitó «${a.nombre || "Audio"}».`);
+  } catch (err) {
+    mostrarError("#s-error", err.message);
   }
 }
 
 function conectarSubir() {
-  $("#btn-subir").addEventListener("click", () => {
-    const editables = comunidadesEditables();
-    const s = st.sesion || {};
-    const valor = editables.some((c) => c.slug === st.comunidad) ? st.comunidad : editables.some((c) => c.slug === s.comunidad) ? s.comunidad : "";
-    $("#s-comunidad").innerHTML = opciones([["", "Sin comunidad"], ...editables.map((c) => [c.slug, c.nombre])], valor);
-    mostrarError("#s-error", "");
-    $("#s-ok").hidden = true;
-    $("#dlg-subir").showModal();
+  const dlg = $("#dlg-subir");
+  const zona = $("#s-zona");
+  const entrada = $("#s-archivos");
+  $("#btn-subir").addEventListener("click", () => abrirSubir());
+  $("#form-subir").addEventListener("submit", enviarSubir);
+  dlg.addEventListener("close", cancelarGrabacion);
+  document.querySelectorAll("#dlg-subir .modo").forEach((b) => b.addEventListener("click", () => cambiarModo(b.dataset.modo)));
+  $("#s-buscar").addEventListener("input", pintarSelectorCancion);
+  $("#s-cancion").addEventListener("change", (e) => {
+    sub.cancionId = e.target.value;
+    pintarActuales();
   });
-  $("#form-subir").addEventListener("submit", subirCanciones);
+  $("#s-actuales").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-desvincular]");
+    if (b) desvincular(b.dataset.desvincular);
+  });
+  $("#s-grabar").addEventListener("click", alternarGrabacion);
+  const lista = $("#s-lista");
+  lista.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-quitar]");
+    if (b) quitarItem(b.dataset.quitar);
+  });
+  lista.addEventListener("input", (e) => {
+    const it = sub.items.find((i) => i.id === +e.target.closest("li")?.dataset.id);
+    if (it && e.target.classList.contains("a-nombre")) {
+      it.nombre = e.target.value;
+      it.tocado = true;
+    }
+  });
+  lista.addEventListener("change", (e) => {
+    const it = sub.items.find((i) => i.id === +e.target.closest("li")?.dataset.id);
+    if (it && e.target.classList.contains("a-voz")) {
+      it.voz = e.target.value;
+      it.tocado = true;
+    }
+  });
+
+  // Arrastrar y soltar: todo el diálogo recibe archivos; tocar la zona abre el selector del sistema
+  const conArchivos = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
+  let dentro = 0;
+  dlg.addEventListener("dragenter", (e) => {
+    if (!conArchivos(e)) return;
+    e.preventDefault();
+    dentro++;
+    zona.classList.add("encima");
+  });
+  dlg.addEventListener("dragleave", () => {
+    if (--dentro <= 0) {
+      dentro = 0;
+      zona.classList.remove("encima");
+    }
+  });
+  dlg.addEventListener("dragover", (e) => {
+    if (!conArchivos(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  });
+  dlg.addEventListener("drop", (e) => {
+    if (!conArchivos(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dentro = 0;
+    zona.classList.remove("encima");
+    if (!sub.subiendo) agregarArchivos([...e.dataTransfer.files]);
+  });
+  zona.addEventListener("click", () => entrada.click());
+  zona.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      entrada.click();
+    }
+  });
+  entrada.addEventListener("change", () => {
+    agregarArchivos([...entrada.files]);
+    entrada.value = "";
+  });
+  // Un archivo soltado fuera del diálogo no reemplaza la página: quien puede subir abre el diálogo con él
+  window.addEventListener("dragover", (e) => { if (conArchivos(e)) e.preventDefault(); });
+  window.addEventListener("drop", (e) => {
+    if (!conArchivos(e)) return;
+    e.preventDefault();
+    if ($("#btn-subir").hidden || document.querySelector("dialog[open]")) return;
+    abrirSubir();
+    agregarArchivos([...e.dataTransfer.files]);
+  });
 }
 
 // ============ EVENTOS E INICIO ============
