@@ -94,6 +94,7 @@ clasp update-deployment <ID de la implementación> -d "descripción"
 | `ver.html` | Muestra un cancionero guardado en el Drive (`ver.html?id=…`) |
 | `js/config.js` | Dirección del Apps Script (`apiUrl`) e ID de cliente de Google (`googleClientId`) |
 | `scripts/video-a-webm.py` | Comando: audio de videos o enlaces a WebM y subida a la Biblioteca |
+| `scripts/subir-canciones.py` | Aplicación de escritorio: sube las canciones `.md` locales a la Biblioteca (`scripts/instalar-escritorio.sh` la pone en el menú) |
 | `respaldo-antes-drive/` | Copia de los audios y cancioneros anteriores al Drive |
 
 ## Inicio (`inicio.html`)
@@ -235,6 +236,27 @@ quedan como elegidas.
   de la pantalla Misas, que lo abre). En el celular se toca la zona y se eligen desde Archivos, Drive o
   la grabadora; en Android y iPad también se puede arrastrar desde la pantalla dividida.
 - `js/audio-webm.js` hace la conversión con WebCodecs y `js/vendor/webm-muxer.mjs` (MIT) arma el WebM.
+
+### Aplicación de escritorio: subir canciones a la Biblioteca (`scripts/subir-canciones.py`)
+
+Ventana para Linux Mint que busca las canciones `.md` que el editor guardó en la computadora (por
+defecto `~/Música/desde Cancionero on line`, con sus subcarpetas) y orienta para subirlas a la Biblioteca
+de la parroquia (Drive de cancionerolitugico@gmail.com):
+
+- Cada canción muestra su estado frente a la Biblioteca y qué conviene hacer: **Nueva** (subirla),
+  **Está solo con audio** (se le agrega la letra), **Cambiada aquí** (modificada después de la última
+  subida: se reemplaza, conservando sus audios), **Ya está** (no hace falta) o **Título repetido** (dos
+  archivos con el mismo título; hay que cambiar uno en el editor). Las nuevas y cambiadas vienen marcadas.
+- Al subir, los audios de la computadora se convierten a WebM y se suben; los videos (YouTube…) también,
+  si se deja marcada la opción (si no, quedan como enlace); los enlaces a mp3 quedan como enlace. Un audio
+  que ya estaba en la canción no se vuelve a subir. Usa la misma clave que `video-a-webm.py`
+  (**Pegar la clave…**, con la guía para conseguirla en Identificarse).
+- Los cancioneros (`.m3u8`) se siguen subiendo desde el editor (Archivo → Guardar cancionero en el Drive).
+
+**Instalar en el menú** (una vez, sin sudo): `scripts/instalar-escritorio.sh`. Queda en **Sonido y video**
+y en **Abrir con** al hacer clic derecho en un `.md` (abre su carpeta con esa canción marcada).
+`--quitar` lo saca. Necesita `python3-gi`, `gir1.2-gtk-3.0` y `ffmpeg` (el instalador avisa si faltan).
+La lógica común con `video-a-webm.py` está en `scripts/mc_biblioteca.py`.
 
 ### Convertir videos a WebM (`scripts/video-a-webm.py`)
 
