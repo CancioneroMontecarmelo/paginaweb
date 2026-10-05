@@ -16,7 +16,8 @@
 
 var CORREO_PARROQUIA = 'cancionerolitugico@gmail.com';
 var RAIZ_NOMBRE = 'MonteCarmelo';
-var TOKEN_HORAS = 12;
+// La sesión se renueva en cada pedido con token: solo vence tras TOKEN_DIAS sin usar el sitio.
+var TOKEN_DIAS = 90;
 var MAX_ARCHIVO_BYTES = 30 * 1024 * 1024;
 var SITIO_URL = 'https://cancioneromontecarmelo.github.io/paginaweb/';
 // «ID de cliente» OAuth (Google Cloud → Credenciales). Es público: el mismo va en js/config.js.
@@ -72,11 +73,13 @@ function doPost(e) {
   } catch (_) {
     return json_({ ok: false, error: 'Solicitud inválida' });
   }
+  usuarioPedido_ = null;
   try {
     var fn = ACCIONES[datos.accion];
     if (!fn) throw new Error('Acción desconocida: ' + datos.accion);
     var r = fn(datos) || {};
     r.ok = true;
+    if (usuarioPedido_ && !r.token) r.token = crearToken_(usuarioPedido_);
     return json_(r);
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
@@ -151,8 +154,10 @@ function firmar_(payload) {
   return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(payload, secreto_())).replace(/=+$/, '');
 }
 
+var usuarioPedido_ = null;
+
 function crearToken_(u) {
-  var payload = b64url_(JSON.stringify({ email: u.email, exp: Date.now() + TOKEN_HORAS * 3600 * 1000 }));
+  var payload = b64url_(JSON.stringify({ email: u.email, exp: Date.now() + TOKEN_DIAS * 86400 * 1000 }));
   return payload + '.' + firmar_(payload);
 }
 
@@ -163,6 +168,7 @@ function usuarioDeToken_(token) {
   if (!datos.exp || datos.exp < Date.now()) throw new Error('La sesión venció. Volvé a identificarte.');
   var u = buscarUsuario_(datos.email);
   if (!u || u.activo === false) throw new Error('Cuenta inexistente o sin acceso.');
+  usuarioPedido_ = u;
   return u;
 }
 

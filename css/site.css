@@ -656,8 +656,37 @@ a:hover {
   box-shadow: 0 1.5rem 4rem var(--sombra);
 }
 
-.dlg-admins::backdrop {
+.dlg-admins::backdrop,
+.dlg-reingreso::backdrop {
   background: rgba(42, 36, 28, 0.45);
+}
+
+.dlg-reingreso {
+  width: min(24rem, 92vw);
+  padding: 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--crema-clara);
+  color: var(--texto);
+  box-shadow: 0 1.5rem 4rem var(--sombra);
+  text-align: center;
+}
+
+.dlg-reingreso h2 {
+  margin: 0 0 0.5rem;
+  font-family: var(--fuente-display);
+  color: var(--verde);
+}
+
+.dlg-reingreso .boton-google {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+  margin: 1rem 0;
+}
+
+.dlg-reingreso .error {
+  color: var(--terracota);
 }
 
 .dlg-admins .dlg-cabeza {

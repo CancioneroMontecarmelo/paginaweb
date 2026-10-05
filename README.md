@@ -17,7 +17,9 @@ Sin claves:
 - **Administradores y permisos** (panel de Identificarse): lista de quienes entraron, con un check para darles
   privilegios (responsable del sitio, sacerdote, administrador de comunidad, editor o colaborador) y la
   comunidad; desde ahí también se invita por correo o WhatsApp.
-- La sesión dura 12 horas y cada entrada queda en el registro del panel.
+- La sesión se renueva sola mientras se usa el sitio (también al volver del reposo) y solo vence tras
+  90 días sin usarlo. Si vence mientras se guarda algo, aparece «Entrar con Google» encima y el guardado
+  se completa sin perder nada. Cada entrada queda en el registro del panel.
 
 Los usuarios viven en `MonteCarmelo/sistema/usuarios.json` del Drive (privado).
 

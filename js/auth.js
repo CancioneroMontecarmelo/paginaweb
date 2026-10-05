@@ -28,7 +28,11 @@ const config = () => window.MONTECARMELO_CONFIG || {};
 const apiUrl = () => config().apiUrl || "";
 export const usaBackend = () => !!apiUrl();
 
-export async function llamarApi(accion, datos) {
+/**
+ * Si el pedido llevaba token y la sesión venció, pide entrar con Google encima de la pantalla
+ * (sin cerrar nada) y repite el pedido; `{ reingreso: false }` lo evita.
+ */
+export async function llamarApi(accion, datos, opciones) {
   if (!usaBackend()) throw new Error("Falta la dirección del servidor de la parroquia (apiUrl en js/config.js).");
   let r;
   try {
@@ -42,21 +46,95 @@ export async function llamarApi(accion, datos) {
     throw new Error("No se pudo conectar con el servidor de la parroquia. Revisá tu conexión a internet.");
   }
   if (!r.ok) {
-    if (/sesi[oó]n (inv[aá]lida|venci[oó])/i.test(r.error || "")) localStorage.removeItem(CLAVE_SESION);
+    if (/sesi[oó]n (inv[aá]lida|venci[oó])/i.test(r.error || "")) {
+      olvidarToken(datos && datos.token);
+      if (datos && "token" in datos && (opciones || {}).reingreso !== false) {
+        const s = await pedirReingreso();
+        if (s && s.token) return llamarApi(accion, { ...datos, token: s.token }, { reingreso: false });
+      }
+    }
     throw new Error(r.error || "El servidor de la parroquia no respondió");
   }
+  if (r.token && datos && datos.token) renovarToken(r.token);
   return r;
 }
 
 const token = () => (sesionActual() || {}).token || "";
 
-function tokenVigente(t) {
+function datosToken(t) {
   try {
     const p = String(t).split(".")[0].replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(atob(p + "=".repeat((4 - (p.length % 4)) % 4))).exp > Date.now();
+    return JSON.parse(atob(p + "=".repeat((4 - (p.length % 4)) % 4)));
   } catch (_) {
-    return false;
+    return null;
   }
+}
+
+/** El servidor rechazó el token: se olvida solo el token (la pantalla sigue igual) y se pide al próximo pedido. */
+function olvidarToken(rechazado) {
+  try {
+    const s = JSON.parse(localStorage.getItem(CLAVE_SESION));
+    if (s && s.token && s.token === (rechazado || s.token)) localStorage.setItem(CLAVE_SESION, JSON.stringify({ ...s, token: "" }));
+  } catch (_) { /* sin almacenamiento */ }
+}
+
+function renovarToken(nuevo) {
+  try {
+    const s = JSON.parse(localStorage.getItem(CLAVE_SESION));
+    if (!s || s.rol === "visitante" || s.email !== (datosToken(nuevo) || {}).email) return;
+    localStorage.setItem(CLAVE_SESION, JSON.stringify({ ...s, token: nuevo, renovada: Date.now() }));
+  } catch (_) { /* sin almacenamiento: queda la sesión anterior */ }
+}
+
+const RENOVAR_CADA_MS = 30 * 60 * 1000;
+let renovando = null;
+
+async function renovarSesion() {
+  const s = sesionActual();
+  if (!s || !s.token || !usaBackend() || renovando) return;
+  if (Date.now() - (s.renovada || s.desde || 0) < RENOVAR_CADA_MS) return;
+  renovando = llamarApi("sesion", { token: s.token }, { reingreso: false })
+    .then((r) => {
+      const act = sesionActual();
+      if (act && r.sesion) localStorage.setItem(CLAVE_SESION, JSON.stringify({ ...act, ...r.sesion }));
+    })
+    .catch(() => {})
+    .finally(() => { renovando = null; });
+}
+
+let sesionVigilada = false;
+/** Mantiene viva la sesión mientras la página está abierta, también al volver del reposo. */
+export function mantenerSesionViva() {
+  if (sesionVigilada) return;
+  sesionVigilada = true;
+  renovarSesion();
+  setInterval(renovarSesion, 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) renovarSesion(); });
+  window.addEventListener("focus", renovarSesion);
+  window.addEventListener("online", renovarSesion);
+}
+
+let reingreso = null;
+function pedirReingreso() {
+  if (!config().googleClientId || typeof HTMLDialogElement === "undefined") return Promise.resolve(null);
+  reingreso ||= new Promise((resolver) => {
+    const d = document.createElement("dialog");
+    d.className = "dlg-reingreso";
+    d.innerHTML = `<h2>Volvé a entrar</h2>
+      <p>Tu sesión se cerró. No se perdió nada: al entrar se completa lo que estabas haciendo.</p>
+      <div class="boton-google"></div>
+      <p class="error" hidden></p>
+      <button type="button" class="btn btn-secundario">Cancelar</button>`;
+    document.body.appendChild(d);
+    let sesion = null;
+    const error = d.querySelector(".error");
+    const fallar = (e) => { error.hidden = false; error.textContent = e.message || String(e); };
+    d.addEventListener("close", () => { d.remove(); reingreso = null; resolver(sesion); });
+    d.querySelector("button").addEventListener("click", () => d.close());
+    d.showModal();
+    botonGoogle(d.querySelector(".boton-google"), (s) => { sesion = s; pintarNavSesion(); d.close(); }, fallar).catch(fallar);
+  });
+  return reingreso;
 }
 
 export function rutaBaseAuth() {
@@ -67,15 +145,14 @@ export function rutaBaseAuth() {
 
 const normalizarEmail = (email) => String(email || "").trim().toLowerCase();
 
-/** La sesión se comparte con el editor (editor/js/nube.js), por eso vive en localStorage. */
+/**
+ * La sesión se comparte con el editor (editor/js/nube.js), por eso vive en localStorage. Solo la borra
+ * «Salir»: si el token vence, el servidor lo rechaza y llamarApi pide volver a entrar sin cerrar nada.
+ */
 export function sesionActual() {
   try {
     const s = JSON.parse(localStorage.getItem(CLAVE_SESION));
     if (!s || !s.email || !s.rol) return null;
-    if (s.rol !== "visitante" && !tokenVigente(s.token)) {
-      localStorage.removeItem(CLAVE_SESION);
-      return null;
-    }
     return s;
   } catch (_) {
     return null;
@@ -216,4 +293,5 @@ export function initNavSitio() {
     window.addEventListener("scroll", onScroll, { passive: true });
   }
   pintarNavSesion();
+  mantenerSesionViva();
 }

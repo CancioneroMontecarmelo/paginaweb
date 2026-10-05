@@ -17,14 +17,47 @@ const MC_ROLES_TODAS = ['admin_general', 'admin_segundo', 'sacerdote'];
 const mcVerUrl = htmlId => new URL('../ver.html?id=' + encodeURIComponent(htmlId), location.href).href;
 
 // ============ SESIÓN (la misma del sitio: js/auth.js) ============
-function mcTokenVigente(token) {
+function mcDatosToken(token) {
   try {
     const p = String(token).split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(p + '='.repeat((4 - p.length % 4) % 4))).exp > Date.now() + 60000;
+    return JSON.parse(atob(p + '='.repeat((4 - p.length % 4) % 4)));
   } catch (_) {
-    return false;
+    return null;
   }
 }
+
+const mcTokenVigente = token => (mcDatosToken(token)?.exp || 0) > Date.now() + 60000;
+
+function mcRenovarToken(nuevo) {
+  try {
+    const s = JSON.parse(localStorage.getItem(MC_SESION));
+    if (!s?.token || s.email !== mcDatosToken(nuevo)?.email) return;
+    localStorage.setItem(MC_SESION, JSON.stringify({ ...s, token: nuevo, renovada: Date.now() }));
+  } catch (_) { /* sin almacenamiento: queda la sesión anterior */ }
+}
+
+// Token rechazado por el servidor: se olvida solo el token (la sesión del sitio sigue) y se pide entrar de nuevo
+function mcOlvidarToken(rechazado) {
+  try {
+    const s = JSON.parse(localStorage.getItem(MC_SESION));
+    if (s?.token && s.token === (rechazado || s.token)) localStorage.setItem(MC_SESION, JSON.stringify({ ...s, token: '' }));
+  } catch (_) { /* sin almacenamiento */ }
+}
+
+// Mantiene viva la sesión mientras el editor está abierto, también al volver del reposo
+const MC_RENOVAR_CADA = 30 * 60 * 1000;
+let mcRenovando = false;
+function mcRenovarSesion() {
+  const s = mcSesion();
+  if (!MC_API || !s || mcRenovando || Date.now() - (s.renovada || s.desde || 0) < MC_RENOVAR_CADA) return;
+  mcRenovando = true;
+  mcApi('sesion', { token: s.token }, false).catch(() => {}).finally(() => { mcRenovando = false; });
+}
+mcRenovarSesion();
+setInterval(mcRenovarSesion, 5 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) mcRenovarSesion(); });
+addEventListener('focus', mcRenovarSesion);
+addEventListener('online', mcRenovarSesion);
 
 function mcSesion() {
   try {
@@ -42,7 +75,8 @@ function mcPintarSesion() {
   box.title = s ? `${s.nombre || ''} · ${s.email}` : '';
 }
 
-async function mcApi(accion, datos = {}) {
+// Si la sesión venció a mitad de un guardado, pide entrar con Google y repite el pedido sin perder nada
+async function mcApi(accion, datos = {}, reingreso = true) {
   let r;
   try {
     const res = await fetch(MC_API, {
@@ -55,9 +89,17 @@ async function mcApi(accion, datos = {}) {
     throw new Error('No se pudo conectar con el Drive de la parroquia. Revisa tu conexión a internet.');
   }
   if (!r.ok) {
-    if (/sesi[oó]n (inv[aá]lida|venci[oó])/i.test(r.error || '')) { localStorage.removeItem(MC_SESION); mcPintarSesion(); }
+    if (/sesi[oó]n (inv[aá]lida|venci[oó])/i.test(r.error || '')) {
+      mcOlvidarToken(datos.token);
+      mcPintarSesion();
+      if (reingreso && 'token' in datos) {
+        const s = await mcEntrar('Tu sesión se cerró. No se perdió nada: al entrar se completa lo que estabas guardando.');
+        if (s?.token) return mcApi(accion, { ...datos, token: s.token }, false);
+      }
+    }
     throw new Error(r.error || 'El Drive de la parroquia no respondió.');
   }
+  if (r.token && datos.token) mcRenovarToken(r.token);
   return r;
 }
 
@@ -77,13 +119,14 @@ function mcError(titulo, e) {
 }
 
 // Devuelve la sesión con token, pidiendo entrar con Google si hace falta (null si se canceló)
-async function mcEntrar() {
+async function mcEntrar(motivo) {
   const vigente = mcSesion();
   if (vigente) return vigente;
   let sesion = null;
+  if ($('#modal').open) $('#modal').close();
   await showModal({
     title: 'Identificarse',
-    body: `<p>Para usar el Drive de la parroquia entra con tu cuenta de Google (no hace falta clave).</p>
+    body: `<p>${escapeHtml(motivo || 'Para usar el Drive de la parroquia entra con tu cuenta de Google (no hace falta clave).')}</p>
       <div id="mcGoogle" style="min-height:44px;margin:.75rem 0"></div>
       <p class="hint">Si tu cuenta todavía no tiene permisos, pídeselos al administrador de la parroquia.</p>`,
     onOpen: d => {
@@ -243,19 +286,21 @@ async function mcArmarArchivos(songs, opts, avance) {
 
 async function mcGuardar(songs, opts, s) {
   let terminado = false;
+  let cancelado = false;
+  // Solo cancela el botón o Escape: si hay que volver a entrar, ese diálogo reemplaza a este y el guardado sigue
   showModal({
     title: 'Guardando en el Drive de la parroquia',
     body: `<p class="mc-paso">Preparando el cancionero…</p><progress class="mc-progreso" max="1" value="0"></progress>
       <p class="hint">No cierres esta página hasta que termine.</p>`,
     buttons: [{ label: 'Cancelar' }]
-  });
+  }).then(() => { if (!terminado) cancelado = true; });
   const dlg = $('#modal');
   const avance = (texto, hecho = 0, total = 1) => {
-    if (!dlg.open) return;
+    if (!dlg.querySelector('.mc-progreso')) return;
     dlg.querySelector('.mc-paso').textContent = texto;
     dlg.querySelector('.mc-progreso').value = total ? hecho / total : 0;
   };
-  const seguir = () => { if (!terminado && !dlg.open) throw new Error('cancelado'); };
+  const seguir = () => { if (cancelado) throw new Error('cancelado'); };
 
   try {
     const armado = await mcArmarArchivos(songs, opts, avance);
