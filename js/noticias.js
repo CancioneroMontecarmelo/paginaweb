@@ -265,4 +265,51 @@ export async function iniciarListaCancioneros(opts) {
   el.appendChild(ul);
 }
 
+export async function iniciarListaMisas(opts) {
+  const el = document.getElementById("lista-misas");
+  if (!el) return;
+  const api = (window.MONTECARMELO_CONFIG || {}).apiUrl;
+  const base = rutaBase() + "misas.html?comunidad=" + encodeURIComponent(opts.slug);
+  let misas = [];
+  let aviso = "Todavía no hay cancioneros de misa para esta comunidad.";
+  if (!api) {
+    aviso = "El Drive de la parroquia todavía no está conectado.";
+  } else {
+    try {
+      const r = await (await fetch(api + "?accion=misas&comunidad=" + encodeURIComponent(opts.slug))).json();
+      misas = r.misas || [];
+    } catch (_) {
+      aviso = "No se pudo consultar el Drive de la parroquia. Probá recargar la página.";
+    }
+  }
+  el.replaceChildren();
+  if (!misas.length) {
+    const p = document.createElement("p");
+    p.className = "subtitulo";
+    p.textContent = aviso + " ";
+    const a = document.createElement("a");
+    a.href = base;
+    a.textContent = "Abrir la pantalla Misas";
+    p.appendChild(a);
+    el.appendChild(p);
+    return;
+  }
+  const ul = document.createElement("ul");
+  ul.className = "lista-cancioneros";
+  misas.forEach((m) => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = base + "&cancionero=" + encodeURIComponent(m.id);
+    a.textContent = m.nombre || "Cancionero";
+    const n = (m.momentos || []).reduce((t, x) => t + (x.canciones || []).length, 0);
+    const meta = document.createElement("span");
+    meta.className = "meta";
+    meta.textContent = [m.fechaUso, m.tiempoLiturgico, n ? n + (n === 1 ? " canción" : " canciones") : ""].filter(Boolean).join(" · ");
+    a.appendChild(meta);
+    li.appendChild(a);
+    ul.appendChild(li);
+  });
+  el.appendChild(ul);
+}
+
 export { COMUNIDADES, PARROQUIA };

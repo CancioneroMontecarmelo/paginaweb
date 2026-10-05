@@ -15,6 +15,7 @@
     <button type="button" class="nav-toggle" aria-label="Menú">Menú</button>
     <ul class="nav-links">
       <li><a href="../inicio.html">Inicio</a></li>
+      <li><a href="../misas.html">Misas</a></li>
       <li><a href="../editor/">Editor</a></li>
       <li><a href="../noticias.html">Noticias</a></li>
       <li><a href="../login.html" data-nav-sesion>Identificarse</a></li>
@@ -25,6 +26,9 @@
     <h1>Capilla María de Nazaret</h1>
     <p class="subtitulo">Noticias, encargos litúrgicos y cancioneros de la próxima celebración.</p>
     <p class="sesion-bar" id="sesion-bar" hidden></p>
+
+    <h2 style="font-family:var(--fuente-display);color:var(--verde);font-size:1.35rem;margin:2rem 0 0.75rem">Cancioneros de misa</h2>
+    <div id="lista-misas"></div>
 
     <h2 style="font-family:var(--fuente-display);color:var(--verde);font-size:1.35rem;margin:2rem 0 0.75rem">Próximos cancioneros</h2>
     <div id="lista-cancioneros"></div>
@@ -59,7 +63,7 @@
 
   <script type="module">
     import { initNavSitio } from "../js/auth.js";
-    import { iniciarPaginaNoticias, iniciarListaCancioneros } from "../js/noticias.js";
+    import { iniciarPaginaNoticias, iniciarListaCancioneros, iniciarListaMisas } from "../js/noticias.js";
     initNavSitio();
     iniciarPaginaNoticias({
       slug: "maria-de-nazaret",
@@ -67,6 +71,7 @@
       nombreArchivo: "maria-de-nazaret.json"
     });
     iniciarListaCancioneros({ slug: "maria-de-nazaret" });
+    iniciarListaMisas({ slug: "maria-de-nazaret" });
     const f = document.getElementById("campo-fecha");
     if (f && !f.value) f.value = new Date().toISOString().slice(0, 10);
   </script>

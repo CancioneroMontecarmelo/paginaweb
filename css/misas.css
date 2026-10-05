@@ -1,0 +1,961 @@
+/* Pantalla Misas: cabecera con trasponedor, paneles flotantes y lienzo central */
+
+.pagina-misas {
+  --cab-h: 7.5rem;
+  --panel-w: 18.5rem;
+  --song-font: 16px;
+  --borde: rgba(154, 79, 46, 0.22);
+}
+
+.pagina-misas[hidden],
+.pagina-misas [hidden] {
+  display: none !important;
+}
+
+/* ============ CABECERA ============ */
+.misas-cabecera {
+  position: sticky;
+  top: var(--nav-h);
+  z-index: 50;
+  margin-top: var(--nav-h);
+  padding: 0.6rem 1rem 0.55rem;
+  background: rgba(250, 243, 228, 0.97);
+  border-bottom: 1px solid var(--borde);
+  box-shadow: 0 6px 18px rgba(42, 36, 28, 0.08);
+}
+
+.cab-datos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.4rem 1.25rem;
+}
+
+.cab-titulo {
+  font-family: var(--fuente-display);
+  font-size: 1.45rem;
+  font-weight: 600;
+  color: var(--verde);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.cab-campo {
+  display: grid;
+  gap: 0.05rem;
+  font-size: 0.9rem;
+  min-width: 0;
+}
+
+.cab-campo > span {
+  font-size: 0.7rem;
+  font-weight: 560;
+  color: var(--texto-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cab-campo select {
+  font: inherit;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  max-width: 16rem;
+}
+
+.cab-info strong {
+  font-weight: 560;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 22rem;
+}
+
+.cab-usuario {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.cab-trasponer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.trasponedor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.trasp-medios {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.nota-btn {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 560;
+  min-width: 2.6rem;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  color: var(--texto);
+  cursor: pointer;
+}
+
+.nota-btn.sostenido {
+  background: #efe4cc;
+}
+
+.nota-btn:hover:not(:disabled) {
+  border-color: var(--terracota);
+  color: var(--terracota);
+}
+
+.nota-btn.activo {
+  background: var(--terracota);
+  border-color: var(--terracota);
+  color: var(--blanco);
+}
+
+.nota-btn.original:not(.activo) {
+  box-shadow: inset 0 -3px 0 var(--verde-suave);
+}
+
+.nota-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tono-info {
+  font-size: 0.82rem;
+  color: var(--texto-suave);
+}
+
+.buscar {
+  display: flex;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+.buscar input {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  width: 13rem;
+}
+
+.boton-cajon {
+  display: none;
+}
+
+/* ============ CUERPO ============ */
+.misas-cuerpo {
+  display: grid;
+  grid-template-columns: var(--panel-w) minmax(0, 1fr) var(--panel-w);
+  gap: 1.1rem;
+  align-items: start;
+  padding: 1rem;
+  max-width: 100rem;
+  margin: 0 auto;
+}
+
+.panel-flotante {
+  position: sticky;
+  top: calc(var(--nav-h) + var(--cab-h) + 1rem);
+  max-height: calc(100vh - var(--nav-h) - var(--cab-h) - 2rem);
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 254, 249, 0.92);
+  border: 1px solid var(--borde);
+  border-radius: 0.6rem;
+  box-shadow: 0 10px 30px var(--sombra);
+  overflow: hidden;
+}
+
+.panel-cabeza {
+  padding: 0.75rem 0.85rem 0.6rem;
+  border-bottom: 1px solid var(--borde);
+}
+
+.panel-cabeza h2 {
+  font-family: var(--fuente-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--verde);
+  margin: 0;
+}
+
+.panel-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.btn-agregar {
+  width: 100%;
+  margin-top: 0.55rem;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+.panel-cuerpo {
+  overflow: auto;
+  padding: 0.5rem 0.6rem 0.8rem;
+  flex: 1;
+}
+
+.panel-cuerpo .aviso {
+  margin: 0.5rem 0.25rem;
+}
+
+/* Lista de cancioneros */
+.misa-item {
+  border-bottom: 1px solid rgba(154, 79, 46, 0.12);
+}
+
+.misa-boton {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 0.55rem 0.45rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radio);
+  color: var(--texto);
+}
+
+.misa-boton:hover {
+  background: rgba(154, 79, 46, 0.07);
+}
+
+.misa-boton strong {
+  display: block;
+  font-weight: 560;
+}
+
+.misa-boton small {
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+}
+
+.misa-item.abierto > .misa-boton {
+  background: rgba(47, 74, 56, 0.1);
+  color: var(--verde);
+}
+
+.misa-item.borrador > .misa-boton strong::after {
+  content: " · sin guardar";
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--terracota);
+}
+
+.momentos {
+  list-style: none;
+  margin: 0.2rem 0 0.6rem;
+  padding: 0 0 0 0.55rem;
+  border-left: 2px solid rgba(47, 74, 56, 0.25);
+}
+
+.momento {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.momento-boton {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.45rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radio);
+  color: var(--texto);
+}
+
+.momento-boton:hover {
+  background: rgba(154, 79, 46, 0.08);
+}
+
+.momento.activo .momento-boton {
+  background: var(--terracota);
+  color: var(--blanco);
+}
+
+.momento-boton b {
+  font-weight: 560;
+}
+
+.momento-boton .canciones-momento {
+  display: block;
+  font-size: 0.76rem;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.momento-boton .vacio {
+  font-style: italic;
+}
+
+.quitar {
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.3rem 0.4rem;
+  border: none;
+  background: none;
+  color: var(--texto-suave);
+  cursor: pointer;
+  border-radius: var(--radio);
+}
+
+.quitar:hover {
+  color: #8b1e1e;
+  background: rgba(139, 30, 30, 0.08);
+}
+
+.momento-agregar {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0.35rem 0 0;
+}
+
+.momento-agregar select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.25rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--blanco);
+}
+
+.misa-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.75rem 0.55rem;
+}
+
+.btn-chico.importante {
+  background: var(--terracota);
+  border-color: var(--terracota);
+  color: var(--blanco);
+}
+
+.btn-chico.importante:hover {
+  background: var(--terracota-oscura);
+  color: var(--blanco);
+}
+
+.btn-chico.peligro {
+  color: #8b1e1e;
+}
+
+.btn-chico.peligro:hover {
+  border-color: #8b1e1e;
+  color: #8b1e1e;
+  background: rgba(139, 30, 30, 0.06);
+}
+
+/* Biblioteca */
+.bib-filtro {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.bib-filtro input,
+.bib-cancion input {
+  accent-color: var(--terracota);
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+}
+
+.bib-cancion {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.45rem 0.35rem;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.12);
+  border-radius: var(--radio);
+}
+
+.bib-cancion.en-lienzo {
+  background: rgba(47, 74, 56, 0.08);
+}
+
+.bib-cancion input {
+  margin-top: 0.2rem;
+  cursor: pointer;
+}
+
+.bib-ver {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--texto);
+}
+
+.bib-ver strong {
+  display: block;
+  font-weight: 560;
+  font-size: 0.92rem;
+}
+
+.bib-ver:hover strong {
+  color: var(--terracota);
+}
+
+.bib-ver small {
+  display: block;
+  color: var(--texto-suave);
+  font-size: 0.76rem;
+}
+
+.bib-etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin-top: 0.2rem;
+}
+
+.bib-etiquetas span {
+  font-size: 0.68rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.6rem;
+  background: rgba(126, 182, 217, 0.25);
+  color: #24506e;
+}
+
+.bib-etiquetas span.coincide {
+  background: rgba(154, 79, 46, 0.18);
+  color: var(--terracota-oscura);
+  font-weight: 560;
+}
+
+/* ============ LIENZO ============ */
+.lienzo {
+  min-height: 60vh;
+  background: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: 0.6rem;
+  box-shadow: 0 10px 30px rgba(42, 36, 28, 0.1);
+  padding: 1.25rem 1.5rem 1.5rem;
+  min-width: 0;
+}
+
+.lienzo-momento {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.lienzo-momento b {
+  color: var(--verde);
+  font-weight: 560;
+  font-size: 0.95rem;
+  margin-right: 0.3rem;
+}
+
+.lienzo-momento .pestana {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: 1rem;
+  background: var(--blanco);
+  cursor: pointer;
+}
+
+.lienzo-momento .pestana.activa {
+  background: var(--verde);
+  border-color: var(--verde);
+  color: var(--blanco);
+}
+
+.lienzo-momento .vista-previa {
+  color: var(--terracota);
+  font-style: italic;
+}
+
+.lienzo-vacio {
+  font-family: var(--fuente-cuerpo);
+  color: var(--texto-suave);
+  text-align: center;
+  padding: 4rem 1rem;
+}
+
+.lienzo-audios {
+  margin-top: 1.25rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--borde);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.audio-item {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.audio-item span {
+  color: var(--texto-suave);
+}
+
+.audio-item audio {
+  width: 100%;
+  max-width: 34rem;
+}
+
+/* ============ CANCIÓN (copiado de editor/css/canciotras.css) ============ */
+.song-render {
+  font-family: 'Courier New', monospace;
+  font-size: var(--song-font);
+  line-height: 1.5;
+  overflow-x: auto;
+  color: #202124;
+}
+.song-header { font-family: var(--fuente-cuerpo); margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+.song-title { font-family: var(--fuente-display); font-size: 1.6em; font-weight: 600; color: var(--verde); }
+.song-meta { font-size: 0.85em; color: #5f6368; margin-top: 4px; }
+.song-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; font-size: 0.72em; }
+.tag-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 9px; border-radius: 12px;
+  background: #e8f0fe; color: #1967d2; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.5;
+}
+.tag-chip.fam { background: #fce8b2; color: #7a4f01; font-weight: bold; }
+.song-tags .tag-chip { font-size: 1em; }
+.line { white-space: pre; min-height: 1.5em; }
+.chord-line { color: #b3261e; font-weight: bold; }
+.chord { color: #b3261e; font-weight: bold; }
+.chord-extra { color: #80868b; font-weight: normal; }
+.lyric-line { color: #202124; }
+.section-heading {
+  font-family: Arial, sans-serif; font-weight: bold; color: var(--verde);
+  margin: 10px 0 2px; white-space: pre-wrap;
+}
+.section-heading.h1 { font-size: 1.3em; }
+.section-heading.h2 { font-size: 1.1em; }
+.section-heading.h3 { font-size: 1em; }
+.comment-line {
+  font-family: Arial, sans-serif; font-style: italic; font-size: 0.9em;
+  color: #5f6368; background: #fef7e0; border-left: 3px solid #f9ab00;
+  padding: 3px 10px; margin: 4px 0; border-radius: 0 4px 4px 0; white-space: pre-wrap;
+}
+.voice-section {
+  border-left: 4px solid var(--vc);
+  background: color-mix(in srgb, var(--vc) 6%, transparent);
+  padding: 4px 0 6px 14px; margin: 10px 0; border-radius: 0 6px 6px 0;
+}
+.voice-section .lyric-line { color: color-mix(in srgb, var(--vc) 45%, #202124); }
+.voice-label {
+  display: inline-block; font-family: Arial, sans-serif; font-size: 11px; font-weight: bold;
+  color: white; background: var(--vc); padding: 2px 9px; border-radius: 10px; margin: 2px 0 4px;
+}
+.empty-hint { font-family: Arial, sans-serif; color: #80868b; padding: 30px 0; text-align: center; }
+.strum-line {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  white-space: normal; margin: 6px 0; font-family: Arial, sans-serif;
+}
+.strum-name { font-size: 0.85em; font-weight: bold; color: #5f6368; }
+.strum-svg { display: block; flex-shrink: 0; }
+
+/* ============ DIÁLOGOS ============ */
+.dlg-misas {
+  width: min(44rem, 96vw);
+  max-height: 92vh;
+  padding: 0;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--crema-clara);
+  color: var(--texto);
+  box-shadow: 0 1.5rem 4rem var(--sombra);
+}
+
+.dlg-misas.dlg-ancho {
+  width: min(72rem, 97vw);
+}
+
+.dlg-misas::backdrop {
+  background: rgba(42, 36, 28, 0.45);
+}
+
+.dlg-misas .dlg-cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.2rem;
+  border-bottom: 1px solid var(--borde);
+  position: sticky;
+  top: 0;
+  background: var(--crema-clara);
+  z-index: 1;
+}
+
+.dlg-misas h2 {
+  font-family: var(--fuente-display);
+  color: var(--verde);
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.dlg-misas .dlg-cuerpo {
+  padding: 1rem 1.2rem 1.2rem;
+}
+
+.dlg-h3 {
+  font-family: var(--fuente-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--verde);
+  margin: 1.2rem 0 0.5rem;
+}
+
+.form-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.65rem 0.9rem;
+}
+
+.form-grilla label,
+.coro-elegir label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.form-grilla .ancho {
+  grid-column: 1 / -1;
+}
+
+.dlg-misas input[type="text"],
+.dlg-misas input[type="date"],
+.dlg-misas input[type="file"],
+.dlg-misas select,
+.dlg-misas textarea {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid rgba(154, 79, 46, 0.35);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  color: var(--texto);
+  min-width: 0;
+}
+
+.dlg-misas input[type="checkbox"] {
+  accent-color: var(--terracota);
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.lista-fechas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.fecha-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  background: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 0.1rem 0.15rem 0.1rem 0.3rem;
+}
+
+.fecha-chip input[type="date"] {
+  border: none;
+  padding: 0.25rem;
+}
+
+.ensayo {
+  background: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.ensayo-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.ensayo-cabeza .espacio {
+  flex: 1;
+}
+
+.ensayo-cabeza small {
+  color: var(--texto-suave);
+}
+
+.asistencia {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.25rem 0.75rem;
+  margin: 0.55rem 0;
+}
+
+.asistencia label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.asistencia label small {
+  color: var(--texto-suave);
+}
+
+.ensayo textarea {
+  width: 100%;
+  min-height: 2.4rem;
+  resize: vertical;
+}
+
+.dlg-acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.2rem;
+}
+
+.dlg-acciones .espacio {
+  flex: 1;
+}
+
+.coro-elegir {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+
+.coro-elegir select {
+  min-width: 14rem;
+}
+
+.tabla-scroll {
+  overflow-x: auto;
+}
+
+.tabla-integrantes {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.tabla-integrantes th {
+  text-align: left;
+  font-size: 0.74rem;
+  font-weight: 560;
+  color: var(--texto-suave);
+  padding: 0.3rem;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.3);
+  white-space: nowrap;
+}
+
+.tabla-integrantes td {
+  padding: 0.3rem;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.12);
+  vertical-align: middle;
+}
+
+.tabla-integrantes input[type="text"],
+.tabla-integrantes input[type="date"],
+.tabla-integrantes select {
+  width: 100%;
+  font-size: 0.82rem;
+  padding: 0.3rem;
+}
+
+.tabla-integrantes td.centro {
+  text-align: center;
+}
+
+.tabla-integrantes .i-nombre { min-width: 9rem; }
+.tabla-integrantes .i-instr { min-width: 8rem; }
+.tabla-integrantes .i-notas { min-width: 9rem; }
+
+.misas-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  z-index: 200;
+  transform: translate(-50%, 1rem);
+  max-width: min(32rem, 92vw);
+  padding: 0.65rem 1rem;
+  border-radius: 0.4rem;
+  background: var(--verde);
+  color: var(--blanco);
+  font-size: 0.9rem;
+  box-shadow: 0 8px 24px var(--sombra);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.misas-toast.error {
+  background: #8b1e1e;
+}
+
+.misas-toast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ============ CELULAR: paneles como cajones ============ */
+@media (max-width: 960px) {
+  .misas-cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.6rem;
+  }
+
+  .boton-cajon {
+    display: inline-block;
+  }
+
+  .panel-flotante {
+    position: fixed;
+    top: var(--nav-h);
+    bottom: 0;
+    width: min(88vw, 22rem);
+    max-height: none;
+    z-index: 90;
+    border-radius: 0;
+    background: var(--blanco);
+    transition: transform 0.25s ease;
+  }
+
+  .panel-biblioteca {
+    left: 0;
+    transform: translateX(-105%);
+  }
+
+  .panel-cancioneros {
+    right: 0;
+    transform: translateX(105%);
+  }
+
+  .panel-flotante.abierto {
+    transform: none;
+  }
+
+  .misas-velo {
+    position: fixed;
+    inset: var(--nav-h) 0 0;
+    z-index: 80;
+    background: rgba(42, 36, 28, 0.35);
+  }
+
+  .cab-info strong {
+    max-width: 60vw;
+  }
+
+  .cab-usuario {
+    margin-left: 0;
+  }
+
+  .buscar {
+    margin-left: 0;
+    flex: 1 1 12rem;
+  }
+
+  .buscar input {
+    width: 100%;
+  }
+
+  .lienzo {
+    padding: 1rem;
+  }
+
+  .pagina-misas {
+    --song-font: 14px;
+  }
+}
+
+@media (max-width: 40rem) {
+  .cab-info:not(.cab-nombre) {
+    display: none;
+  }
+
+  .nota-btn {
+    min-width: 2.2rem;
+    padding: 0.3rem 0.25rem;
+    font-size: 0.75rem;
+  }
+
+  .tabla-integrantes thead {
+    display: none;
+  }
+
+  .tabla-integrantes tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.3rem 0.5rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(154, 79, 46, 0.25);
+  }
+
+  .tabla-integrantes td {
+    border: none;
+    padding: 0;
+  }
+
+  .tabla-integrantes td[data-et]::before {
+    content: attr(data-et);
+    display: block;
+    font-size: 0.7rem;
+    color: var(--texto-suave);
+  }
+}

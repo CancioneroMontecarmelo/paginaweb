@@ -86,6 +86,7 @@ clasp update-deployment <ID de la implementación> -d "descripción"
 | `backend/` | Apps Script: entrada con Google, permisos, auditoría y cancioneros en Drive |
 | `comunidades/` | Página de cada comunidad: noticias y cancioneros publicados |
 | `noticias/` | Blog estático por comunidad (JSON) |
+| `misas.html` | Pantalla Misas: cancioneros de misa de todas las comunidades, Biblioteca de canciones, coros y ensayos |
 | `ver.html` | Muestra un cancionero guardado en el Drive (`ver.html?id=…`) |
 | `js/config.js` | Dirección del Apps Script (`apiUrl`) e ID de cliente de Google (`googleClientId`) |
 | `respaldo-antes-drive/` | Copia de los audios y cancioneros anteriores al Drive |
@@ -97,3 +98,24 @@ clasp update-deployment <ID de la implementación> -d "descripción"
 3. Se guarda en `MonteCarmelo/Cancioneros/<Comunidad>/<fecha>_<nombre>/` (canciones `.md`, lista `.m3u8`,
    audios y una página `.html` con los audios adentro) y aparece en la página de la comunidad.
 4. Desde la página de la comunidad: **Ver** (para todos) o **Editar** (para quien tenga permiso).
+
+## Pantalla Misas (`misas.html`)
+
+Una sola pantalla para todas las comunidades (se elige arriba). Cualquiera puede mirar; para crear o
+modificar hace falta entrar con Google con permiso de editor o superior en esa comunidad.
+
+- **Centro**: la canción elegida con sus acordes y audios. Arriba, el **trasponedor** (el tono queda
+  guardado en el cancionero).
+- **Panel derecho — Cancioneros**: los cancioneros de misa ya creados (nombre, fecha, tiempo litúrgico) y
+  sus momentos (Entrada, Gloria, Santo…). **+ Agregar nuevo** crea uno con los momentos habituales.
+- **Panel izquierdo — Biblioteca**: al tocar un momento, lista todas las canciones del sitio con esa
+  etiqueta; al marcarla queda en el cancionero y se muestra en el centro.
+- **Guardar**: nombre, fecha de uso, tiempo litúrgico, coro, fechas posibles de ensayo y ensayos
+  realizados con quiénes asistieron.
+- **Coro**: nombre del coro e integrantes (comunidad, fecha de incorporación, voz, instrumentos,
+  lectura de partitura, nivel).
+- **Subir canción**: agrega una canción `.md` (y su audio) a la Biblioteca. También se agregan solas las
+  canciones de cada cancionero guardado desde el editor.
+
+En el Drive: `MonteCarmelo/Biblioteca/` (canciones y audios + `biblioteca.json`), `MonteCarmelo/misas.json`
+(público) y en `MonteCarmelo/sistema/` los archivos privados `coros.json` y `ensayos.json`.

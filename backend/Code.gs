@@ -55,7 +55,11 @@ function doGet(e) {
   try {
     if (p.accion === 'listar') return json_(listar_(p));
     if (p.accion === 'ver') return verHtml_(p.id);
-    return json_({ ok: true, app: 'MonteCarmelo', version: 2 });
+    if (p.accion === 'biblioteca') return json_(biblioteca_());
+    if (p.accion === 'cancion') return json_(cancionBiblioteca_(p.id));
+    if (p.accion === 'audio') return json_(audioBiblioteca_(p.id));
+    if (p.accion === 'misas') return json_(listarMisas_(p));
+    return json_({ ok: true, app: 'MonteCarmelo', version: 3 });
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
   }
@@ -94,7 +98,16 @@ var ACCIONES = {
   abrir: abrir_,
   archivo: archivo_,
   borrarCancionero: borrarCancionero_,
-  listar: listar_
+  listar: listar_,
+  subirAudioBiblioteca: subirAudioBiblioteca_,
+  subirCancion: subirCancion_,
+  guardarMisa: guardarMisa_,
+  borrarMisa: borrarMisa_,
+  leerEnsayos: leerEnsayos_,
+  guardarEnsayos: guardarEnsayos_,
+  listarCoros: listarCoros_,
+  guardarCoro: guardarCoro_,
+  borrarCoro: borrarCoro_
 };
 
 function json_(obj) {
@@ -553,6 +566,11 @@ function cerrarCancionero_(d) {
     return e;
   });
   PropertiesService.getScriptProperties().deleteProperty('pendiente:' + d.folderId);
+  try {
+    indexarEnBiblioteca_(carpeta, entrada.comunidad, u);
+  } catch (err) {
+    console.warn('Biblioteca: ' + err);
+  }
   auditar_({ tipo: 'cancionero_guardado', email: u.email, nombre: u.nombre, titulo: entrada.titulo, comunidad: entrada.comunidad });
   return { cancionero: entrada };
 }
@@ -608,6 +626,378 @@ function borrarCancionero_(d) {
     escribirJson_(raiz_(), 'indice.json', indice);
   });
   auditar_({ tipo: 'cancionero_borrado', email: u.email, nombre: u.nombre, titulo: c.entrada.titulo });
+  return {};
+}
+
+// ==================== BIBLIOTECA DE CANCIONES ====================
+// MonteCarmelo/Biblioteca/{canciones,audios} + biblioteca.json (público). Se llena con cada cancionero
+// guardado desde el editor y con las canciones que se suben desde la pantalla Misas.
+
+function conPrivilegios_(u) {
+  if (!ROLES[u.rol]) throw new Error('Tu cuenta todavía no tiene permisos para esto.');
+  return u;
+}
+
+function leerBiblioteca_() {
+  var data = leerJson_(raiz_(), 'biblioteca.json', null);
+  if (!data || !data.canciones) data = { v: 1, canciones: [] };
+  return data;
+}
+
+function carpetaBiblioteca_(sub) {
+  return carpetaRuta_(raiz_(), ['Biblioteca', sub]);
+}
+
+function desescapar_(s) {
+  return String(s || '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+
+// Título, tono, etiquetas y audios de una canción .md del editor
+function cabeceraMd_(texto, nombreArchivo) {
+  var t = String(texto || '').replace(/\r\n?/g, '\n');
+  var meta = {};
+  var m = t.match(/^---\n([\s\S]*?)\n---/);
+  if (m) m[1].split('\n').forEach(function (l) {
+    var i = l.indexOf(':');
+    if (i < 1) return;
+    var v = l.slice(i + 1).trim();
+    if (/^".*"$/.test(v)) { try { v = JSON.parse(v); } catch (_) { v = v.slice(1, -1); } }
+    meta[l.slice(0, i).trim().toLowerCase()] = v;
+  });
+  var h = t.match(/^#\s+(.+)$/m);
+  var titulo = String(meta.titulo || meta.title || (h && h[1]) || String(nombreArchivo || '').replace(/\.md$/i, '') || 'Sin título').trim();
+  var etiquetas = String(meta.etiquetas || meta.tags || '').split(',')
+    .map(function (x) { return x.trim(); }).filter(Boolean);
+  var audios = (t.match(/<audio\b[^>]*>/gi) || []).map(function (tag) {
+    var at = function (n) { var r = tag.match(new RegExp('\\s' + n + '="([^"]*)"', 'i')); return r ? desescapar_(r[1]) : ''; };
+    return { src: at('src'), nombre: at('title'), voz: at('data-voz') };
+  }).filter(function (a) { return a.src; });
+  return { titulo: titulo.slice(0, 150), tono: String(meta.tono || '').slice(0, 40), etiquetas: etiquetas.slice(0, 40), audios: audios };
+}
+
+function enCarpeta_(archivo, carpeta) {
+  var padres = archivo.getParents();
+  while (padres.hasNext()) if (padres.next().getId() === carpeta.getId()) return true;
+  return false;
+}
+
+// Devuelve el id del audio en Biblioteca/audios (reutiliza el que tenga el mismo nombre y tamaño)
+function guardarAudioBiblioteca_(nombre, tamano, crear) {
+  var carpeta = carpetaBiblioteca_('audios');
+  var it = carpeta.getFilesByName(nombre);
+  while (it.hasNext()) {
+    var f = it.next();
+    if (f.getSize() === tamano) return f.getId();
+  }
+  var nuevo = crear(carpeta);
+  nuevo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return nuevo.getId();
+}
+
+// items: [{ texto, cab, audios }] → entradas del índice (una canción por título)
+function registrarEnBiblioteca_(items, comunidad, u) {
+  var carpeta = carpetaBiblioteca_('canciones');
+  return conCandado_(function () {
+    var bib = leerBiblioteca_();
+    var hechas = items.map(function (it) {
+      var id = 'c-' + slug_(it.cab.titulo);
+      var previa = bib.canciones.filter(function (x) { return x.id === id; })[0];
+      var f = null;
+      if (previa && previa.mdId) { try { f = DriveApp.getFileById(previa.mdId); } catch (_) {} }
+      if (f) f.setContent(it.texto);
+      else f = carpeta.createFile(slug_(it.cab.titulo) + '.md', it.texto, 'text/markdown');
+      var e = {
+        id: id, titulo: it.cab.titulo, tono: it.cab.tono, etiquetas: it.cab.etiquetas, mdId: f.getId(),
+        audios: it.audios.length ? it.audios : (previa ? previa.audios : []),
+        comunidad: (previa && previa.comunidad) || comunidad || '',
+        autor: (previa && previa.autor) || u.email, actualizado: ahora_()
+      };
+      bib.canciones = bib.canciones.filter(function (x) { return x.id !== id; });
+      bib.canciones.push(e);
+      return e;
+    });
+    bib.canciones.sort(function (a, b) { return a.titulo.localeCompare(b.titulo); });
+    bib.actualizado = ahora_();
+    escribirJson_(raiz_(), 'biblioteca.json', bib);
+    return hechas;
+  });
+}
+
+function indexarEnBiblioteca_(carpeta, comunidad, u) {
+  var archivos = listarArchivos_(carpeta, '', []);
+  var porRuta = {};
+  archivos.forEach(function (f) { porRuta[f.ruta] = f; });
+  var items = archivos.filter(function (f) { return /^canciones\/[^\/]+\.md$/i.test(f.ruta); }).map(function (f) {
+    var texto = DriveApp.getFileById(f.id).getBlob().getDataAsString('UTF-8');
+    var cab = cabeceraMd_(texto, f.ruta.split('/').pop());
+    var audios = cab.audios.map(function (a) {
+      if (/^https?:/i.test(a.src)) return { nombre: a.nombre || a.src, voz: a.voz, url: a.src };
+      var ruta;
+      try { ruta = decodeURIComponent(a.src); } catch (_) { ruta = a.src; }
+      var fa = porRuta[ruta.replace(/^(\.\.?\/)+/, '')];
+      if (!fa) return null;
+      var original = DriveApp.getFileById(fa.id);
+      var id = guardarAudioBiblioteca_(original.getName(), original.getSize(), function (destino) {
+        return original.makeCopy(original.getName(), destino);
+      });
+      return { nombre: a.nombre || original.getName(), voz: a.voz, fileId: id };
+    }).filter(Boolean);
+    return { texto: texto, cab: cab, audios: audios };
+  });
+  return items.length ? registrarEnBiblioteca_(items, comunidad, u) : [];
+}
+
+function biblioteca_() {
+  return { ok: true, canciones: leerBiblioteca_().canciones };
+}
+
+function cancionBiblioteca_(id) {
+  var e = leerBiblioteca_().canciones.filter(function (x) { return x.id === id; })[0];
+  if (!e) throw new Error('Canción no encontrada');
+  return { ok: true, cancion: e, texto: DriveApp.getFileById(e.mdId).getBlob().getDataAsString('UTF-8') };
+}
+
+// Respaldo por si el navegador no puede reproducir el enlace directo de Drive
+function audioBiblioteca_(fileId) {
+  var usado = leerBiblioteca_().canciones.some(function (c) {
+    return (c.audios || []).some(function (a) { return a.fileId === fileId; });
+  });
+  if (!usado) throw new Error('Audio no encontrado');
+  var f = DriveApp.getFileById(fileId);
+  return { ok: true, base64: Utilities.base64Encode(f.getBlob().getBytes()), mime: f.getMimeType(), nombre: f.getName() };
+}
+
+function subirAudioBiblioteca_(d) {
+  conPrivilegios_(usuarioDeToken_(d.token));
+  var bytes = Utilities.base64Decode(String(d.base64 || ''));
+  if (bytes.length > MAX_ARCHIVO_BYTES) throw new Error('El audio supera los 30 MB');
+  var nombre = String(d.nombre || 'audio').replace(/[\/\\]/g, '-').slice(0, 150);
+  var id = guardarAudioBiblioteca_(nombre, bytes.length, function (carpeta) {
+    return carpeta.createFile(Utilities.newBlob(bytes, d.mime || 'application/octet-stream', nombre));
+  });
+  return { fileId: id };
+}
+
+function subirCancion_(d) {
+  var u = conPrivilegios_(usuarioDeToken_(d.token));
+  var texto = String(d.md || '');
+  if (!texto.trim()) throw new Error('La canción está vacía');
+  if (texto.length > 500000) throw new Error('La canción es demasiado grande');
+  var audiosBib = carpetaBiblioteca_('audios');
+  var audios = (Array.isArray(d.audios) ? d.audios : []).slice(0, 20).map(function (a) {
+    var nombre = String(a.nombre || '').slice(0, 150), voz = String(a.voz || '').slice(0, 30);
+    if (a.fileId) {
+      var f;
+      try { f = DriveApp.getFileById(String(a.fileId)); } catch (_) { return null; }
+      return enCarpeta_(f, audiosBib) ? { nombre: nombre || f.getName(), voz: voz, fileId: f.getId() } : null;
+    }
+    return /^https?:\/\//i.test(String(a.url || '')) ? { nombre: nombre || a.url, voz: voz, url: String(a.url) } : null;
+  }).filter(Boolean);
+  var comunidad = COMUNIDADES[d.comunidad] ? d.comunidad : (u.comunidad || '');
+  var e = registrarEnBiblioteca_([{ texto: texto, cab: cabeceraMd_(texto, d.nombre), audios: audios }], comunidad, u)[0];
+  auditar_({ tipo: 'cancion_subida', email: u.email, nombre: u.nombre, titulo: e.titulo });
+  return { cancion: e };
+}
+
+// ==================== CANCIONEROS DE MISA ====================
+// misas.json (público): nombre, fecha, momentos y canciones. Ensayos y asistencia en sistema/ensayos.json.
+
+function leerMisas_() {
+  var data = leerJson_(raiz_(), 'misas.json', null);
+  if (!data || !data.misas) data = { v: 1, misas: [] };
+  return data;
+}
+
+function buscarMisa_(id) {
+  var m = leerMisas_().misas.filter(function (x) { return x.id === id; })[0];
+  if (!m) throw new Error('Cancionero no encontrado');
+  return m;
+}
+
+function fecha_(s) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? String(s) : '';
+}
+
+function texto_(s, max) {
+  return String(s == null ? '' : s).trim().slice(0, max);
+}
+
+function listarMisas_(p) {
+  var lista = leerMisas_().misas;
+  if (p && p.comunidad) lista = lista.filter(function (m) { return m.comunidad === p.comunidad; });
+  lista = lista.slice().sort(function (a, b) { return String(b.fechaUso || b.creado).localeCompare(String(a.fechaUso || a.creado)); });
+  return { ok: true, misas: lista };
+}
+
+function limpiarMomentos_(lista) {
+  return (Array.isArray(lista) ? lista : []).slice(0, 40).map(function (m) {
+    return {
+      momento: texto_(m.momento, 60) || 'Momento',
+      canciones: (Array.isArray(m.canciones) ? m.canciones : []).slice(0, 10).map(function (c) {
+        return { cancionId: texto_(c.cancionId, 120), desplazamiento: Math.max(-11, Math.min(11, Math.round(Number(c.desplazamiento) || 0))) };
+      }).filter(function (c) { return c.cancionId; })
+    };
+  });
+}
+
+function guardarMisa_(d) {
+  var u = usuarioDeToken_(d.token);
+  var m = d.misa || {};
+  var comunidad = String(m.comunidad || '');
+  if (!COMUNIDADES[comunidad]) throw new Error('Elegí la comunidad');
+  if (!puedeEditar_(u, comunidad)) throw new Error('No tenés permiso para guardar cancioneros de ' + COMUNIDADES[comunidad]);
+  var nombre = texto_(m.nombre, 120);
+  if (!nombre) throw new Error('Escribí el nombre del cancionero');
+  var misa = conCandado_(function () {
+    var data = leerMisas_();
+    var previa = m.id ? data.misas.filter(function (x) { return x.id === m.id; })[0] : null;
+    if (previa && !puedeEditar_(u, previa.comunidad)) throw new Error('No tenés permiso para modificar este cancionero');
+    var nueva = {
+      id: previa ? previa.id : 'm-' + Date.now(),
+      nombre: nombre, comunidad: comunidad, comunidadNombre: COMUNIDADES[comunidad],
+      fechaUso: fecha_(m.fechaUso), tiempoLiturgico: texto_(m.tiempoLiturgico, 60), coroId: texto_(m.coroId, 40),
+      momentos: limpiarMomentos_(m.momentos),
+      autor: previa ? previa.autor : u.email, autorNombre: previa ? previa.autorNombre : u.nombre,
+      creado: previa ? previa.creado : ahora_(), actualizado: ahora_()
+    };
+    data.misas = data.misas.filter(function (x) { return x.id !== nueva.id; });
+    data.misas.unshift(nueva);
+    escribirJson_(raiz_(), 'misas.json', data);
+    return nueva;
+  });
+  if (d.ensayos) escribirEnsayos_(misa.id, d.ensayos);
+  auditar_({ tipo: 'misa_guardada', email: u.email, nombre: u.nombre, titulo: misa.nombre, comunidad: comunidad });
+  return { misa: misa };
+}
+
+function borrarMisa_(d) {
+  var u = usuarioDeToken_(d.token);
+  var m = buscarMisa_(d.id);
+  if (!puedeEditar_(u, m.comunidad)) throw new Error('No tenés permiso para borrar este cancionero');
+  conCandado_(function () {
+    var data = leerMisas_();
+    data.misas = data.misas.filter(function (x) { return x.id !== m.id; });
+    escribirJson_(raiz_(), 'misas.json', data);
+    var ens = leerJson_(sistema_(), 'ensayos.json', {});
+    delete ens[m.id];
+    escribirJson_(sistema_(), 'ensayos.json', ens);
+  });
+  auditar_({ tipo: 'misa_borrada', email: u.email, nombre: u.nombre, titulo: m.nombre });
+  return {};
+}
+
+function limpiarEnsayos_(e) {
+  e = e || {};
+  var vistas = {};
+  return {
+    fechasPosibles: (Array.isArray(e.fechasPosibles) ? e.fechasPosibles : []).map(fecha_)
+      .filter(function (f) { return f && !vistas[f] && (vistas[f] = true); }).sort().slice(0, 60),
+    realizados: (Array.isArray(e.realizados) ? e.realizados : []).slice(0, 60).map(function (r) {
+      return {
+        fecha: fecha_(r.fecha),
+        presentes: (Array.isArray(r.presentes) ? r.presentes : []).slice(0, 200).map(function (p) { return texto_(p, 60); }).filter(Boolean),
+        nota: texto_(r.nota, 500)
+      };
+    }).filter(function (r) { return r.fecha; }).sort(function (a, b) { return a.fecha.localeCompare(b.fecha); })
+  };
+}
+
+function escribirEnsayos_(id, e) {
+  return conCandado_(function () {
+    var ens = leerJson_(sistema_(), 'ensayos.json', {});
+    ens[id] = limpiarEnsayos_(e);
+    escribirJson_(sistema_(), 'ensayos.json', ens);
+    return ens[id];
+  });
+}
+
+function exigirComunidad_(u, comunidad) {
+  if (!puedeEditar_(u, comunidad)) throw new Error('Solo quienes tienen permisos en esta comunidad pueden ver estos datos.');
+}
+
+function leerEnsayos_(d) {
+  var u = usuarioDeToken_(d.token);
+  var m = buscarMisa_(d.id);
+  exigirComunidad_(u, m.comunidad);
+  return { ensayos: leerJson_(sistema_(), 'ensayos.json', {})[m.id] || { fechasPosibles: [], realizados: [] } };
+}
+
+function guardarEnsayos_(d) {
+  var u = usuarioDeToken_(d.token);
+  var m = buscarMisa_(d.id);
+  exigirComunidad_(u, m.comunidad);
+  return { ensayos: escribirEnsayos_(m.id, d.ensayos) };
+}
+
+// ==================== COROS ====================
+// sistema/coros.json (privado): coros con sus integrantes y conocimientos musicales.
+
+var VOCES_CORO = ['soprano', 'contralto', 'tenor', 'bajo'];
+var NIVELES_CORO = ['basico', 'intermedio', 'avanzado'];
+
+function comunidadValida_(c) {
+  return c === 'parroquia' || !!COMUNIDADES[c];
+}
+
+function limpiarIntegrante_(i, comunidadCoro) {
+  i = i || {};
+  return {
+    id: /^i-[\w-]{1,40}$/.test(String(i.id || '')) ? i.id : 'i-' + Utilities.getUuid().slice(0, 8),
+    nombre: texto_(i.nombre, 100),
+    comunidad: comunidadValida_(i.comunidad) ? i.comunidad : comunidadCoro,
+    fechaIncorporacion: fecha_(i.fechaIncorporacion),
+    voz: VOCES_CORO.indexOf(i.voz) >= 0 ? i.voz : '',
+    instrumentos: texto_(i.instrumentos, 200),
+    leePartitura: !!i.leePartitura,
+    nivel: NIVELES_CORO.indexOf(i.nivel) >= 0 ? i.nivel : '',
+    notas: texto_(i.notas, 500),
+    activo: i.activo !== false
+  };
+}
+
+function listarCoros_(d) {
+  var u = conPrivilegios_(usuarioDeToken_(d.token));
+  return { coros: leerJson_(sistema_(), 'coros.json', []).filter(function (c) { return puedeEditar_(u, c.comunidad); }) };
+}
+
+function guardarCoro_(d) {
+  var u = conPrivilegios_(usuarioDeToken_(d.token));
+  var c = d.coro || {};
+  var comunidad = String(c.comunidad || '');
+  if (!comunidadValida_(comunidad)) throw new Error('Elegí la comunidad del coro');
+  exigirComunidad_(u, comunidad);
+  var nombre = texto_(c.nombre, 100);
+  if (!nombre) throw new Error('Escribí el nombre del coro');
+  var coro = conCandado_(function () {
+    var lista = leerJson_(sistema_(), 'coros.json', []);
+    var previo = c.id ? lista.filter(function (x) { return x.id === c.id; })[0] : null;
+    if (previo) exigirComunidad_(u, previo.comunidad);
+    var nuevo = {
+      id: previo ? previo.id : 'coro-' + Date.now(),
+      nombre: nombre, comunidad: comunidad,
+      integrantes: (Array.isArray(c.integrantes) ? c.integrantes : []).slice(0, 200)
+        .map(function (i) { return limpiarIntegrante_(i, comunidad); }).filter(function (i) { return i.nombre; }),
+      creado: previo ? previo.creado : ahora_(), actualizado: ahora_(), modificadoPor: u.email
+    };
+    lista = lista.filter(function (x) { return x.id !== nuevo.id; });
+    lista.push(nuevo);
+    escribirJson_(sistema_(), 'coros.json', lista);
+    return nuevo;
+  });
+  auditar_({ tipo: 'coro_guardado', email: u.email, nombre: u.nombre, titulo: coro.nombre, comunidad: comunidad });
+  return { coro: coro };
+}
+
+function borrarCoro_(d) {
+  var u = conPrivilegios_(usuarioDeToken_(d.token));
+  conCandado_(function () {
+    var lista = leerJson_(sistema_(), 'coros.json', []);
+    var c = lista.filter(function (x) { return x.id === d.id; })[0];
+    if (!c) return;
+    exigirComunidad_(u, c.comunidad);
+    escribirJson_(sistema_(), 'coros.json', lista.filter(function (x) { return x !== c; }));
+  });
+  auditar_({ tipo: 'coro_borrado', email: u.email, nombre: u.nombre, id: d.id });
   return {};
 }
 
