@@ -2,7 +2,7 @@
 """
 subir-canciones.py — Aplicación de escritorio: encuentra las canciones .md que el editor guardó en esta
 computadora, muestra cuáles faltan o cambiaron frente a la Biblioteca de la parroquia (el Drive de
-cancionerolitugico@gmail.com) y las sube con sus audios convertidos a WebM.
+cancionerolitugico@gmail.com) y las sube con sus audios convertidos a AAC (.m4a), que suenan en todos los equipos.
 
     scripts/subir-canciones.py [CARPETA_O_ARCHIVO.md ...]
 
@@ -87,7 +87,7 @@ class Ventana(Gtk.ApplicationWindow):
             "<b>2.</b> Mirá qué pasa con cada una: las <span foreground='#1a7f37'><b>nuevas</b></span> y las "
             "<span foreground='#b35900'><b>cambiadas</b></span> ya vienen marcadas; las que ya están en la Biblioteca no aparecen.   "
             "<b>3.</b> Tocá <b>Subir las marcadas</b>: quedan en la Biblioteca de la parroquia "
-            "(Drive de cancionerolitugico@gmail.com) con sus audios en WebM.")
+            "(Drive de cancionerolitugico@gmail.com) con sus audios en AAC (.m4a), que suenan en iPhone, Mac, Android y PC.")
         caja.pack_start(guia, False, False, 0)
 
         fila = Gtk.Box(spacing=8)
@@ -142,8 +142,8 @@ class Ventana(Gtk.ApplicationWindow):
         caja.pack_start(desliz, True, True, 0)
 
         fila = Gtk.Box(spacing=12)
-        self.chk_videos = Gtk.CheckButton(label="Convertir los videos (YouTube…) a WebM y subirlos", active=True)
-        self.chk_videos.set_tooltip_text("Si no, quedan como enlace al video. En WebM suenan en el sitio sin depender de YouTube.")
+        self.chk_videos = Gtk.CheckButton(label="Convertir los videos (YouTube…) a audio .m4a y subirlos", active=True)
+        self.chk_videos.set_tooltip_text("Si no, quedan como enlace al video. En .m4a suenan en el sitio y en cualquier celular sin depender de YouTube.")
         fila.pack_start(self.chk_videos, False, False, 0)
         fila.pack_start(Gtk.Label(label="Comunidad de las nuevas:"), False, False, 0)
         self.cmb_comunidad = Gtk.ComboBoxText()

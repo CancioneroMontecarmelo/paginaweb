@@ -1410,10 +1410,6 @@
   justify-self: start;
 }
 
-.aviso-webm {
-  color: var(--texto-suave);
-}
-
 .misas-toast {
   position: fixed;
   left: 50%;

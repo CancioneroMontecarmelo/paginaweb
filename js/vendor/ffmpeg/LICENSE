@@ -1,0 +1,5 @@
+ffmpeg.wasm (@ffmpeg/ffmpeg 0.12.15), MIT License — https://github.com/ffmpegwasm/ffmpeg.wasm
+Copyright (c) 2019 Jerome Wu
+
+El núcleo (@ffmpeg/core 0.12.10, GPL-2.0-or-later) no está en este repositorio: se descarga de jsDelivr
+solo cuando hace falta convertir (js/audio-aac.js).

@@ -14,7 +14,7 @@
 
 import { llamarApi, sesionActual, puedeEditar, initNavSitio, comunidadesOpciones, ROLES } from "./auth.js";
 import { COMUNIDADES } from "./comunidades.js";
-import { aWebm, esAudio, esAudioWebm, grabador } from "./audio-webm.js";
+import { aM4a, esAudio, esM4a, grabador } from "./audio-aac.js";
 import { leerEtiquetasAudio } from "./etiquetas-audio.js";
 import {
   MOMENTOS_MISA, TIEMPOS, claveMomento, esDelMomento, momentoPorLetra, ordenMomento, hoyIso, proximoDomingo, fechaLarga,
@@ -861,12 +861,6 @@ function pintarAudios(entrada) {
     }
     return div;
   }));
-  if (lista.some((a) => a.fileId) && !reproduceWebm) {
-    const aviso = document.createElement("small");
-    aviso.className = "aviso-webm";
-    aviso.textContent = "Si un audio no suena: este equipo no reproduce WebM; probá con Chrome o actualizá el sistema.";
-    box.prepend(aviso);
-  }
   if (puedeAgregar) {
     const b = document.createElement("button");
     b.type = "button";
@@ -885,6 +879,9 @@ async function audioDeRespaldo(au, fileId) {
   au.after(aviso);
   try {
     const r = await leer({ accion: "audio", id: fileId });
+    if (/webm/i.test(r.mime || r.nombre || "") && !reproduceWebm) {
+      throw new Error("este audio todavía está en el formato anterior (WebM), que este equipo no reproduce. Cuando la Biblioteca termine de pasar a .m4a va a sonar.");
+    }
     const bytes = Uint8Array.from(atob(r.base64), (ch) => ch.charCodeAt(0));
     au.src = URL.createObjectURL(new Blob([bytes], { type: r.mime || "audio/mpeg" }));
     aviso.remove();
@@ -1601,7 +1598,7 @@ function conectarCoro() {
 
 // ============ DIÁLOGO: CANCIONES Y AUDIOS ============
 // Canción nueva (.md + audios, o solo audios) o audios para una canción de la Biblioteca. Los audios se
-// convierten a WebM en el navegador apenas se agregan, se suben a Biblioteca/audios y quedan vinculados
+// convierten a AAC (.m4a) en el navegador apenas se agregan, se suben a Biblioteca/audios y quedan vinculados
 // al .md. Con solo audios, el .md se arma con lo que traen sus etiquetas (Editag: letra y acordes, título,
 // momentos) o queda solo con el título, para completarlo después en el editor.
 
@@ -1686,15 +1683,18 @@ async function agregarArchivos(lista, { grabacion = false } = {}) {
 
 async function convertirItem(it) {
   if (!sub.items.includes(it)) return;
-  it.estado = "Convirtiendo a WebM…";
+  it.estado = "Convirtiendo a .m4a…";
   pintarEstado(it);
   try {
-    const r = await aWebm(it.archivo, (x) => {
-      it.estado = `Convirtiendo a WebM ${Math.round(x * 100)} %`;
+    const r = await aM4a(it.archivo, (x) => {
+      it.estado = `Convirtiendo a .m4a ${Math.round(x * 100)} %`;
       pintarEstado(it);
-    }, { forzar: it.grabacion });
+    }, {
+      forzar: it.grabacion,
+      alEstado: (t) => { it.estado = t; pintarEstado(it); }
+    });
     it.listo = r.archivo;
-    it.estado = (esAudioWebm(r.archivo) ? "WebM · " : "") + mb(r.archivo.size) + (r.aviso ? " · " + r.aviso : "");
+    it.estado = (esM4a(r.archivo) ? ".m4a · " : "") + mb(r.archivo.size) + (r.aviso ? " · " + r.aviso : "");
     if (r.archivo.size > MAX_SUBIDA) it.error = `Pesa ${mb(r.archivo.size)}: el máximo es 30 MB.`;
   } catch (e) {
     it.error = e.message;
@@ -1796,7 +1796,7 @@ function pintarSubir() {
     ? "Con una sola canción (.md), todos los audios se le vinculan; con varias, cada audio va a la canción cuyo .md lo nombra. " +
       "También se pueden subir solo audios: cada uno queda como canción con el título que le pongas (los de igual título van juntos) " +
       "y, si el MP3 trae letra y acordes en sus etiquetas (Editag), se usan. La letra se completa después en el editor (Archivo → Abrir → Canción de la Biblioteca y después Guardar canción en la Biblioteca): queda unida a sus audios."
-    : "Elegí la canción y agregá los audios: se convierten a WebM, se guardan en el Drive de la parroquia y quedan vinculados a su .md.";
+    : "Elegí la canción y agregá los audios: se convierten a .m4a (suenan en todos los equipos), se guardan en el Drive de la parroquia y quedan vinculados a su .md.";
   $("#s-enviar").textContent = nueva ? "Subir" : "Vincular audios";
   if (!nueva) {
     pintarSelectorCancion();
@@ -1894,7 +1894,7 @@ async function subirAudiosItems(audios, tituloCancion) {
       it.estado = `Subiendo ${i + 1} de ${audios.length}…`;
       pintarEstado(it);
       const r = await llamarApi("subirAudioBiblioteca", {
-        token: token(), nombre: it.listo.name, mime: it.listo.type || "audio/webm",
+        token: token(), nombre: it.listo.name, mime: it.listo.type || "audio/mp4",
         base64: await archivoBase64(it.listo), cancion: tituloCancion, voz: it.voz
       });
       it.fileId = r.fileId;

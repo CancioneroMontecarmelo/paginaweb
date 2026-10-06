@@ -70,6 +70,23 @@
       </div>
       <p class="msg-ok" data-clave-msg hidden></p>
 
+      <div id="audios-aac" class="audios-aac" hidden>
+        <h2 class="auth-h2">Audios de la Biblioteca</h2>
+        <p class="aviso">Pasa a AAC (.m4a) los audios que todavía están en el formato anterior (WebM), para que suenen
+          dentro de la página en iPhone, Mac, Android y PC, y también en cualquier reproductor. Cada audio conserva su
+          enlace. Solo lo ve el administrador general.</p>
+        <p id="aac-resumen"></p>
+        <div class="acciones-form">
+          <button type="button" class="btn btn-primario" id="aac-iniciar" hidden>Convertir todo a AAC (.m4a)</button>
+          <button type="button" class="btn btn-secundario" id="aac-pausar" hidden>Pausar</button>
+          <button type="button" class="btn btn-secundario" id="aac-contar">Volver a contar</button>
+        </div>
+        <progress id="aac-progreso" class="aac-progreso" max="1" value="0" hidden></progress>
+        <p class="aviso" id="aac-estado" aria-live="polite"></p>
+        <p class="aviso" id="aac-cuenta"></p>
+        <ul class="aac-errores" id="aac-errores" hidden></ul>
+      </div>
+
       <h2 class="auth-h2">Registro de entradas</h2>
       <div id="lista-auditoria" class="lista-auditoria"></div>
 
@@ -169,6 +186,11 @@
           " (" + NOMBRES_ROL[s.rol] + ") · " + s.email);
         refrescarAuditoria();
         refrescarVisitantes();
+        if (s.rol === "admin_general" && $("audios-aac").hidden) {
+          import("./js/convertir-audios.js")
+            .then((m) => m.iniciarConversionAudios({ caja: $("audios-aac"), llamarApi, token: () => sesionActual()?.token || "" }))
+            .catch((err) => console.warn("Conversión de audios:", err));
+        }
         return;
       }
       mostrar("panel-sesion");

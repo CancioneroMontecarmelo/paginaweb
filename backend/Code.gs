@@ -110,6 +110,9 @@ var ACCIONES = {
   borrarCancionero: borrarCancionero_,
   listar: listar_,
   subirAudioBiblioteca: subirAudioBiblioteca_,
+  audiosAConvertir: audiosAConvertir_,
+  leerAudioAConvertir: leerAudioAConvertir_,
+  reemplazarAudio: reemplazarAudio_,
   subirCancion: subirCancion_,
   vincularAudio: vincularAudio_,
   desvincularAudio: desvincularAudio_,
@@ -908,21 +911,87 @@ function subirAudioBiblioteca_(d) {
   var bytes = Utilities.base64Decode(String(d.base64 || ''));
   if (bytes.length > MAX_ARCHIVO_BYTES) throw new Error('El audio supera los 30 MB');
   var nombre = nombreAudio_(d);
-  var mime = /\.webm$/i.test(nombre) ? 'audio/webm' : String(d.mime || 'application/octet-stream');
   var id = guardarAudioBiblioteca_(nombre, bytes.length, function (carpeta) {
-    return carpeta.createFile(Utilities.newBlob(bytes, mime, nombre));
+    return carpeta.createFile(Utilities.newBlob(bytes, mimeAudio_(nombre, d.mime), nombre));
   });
   return { fileId: id, nombre: nombre };
+}
+
+var MIMES_AUDIO_ = { m4a: 'audio/mp4', mp4: 'audio/mp4', aac: 'audio/aac', mp3: 'audio/mpeg', webm: 'audio/webm', weba: 'audio/webm', ogg: 'audio/ogg', opus: 'audio/ogg', wav: 'audio/wav' };
+function mimeAudio_(nombre, mime) {
+  var ext = (String(nombre).match(/\.([a-z0-9]{2,5})$/i) || [, ''])[1].toLowerCase();
+  return MIMES_AUDIO_[ext] || String(mime || 'application/octet-stream');
 }
 
 // <canción>-<voz>-<fecha>.<ext>: así la carpeta Biblioteca/audios queda ordenada al abrirla en Drive
 function nombreAudio_(d) {
   var original = String(d.nombre || 'audio').replace(/[\/\\]/g, '-');
-  var ext = (original.match(/\.([a-z0-9]{2,5})$/i) || [, 'webm'])[1].toLowerCase();
+  var ext = (original.match(/\.([a-z0-9]{2,5})$/i) || [, 'm4a'])[1].toLowerCase();
   var base = slug_(d.cancion || original.replace(/\.[^.]+$/, ''));
   var voz = d.voz && d.voz !== 'todas' ? '-' + slug_(d.voz) : '';
   var fecha = d.cancion ? '-' + ahora_().slice(0, 16).replace('T', '-').replace(':', '') : '';
   return (base + voz + fecha).slice(0, 140) + '.' + ext;
+}
+
+// ==================== CONVERSIÓN DE LOS AUDIOS A AAC (.m4a) ====================
+// Panel del administrador general (login.html): los audios de la Biblioteca que todavía no están en un formato
+// que suene en todos los equipos (AAC .m4a o MP3) se convierten en su navegador y se reemplaza el contenido del
+// mismo archivo de Drive. El id no cambia: biblioteca.json, los .md y los cancioneros publicados siguen igual.
+// Drive guarda la versión anterior (el WebM) como revisión durante 30 días.
+var AUDIO_UNIVERSAL_RE_ = /\.(m4a|mp3)$/i;
+
+function soloAdminGeneral_(token) {
+  var u = usuarioDeToken_(token);
+  if (u.rol !== 'admin_general') throw new Error('Solo el administrador general puede convertir los audios.');
+  return u;
+}
+
+function audioDeLaBiblioteca_(fileId) {
+  var f;
+  try { f = DriveApp.getFileById(String(fileId || '')); } catch (_) { throw new Error('Audio no encontrado'); }
+  if (!enCarpeta_(f, carpetaBiblioteca_('audios'))) throw new Error('Ese archivo no es un audio de la Biblioteca');
+  return f;
+}
+
+function audiosAConvertir_(d) {
+  soloAdminGeneral_(d.token);
+  var usados = {};
+  leerBiblioteca_().canciones.forEach(function (c) {
+    (c.audios || []).forEach(function (a) {
+      if (a.fileId && !usados[a.fileId]) usados[a.fileId] = { cancion: c.titulo, voz: a.voz || '' };
+    });
+  });
+  var pendientes = [], convertidos = 0, bytesPendientes = 0, bytesTotal = 0;
+  var it = carpetaBiblioteca_('audios').getFiles();
+  while (it.hasNext()) {
+    var f = it.next(), id = f.getId(), uso = usados[id];
+    if (!uso) continue;
+    var nombre = f.getName(), tam = f.getSize();
+    bytesTotal += tam;
+    if (AUDIO_UNIVERSAL_RE_.test(nombre)) { convertidos++; continue; }
+    bytesPendientes += tam;
+    pendientes.push({ fileId: id, nombre: nombre, tamano: tam, mime: f.getMimeType(), cancion: uso.cancion, voz: uso.voz });
+  }
+  pendientes.sort(function (a, b) { return a.cancion.localeCompare(b.cancion); });
+  return { pendientes: pendientes, convertidos: convertidos, bytesPendientes: bytesPendientes, bytesTotal: bytesTotal };
+}
+
+function leerAudioAConvertir_(d) {
+  soloAdminGeneral_(d.token);
+  var f = audioDeLaBiblioteca_(d.fileId);
+  return { base64: Utilities.base64Encode(f.getBlob().getBytes()), mime: f.getMimeType(), nombre: f.getName() };
+}
+
+function reemplazarAudio_(d) {
+  soloAdminGeneral_(d.token);
+  var f = audioDeLaBiblioteca_(d.fileId);
+  var bytes = Utilities.base64Decode(String(d.base64 || ''));
+  if (!bytes.length || bytes.length > MAX_ARCHIVO_BYTES) throw new Error('El audio convertido está vacío o supera los 30 MB');
+  var firma = String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7]);
+  if (firma !== 'ftyp') throw new Error('Lo recibido no es un archivo .m4a válido');
+  var nombre = f.getName().replace(/\.[^.]+$/, '') + '.m4a';
+  Drive.Files.update({ name: nombre, mimeType: 'audio/mp4' }, f.getId(), Utilities.newBlob(bytes, 'audio/mp4', nombre));
+  return { fileId: f.getId(), nombre: nombre, tamano: bytes.length };
 }
 
 function buscarCancionBib_(bib, id) {

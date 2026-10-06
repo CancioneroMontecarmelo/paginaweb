@@ -2,7 +2,7 @@
  * etiquetas-audio.js — Lee del ID3 de un MP3 lo que escribe Editag (Mp3editag/js/id3.js):
  * título (TIT2), artista (TPE1), etiquetas (TCON), letra con acordes (TXXX «MP3EDITAG», antes «CIC»),
  * letra simple (USLT) y momentos y tiempos litúrgicos (TXXX «LITURGICAL_MOMENTS» / «LITURGICAL_SEASONS»).
- * Los audios se convierten a WebM al subirlos y el WebM no conserva estas etiquetas: se leen antes.
+ * Los audios se convierten a .m4a al subirlos y la conversión no conserva estas etiquetas: se leen antes.
  */
 
 const MARCAS_LETRA = ["mp3editag_meta_v1", "cic_meta_v1"];

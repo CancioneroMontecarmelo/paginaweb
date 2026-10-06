@@ -504,13 +504,14 @@ async function mcGuardarCancion() {
       const n = locales.indexOf(a) + 1;
       const blob = a.objectUrl ? await fetch(a.objectUrl).then(r => r.blob()).catch(() => null) : null;
       if (!blob) { faltan++; continue; }
-      conv ||= await import(new URL('../js/audio-webm.js', document.baseURI).href);
+      conv ||= await import(new URL('../js/audio-aac.js', document.baseURI).href);
       const archivo = new File([blob], fileBase(a.src, true) || (a.name || 'audio') + '.' + (mediaExt(a.src) || 'mp3'), { type: blob.type });
-      const r = await conv.aWebm(archivo, x => avance(`Audio ${n} de ${locales.length}: convirtiendo a WebM ${Math.round(x * 100)} %`, (n - 1 + x * 0.7) / (locales.length + 1)));
+      const r = await conv.aM4a(archivo, x => avance(`Audio ${n} de ${locales.length}: convirtiendo a .m4a ${Math.round(x * 100)} %`, (n - 1 + x * 0.7) / (locales.length + 1)),
+        { titulo, alEstado: t => avance(t, (n - 1) / (locales.length + 1)) });
       if (r.archivo.size > MC_MAX_ARCHIVO) throw new Error(`El audio «${a.name}» pesa más de 30 MB.`);
       avance(`Audio ${n} de ${locales.length}: subiendo…`, (n - 0.3) / (locales.length + 1));
       const sub = await mcApi('subirAudioBiblioteca', {
-        token: s.token, nombre: r.archivo.name, mime: r.archivo.type || 'audio/webm', base64: await mcBase64(r.archivo), cancion: titulo, voz: voz(a)
+        token: s.token, nombre: r.archivo.name, mime: r.archivo.type || 'audio/mp4', base64: await mcBase64(r.archivo), cancion: titulo, voz: voz(a)
       });
       enviados.push({ nombre: a.name, voz: voz(a), fileId: sub.fileId });
       enMd.push({ name: a.name, src: mcDriveAudioUrl(sub.fileId), voice: a.voice });

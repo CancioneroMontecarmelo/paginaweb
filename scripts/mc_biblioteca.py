@@ -1,6 +1,6 @@
 """
 mc_biblioteca.py — Lo común a scripts/video-a-webm.py y scripts/subir-canciones.py: el servidor de la
-parroquia (Apps Script), la clave guardada, el formato de las canciones .md y la conversión a WebM.
+parroquia (Apps Script), la clave guardada, el formato de las canciones .md y la conversión a AAC (.m4a).
 """
 
 import base64
@@ -24,6 +24,7 @@ SITIO_URL = "https://cancioneromontecarmelo.github.io/paginaweb/"
 API_POR_DEFECTO = ("https://script.google.com/macros/s/AKfycbypubIfWZ2gsFaSnCEBj7Cy5Rcp3SPCloukVlz7bFF2ZzLB2rv_jg0_oSGe_raQ897X/exec")
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "montecarmelo" / "sesion.json"
 MAX_BYTES = 30 * 1024 * 1024  # MAX_ARCHIVO_BYTES en backend/Code.gs
+ARTISTA = "Parroquia Monte Carmelo"
 COMUNIDADES = {
     "maria-de-nazaret": "Capilla María de Nazaret",
     "san-pablo-apostol": "San Pablo Apóstol",
@@ -258,16 +259,17 @@ def canales_y_duracion(archivo):
     return int(datos["streams"][0].get("channels") or 2), float(datos.get("format", {}).get("duration") or 0)
 
 
-def a_webm(origen, destino, titulo, letra=""):
-    """Opus a 48 kHz: 96 kbps en estéreo y 64 kbps en mono, igual que aWebm en js/audio-webm.js."""
+def a_m4a(origen, destino, titulo, letra=""):
+    """AAC (.m4a) a 48 kHz: 96 kbps en estéreo y 64 kbps en mono, igual que aM4a en js/audio-aac.js. Suena en
+    todos los equipos (iPhone, Mac, Android, PC) y con el índice al comienzo empieza a sonar sin bajarse entero."""
     exigir("ffmpeg", "Instalalo con: sudo apt install ffmpeg")
     canales, duracion = canales_y_duracion(origen)
     canales = 1 if canales == 1 else 2
     cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(origen), "-vn", "-sn", "-dn", "-map", "0:a:0",
-           "-map_metadata", "-1", "-c:a", "libopus", "-b:a", "96k" if canales == 2 else "64k", "-ac", str(canales), "-ar", "48000",
-           "-metadata", f"title={titulo}"]
+           "-map_metadata", "-1", "-c:a", "aac", "-b:a", "96k" if canales == 2 else "64k", "-ac", str(canales), "-ar", "48000",
+           "-movflags", "+faststart", "-metadata", f"title={titulo}", "-metadata", f"artist={ARTISTA}"]
     if letra:
-        cmd += ["-metadata", f"LYRICS={letra}"]
+        cmd += ["-metadata", f"lyrics={letra}"]
     subprocess.run(cmd + [str(destino)], check=True)
     tam = Path(destino).stat().st_size
     if tam > MAX_BYTES:
@@ -464,7 +466,7 @@ def resumen_audios(c):
 
 
 def subir_cancion_local(api, c, previa, comunidad="", convertir_videos=True, avance=aviso):
-    """Sube la canción con sus audios: los de la computadora (y los videos, si se pide) van a WebM y a la
+    """Sube la canción con sus audios: los de la computadora (y los videos, si se pide) van a AAC (.m4a) y a la
     Biblioteca; los enlaces quedan como enlace. Conserva los audios que la canción ya tenía."""
     ya = {a.get("nombre"): a for a in (previa or {}).get("audios") or [] if a.get("fileId")}
     quitar, nuevos = [], []
@@ -488,9 +490,9 @@ def subir_cancion_local(api, c, previa, comunidad="", convertir_videos=True, ava
                     origen, _ = bajar_enlace(a["src"], tmp)
                 else:
                     origen = a["ruta"]
-                avance(f"  {etiqueta}: convirtiendo a WebM…")
-                destino = Path(tmp) / (nombre_archivo(c["titulo"] + (" - " + VOCES.get(a["voz"], a["voz"]) if a["voz"] else "")) + f" {i}.webm")
-                tam, _ = a_webm(origen, destino, c["titulo"])
+                avance(f"  {etiqueta}: convirtiendo a AAC (.m4a)…")
+                destino = Path(tmp) / (nombre_archivo(c["titulo"] + (" - " + VOCES.get(a["voz"], a["voz"]) if a["voz"] else "")) + f" {i}.m4a")
+                tam, _ = a_m4a(origen, destino, c["titulo"])
             except (Error, subprocess.CalledProcessError) as e:
                 if a["tipo"] == "video":
                     avance(f"  {etiqueta}: no se pudo convertir ({e}); queda como enlace.")
@@ -500,7 +502,7 @@ def subir_cancion_local(api, c, previa, comunidad="", convertir_videos=True, ava
                     quitar.append(a["etiqueta"])
                 continue
             avance(f"  {etiqueta}: subiendo {tam / 1048576:.1f} MB…")
-            r = api.post("subirAudioBiblioteca", nombre=destino.name, mime="audio/webm",
+            r = api.post("subirAudioBiblioteca", nombre=destino.name, mime="audio/mp4",
                          base64=base64.b64encode(destino.read_bytes()).decode("ascii"),
                          cancion=(previa or {}).get("titulo") or c["titulo"], voz=a["voz"])
             nuevos.append({"nombre": a["nombre"], "voz": a["voz"], "fileId": r["fileId"]})

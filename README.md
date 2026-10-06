@@ -93,7 +93,7 @@ clasp update-deployment <ID de la implementación> -d "descripción"
 | `js/liturgia.js` | Calendario litúrgico y cantos sugeridos (común a Misas e Inicio) |
 | `ver.html` | Muestra un cancionero guardado en el Drive (`ver.html?id=…`) |
 | `js/config.js` | Dirección del Apps Script (`apiUrl`) e ID de cliente de Google (`googleClientId`) |
-| `scripts/video-a-webm.py` | Comando: audio de videos o enlaces a WebM y subida a la Biblioteca |
+| `scripts/video-a-webm.py` | Comando: audio de videos o enlaces a AAC (.m4a) y subida a la Biblioteca |
 | `scripts/subir-canciones.py` | Aplicación de escritorio: sube las canciones `.md` locales a la Biblioteca (`scripts/instalar-escritorio.sh` la pone en el menú) |
 | `respaldo-antes-drive/` | Copia de los audios y cancioneros anteriores al Drive |
 
@@ -131,7 +131,7 @@ En el Drive: `MonteCarmelo/actividades.json` (público), `MonteCarmelo/sistema/l
   igual que en Misas; marca las que tienen **solo audio** para escribirles la letra) o de este equipo · Cancionero del Drive, de este
   equipo o de la colección.
 - **Guardar** es siempre en el Drive de la parroquia: **Guardar canción en la Biblioteca** (Ctrl+S) sube
-  sus audios del equipo convertidos a WebM y la deja en la Biblioteca; si ya había una canción con el
+  sus audios del equipo convertidos a AAC (.m4a) y la deja en la Biblioteca; si ya había una canción con el
   mismo título subida solo con su audio, quedan unidas. **Guardar cancionero en el Drive…** (Ctrl+Alt+S).
 - **Guardar como (en este equipo)** ▸ Canción `.md` (Ctrl+Mayús+S) · Cancionero `.m3u8`.
 - **Compartir** ▸ por WhatsApp o por correo con el vínculo a su página (`ver.html`); si el cancionero
@@ -239,11 +239,16 @@ quedan como elegidas.
 ### Audios de la Biblioteca
 
 - Quedan en el Drive de la parroquia, en `MonteCarmelo/Biblioteca/audios`, con nombres ordenados
-  `<canción>-<voz>-<fecha>.webm`.
-- Se convierten a **WebM (Opus)** en el propio navegador antes de subirse (una canción de 4 minutos queda
-  en unos 3 MB). Sirven mp3, m4a, wav, ogg y el audio de un video. Si el equipo no puede convertir
-  (Safari viejo), se sube el archivo original y se avisa. Máximo 30 MB por audio ya convertido.
-- **Grabar con el micrófono**: la toma se escucha antes de subirla y también queda en WebM.
+  `<canción>-<voz>-<fecha>.m4a`.
+- Formato: **AAC-LC en .m4a** (48 kHz, 96 kbps estéreo o 64 kbps mono, índice al principio para que
+  empiece a sonar enseguida, con título y artista). Es el único formato compacto que suena en todos los
+  equipos: iPhone y Mac (también los viejos), Android, PC y cualquier reproductor externo. Una canción de
+  4 minutos queda en unos 3 MB.
+- Todo se convierte **antes de subir**: en Misas y en el editor, en el propio navegador; en la
+  aplicación de escritorio y en `video-a-webm.py`, con `ffmpeg`. Sirven mp3, m4a, wav, ogg, webm y el
+  audio de un video. Los `.m4a` se suben tal cual; si el equipo no puede convertir, un MP3 se sube
+  original y se avisa. Máximo 30 MB por audio ya convertido.
+- **Grabar con el micrófono**: la toma se escucha antes de subirla y también queda en .m4a.
 - Cada audio queda **vinculado al `.md`** de su canción: se agrega al índice (`biblioteca.json`) y se
   escribe en el `.md` la misma etiqueta que usa el editor,
   `<audio controls src="https://drive.google.com/uc?export=download&id=…" title="…" data-voz="…"></audio>`.
@@ -251,7 +256,21 @@ quedan como elegidas.
 - **Arrastrar y soltar**: en la computadora se sueltan los archivos en el diálogo (o en cualquier parte
   de la pantalla Misas, que lo abre). En el celular se toca la zona y se eligen desde Archivos, Drive o
   la grabadora; en Android y iPad también se puede arrastrar desde la pantalla dividida.
-- `js/audio-webm.js` hace la conversión con WebCodecs y `js/vendor/webm-muxer.mjs` (MIT) arma el WebM.
+- `js/audio-aac.js` hace la conversión: con WebCodecs y `js/vendor/mp4-muxer.mjs` (MIT) donde el
+  navegador codifica AAC (Safari, Chrome en Mac/Windows/Android) y, si no, con ffmpeg.wasm
+  (`js/vendor/ffmpeg/`, MIT; el núcleo de 32 MB se baja de jsDelivr solo la primera vez). Cada resultado
+  se comprueba (cabecera MP4, canales y duración) antes de subirlo.
+- Si el Drive no entrega el audio directo, Misas y las páginas `.html` exportadas lo piden al servidor de
+  la parroquia y lo reproducen dentro de la página: el celular ya no pregunta con qué app abrirlo.
+- **Pasar a .m4a los audios viejos** (solo el **administrador general**, en **Identificarse → Audios de
+  la Biblioteca**; los demás no lo ven): cuenta los audios que siguen en WebM u otro formato y los
+  convierte uno por uno en ese navegador, reemplazando el contenido del **mismo archivo** de Drive (el
+  enlace no cambia, así que `biblioteca.json`, los `.md` y los cancioneros publicados siguen funcionando;
+  Drive guarda la versión anterior 30 días). Se puede **Pausar** y **Seguir**, o cerrar y continuar otro
+  día; los que fallan quedan listados con **Reintentar**. Conviene dejarlo en una computadora enchufada:
+  con ffmpeg.wasm tarda unos segundos por audio. Lo hace `js/convertir-audios.js` con las acciones
+  `audiosAConvertir`, `leerAudioAConvertir` y `reemplazarAudio` del Apps Script (usa el servicio avanzado
+  de Drive).
 
 ### Aplicación de escritorio: subir canciones a la Biblioteca (`scripts/subir-canciones.py`)
 
@@ -265,7 +284,7 @@ de la parroquia (Drive de cancionerolitugico@gmail.com):
   hay que cambiar uno en el editor). Las nuevas y cambiadas vienen marcadas; **Seleccionar todas** y
   **Desmarcar todas** cambian la selección. Las que ya están en la Biblioteca no se muestran (el resumen
   las cuenta) y cada canción sale de la lista apenas termina de subirse.
-- Al subir, los audios de la computadora se convierten a WebM y se suben; los videos (YouTube…) también,
+- Al subir, los audios de la computadora se convierten a AAC (.m4a) y se suben; los videos (YouTube…) también,
   si se deja marcada la opción (si no, quedan como enlace); los enlaces a mp3 quedan como enlace. Un audio
   que ya estaba en la canción no se vuelve a subir. Usa la misma clave que `video-a-webm.py`
   (**Pegar la clave…**, con la guía para conseguirla en Identificarse).
@@ -276,16 +295,16 @@ y en **Abrir con** al hacer clic derecho en un `.md` (abre su carpeta con esa ca
 `--quitar` lo saca. Necesita `python3-gi`, `gir1.2-gtk-3.0` y `ffmpeg` (el instalador avisa si faltan).
 La lógica común con `video-a-webm.py` está en `scripts/mc_biblioteca.py`.
 
-### Convertir videos a WebM (`scripts/video-a-webm.py`)
+### Convertir videos a .m4a (`scripts/video-a-webm.py`)
 
-Comando para la computadora: saca el audio de **archivos de video** (mp4, mkv, mov…) o de **enlaces**
-(YouTube, Vimeo, TikTok…), lo deja en WebM (Opus, 48 kHz, 96 kbps estéreo o 64 kbps mono, como el
-navegador) y lo **sube a la Biblioteca** con título, etiquetas, letra y voz.
+Comando para la computadora (conserva el nombre de antes): saca el audio de **archivos de video** (mp4,
+mkv, mov…) o de **enlaces** (YouTube, Vimeo, TikTok…), lo deja en AAC .m4a (48 kHz, 96 kbps estéreo o
+64 kbps mono, como el navegador) y lo **sube a la Biblioteca** con título, etiquetas, letra y voz.
 
 ```bash
 scripts/video-a-webm.py https://youtu.be/XXXX --cancion "Santo Fones" --etiquetas "Santo, Tiempo ordinario"
 scripts/video-a-webm.py soprano.mp4 tenor.mp4 --cancion "Gloria" --voz soprano --voz tenor --letra gloria.txt
-scripts/video-a-webm.py ensayo.mov --sin-subir --salida ~/Música/webm     # solo convertir
+scripts/video-a-webm.py ensayo.mov --sin-subir --salida ~/Música/m4a      # solo convertir
 ```
 
 - **Necesita** Python 3 y `ffmpeg` (`sudo apt install ffmpeg`). Para los enlaces usa `yt-dlp`; si el de
@@ -302,5 +321,5 @@ scripts/video-a-webm.py ensayo.mov --sin-subir --salida ~/Música/webm     # sol
 - Si la canción **ya está en la Biblioteca** (mismo título), el audio se le suma y las etiquetas nuevas se
   agregan a las que tenía. Su letra solo se reemplaza con `--letra`, y si ya tenía letra pregunta antes
   (`--si` responde que sí).
-- Siempre deja en `--salida` (por defecto, la carpeta actual) el `.webm` y el `.md` de la canción, que se
+- Siempre deja en `--salida` (por defecto, la carpeta actual) el `.m4a` y el `.md` de la canción, que se
   pueden abrir en el editor o subir después desde **Misas → Canciones y audios**. Máximo 30 MB por audio.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 video-a-webm.py — Saca el audio de videos (archivos o enlaces de YouTube, Vimeo, TikTok…), lo deja en
-WebM (Opus, 48 kHz, como los audios de la Biblioteca) y lo sube a la Biblioteca de la parroquia con su
+AAC .m4a (48 kHz, como los audios de la Biblioteca: suena en iPhone, Mac, Android y PC) y lo sube a la Biblioteca de la parroquia con su
 título, etiquetas, letra y voz.
 
     scripts/video-a-webm.py VIDEO_O_ENLACE [...] --cancion "Santo Fones" \
@@ -29,7 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mc_biblioteca import (  # noqa: E402
-    COMUNIDADES, CONFIG, EXT_VIDEO_AUDIO, SITIO_URL, VOCES, Api, Error, a_webm, api_de_config, armar_md, aviso,
+    COMUNIDADES, CONFIG, EXT_VIDEO_AUDIO, SITIO_URL, VOCES, Api, Error, a_m4a, api_de_config, armar_md, aviso,
     bajar_enlace, cambiar_etiquetas_md, clave_guardada, clave_vigente, datos_clave, es_enlace, etiquetas_de,
     guardar_clave, leer_letra, momentos_en_misas, nombre_archivo, slug, unir_etiquetas, vocabulario_etiquetas)
 
@@ -78,7 +78,7 @@ def subir_cancion(api, cancion, biblioteca, comunidad, si):
     nuevos = []
     for i, a in enumerate(cancion["audios"], 1):
         aviso(f"  Subiendo el audio {i} de {len(cancion['audios'])} ({a['bytes'] / 1048576:.1f} MB)…")
-        r = api.post("subirAudioBiblioteca", nombre=a["archivo"].name, mime="audio/webm",
+        r = api.post("subirAudioBiblioteca", nombre=a["archivo"].name, mime="audio/mp4",
                      base64=base64.b64encode(a["archivo"].read_bytes()).decode("ascii"),
                      cancion=previa["titulo"] if previa else cancion["titulo"], voz=a["voz"])
         nuevos.append({"nombre": a["nombre"], "voz": a["voz"], "fileId": r["fileId"]})
@@ -110,11 +110,11 @@ def subir_cancion(api, cancion, biblioteca, comunidad, si):
 def argumentos():
     p = argparse.ArgumentParser(
         prog="video-a-webm.py",
-        description="Saca el audio de videos o enlaces, lo deja en WebM (Opus) y lo sube a la Biblioteca de la parroquia.",
+        description="Saca el audio de videos o enlaces, lo deja en AAC (.m4a) y lo sube a la Biblioteca de la parroquia.",
         epilog="Ejemplos:\n"
                "  scripts/video-a-webm.py https://youtu.be/XXXX --cancion \"Santo Fones\" --etiquetas \"Santo\"\n"
                "  scripts/video-a-webm.py coro-soprano.mp4 coro-tenor.mp4 --cancion \"Gloria\" --voz soprano --voz tenor\n"
-               "  scripts/video-a-webm.py ensayo.mov --letra letra.txt --sin-subir --salida ~/Música/webm",
+               "  scripts/video-a-webm.py ensayo.mov --letra letra.txt --sin-subir --salida ~/Música/audios",
         formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("entradas", nargs="+", metavar="VIDEO_O_ENLACE", help="archivos de video o audio, o enlaces (YouTube, Vimeo, TikTok…)")
     p.add_argument("-c", "--cancion", help="título de la canción (todos los videos van a esta canción)")
@@ -125,7 +125,7 @@ def argumentos():
     p.add_argument("--comunidad", choices=list(COMUNIDADES), help="comunidad dueña de la canción nueva (por defecto, la tuya)")
     p.add_argument("--tono", default="", help='tono de la canción, por ejemplo "Sol mayor" (el editor lo calcula solo si falta)')
     p.add_argument("--autor", default="", help="autor o intérprete")
-    p.add_argument("-o", "--salida", default=".", help="carpeta donde quedan el .webm y el .md (por defecto, la actual)")
+    p.add_argument("-o", "--salida", default=".", help="carpeta donde quedan el .m4a y el .md (por defecto, la actual)")
     p.add_argument("--sin-subir", action="store_true", help="solo convertir y armar el .md, sin subir nada")
     p.add_argument("--si", action="store_true", help="responder que sí a las preguntas (reemplazar la letra de una canción existente)")
     p.add_argument("--clave", help="clave del sitio (Identificarse → «Copiar clave para el script»); queda guardada")
@@ -180,13 +180,13 @@ def main():
             voz = "" if voz == "todas" else voz
             nombre = (por_indice(args.nombre, i, total) or titulo_fuente).strip()[:150]
             base = nombre_archivo(titulo + (" - " + VOCES[voz] if voz else ""))
-            destino = salida / f"{base}.webm"
+            destino = salida / f"{base}.m4a"
             n = 2
             while destino.exists() or any(destino == a["archivo"] for c in canciones.values() for a in c["audios"]):
-                destino = salida / f"{base} ({n}).webm"
+                destino = salida / f"{base} ({n}).m4a"
                 n += 1
-            aviso(f"  Convirtiendo a WebM (Opus, 48 kHz)…")
-            tam, duracion = a_webm(origen, destino, titulo, letra)
+            aviso("  Convirtiendo a AAC (.m4a, 48 kHz)…")
+            tam, duracion = a_m4a(origen, destino, titulo, letra)
             aviso(f"  Listo: {destino} · {tam / 1048576:.1f} MB · {int(duracion // 60)}:{int(duracion % 60):02d}")
             c = canciones.setdefault(slug(titulo), {
                 "titulo": titulo, "etiquetas": etiquetas, "letra": letra, "letra_de": args.letra or "",
