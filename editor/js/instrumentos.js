@@ -267,13 +267,16 @@ const specPcs = s => new Set([...s.required, ...s.optional, ...(s.bass != null ?
 
 // ============ BASES DE POSTURAS (vendor/acordes, carga diferida) ============
 const dbIndexes = {};
+// Misas y el reproductor usan estas posturas desde la raíz del sitio (js/misas-shim.js cambia la ruta)
+var ACORDES_BASE = typeof ACORDES_BASE === 'string' ? ACORDES_BASE : 'vendor/acordes/';
 
 function chordDb(id) {
   const db = window.CANCIOTRAS_ACORDES?.[id];
   if (!db) {
-    loadScript(`vendor/acordes/${id}.js`).then(() => {
+    loadScript(`${ACORDES_BASE}${id}.js`).then(() => {
       voicingCache.clear();
       if (typeof renderPanel === 'function') renderPanel();
+      window.dispatchEvent(new CustomEvent('acordes-cargados', { detail: id }));
     }).catch(() => {});
     return null;
   }

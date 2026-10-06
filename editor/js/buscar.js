@@ -1,5 +1,5 @@
 'use strict';
-// Búsqueda de canciones de la Biblioteca por título, etiquetas y letra (el campo «inicio» que arma el
+// Búsqueda de canciones de la Biblioteca por título, etiquetas, autores y letra (el campo «inicio» que arma el
 // Apps Script: la primera estrofa y las dos primeras líneas de las demás, separadas por « / »).
 // No distingue mayúsculas ni tildes, encuentra fragmentos en medio de una línea y tolera las faltas de
 // ortografía comunes (h, b/v, c/s/z, ll/y, letras de más o de menos). La usan Misas y el editor.
@@ -70,15 +70,18 @@ const buscarClaves = plano => plano ? plano.split(' ').map(buscarClave) : [];
 const BUSCAR_INDICE = new WeakMap();
 function buscarIndice(c) {
   let ix = BUSCAR_INDICE.get(c);
-  if (ix && ix.fuente === c.inicio) return ix;
+  const fuente = [c.inicio, c.letraDe, c.musicaDe].join('\u0000');
+  if (ix && ix.fuente === fuente) return ix;
   const lineas = String(c.inicio || '').split(/\s+\/\s+/).filter(Boolean);
   const titulo = buscarPlano(c.titulo), etiquetas = (c.etiquetas || []).map(buscarPlano).join(' | ');
+  const autores = [c.letraDe, c.musicaDe].filter(Boolean).map(buscarPlano).join(' | ');
   const lineasPlanas = lineas.map(buscarPlano);
   ix = {
-    fuente: c.inicio, lineas, titulo, etiquetas, lineasPlanas,
+    fuente, lineas, titulo, etiquetas, autores, lineasPlanas,
     pTitulo: new Set(buscarClaves(titulo)), pEtiquetas: new Set(buscarClaves(etiquetas.replace(/ \| /g, ' '))),
+    pAutores: new Set(buscarClaves(autores.replace(/ \| /g, ' '))),
     pLetra: new Set(lineasPlanas.flatMap(buscarClaves)),
-    secuencia: [buscarClaves(titulo), ...lineasPlanas.map(buscarClaves)]
+    secuencia: [buscarClaves(titulo), ...autores.split(' | ').filter(Boolean).map(buscarClaves), ...lineasPlanas.map(buscarClaves)]
   };
   BUSCAR_INDICE.set(c, ix);
   return ix;
@@ -110,6 +113,7 @@ function buscarPuntaje(q, c) {
   let p = 0;
   if (ix.titulo.includes(q.plano)) p = ix.titulo.startsWith(q.plano) ? 100 : 85;
   else if (ix.etiquetas.includes(q.plano)) p = 70;
+  else if (ix.autores.includes(q.plano)) p = 60;
   else {
     const l = ix.lineasPlanas.find(x => x.includes(q.plano));
     if (l !== undefined) p = l.startsWith(q.plano) ? 65 : 55;
@@ -121,7 +125,7 @@ function buscarPuntaje(q, c) {
   let total = 0, perdonables = Math.floor(q.palabras.length / 4);
   const halladas = [];
   for (let i = 0; i < q.palabras.length; i++) {
-    const v = Math.max(buscarMejor(q, i, ix.pTitulo) * 3, buscarMejor(q, i, ix.pEtiquetas) * 2, buscarMejor(q, i, ix.pLetra));
+    const v = Math.max(buscarMejor(q, i, ix.pTitulo) * 3, buscarMejor(q, i, ix.pEtiquetas) * 2, buscarMejor(q, i, ix.pAutores) * 2, buscarMejor(q, i, ix.pLetra));
     if (v) halladas.push(i);
     else if (--perdonables < 0) return 0;
     total += v;

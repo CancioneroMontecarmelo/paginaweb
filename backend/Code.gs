@@ -67,6 +67,7 @@ function doGet(e) {
     if (p.accion === 'calendario') return json_(calendario_(p));
     if (p.accion === 'actividades') return json_(actividades_(p));
     if (p.accion === 'visitas') return json_(visitas_());
+    if (p.accion === 'vivo') return json_(verVivo_(p.codigo));
     return json_({ ok: true, app: 'MonteCarmelo', version: 3 });
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
@@ -116,6 +117,11 @@ var ACCIONES = {
   subirCancion: subirCancion_,
   vincularAudio: vincularAudio_,
   desvincularAudio: desvincularAudio_,
+  subirPartitura: subirPartitura_,
+  quitarPartitura: quitarPartitura_,
+  iniciarVivo: iniciarVivo_,
+  moverVivo: moverVivo_,
+  terminarVivo: terminarVivo_,
   guardarMisa: guardarMisa_,
   borrarMisa: borrarMisa_,
   leerEnsayos: leerEnsayos_,
@@ -729,7 +735,10 @@ function cabeceraMd_(texto, nombreArchivo) {
     var at = function (n) { var r = tag.match(new RegExp('\\s' + n + '="([^"]*)"', 'i')); return r ? desescapar_(r[1]) : ''; };
     return { src: at('src'), nombre: at('title'), voz: at('data-voz') };
   }).filter(function (a) { return a.src; });
-  return { titulo: titulo.slice(0, 150), tono: String(meta.tono || '').slice(0, 40), etiquetas: etiquetas.slice(0, 40), audios: audios };
+  return {
+    titulo: titulo.slice(0, 150), tono: String(meta.tono || '').slice(0, 40), etiquetas: etiquetas.slice(0, 40), audios: audios,
+    letraDe: String(meta['letra-de'] || '').trim().slice(0, 120), musicaDe: String(meta['musica-de'] || '').trim().slice(0, 120)
+  };
 }
 
 // true si el .md no tiene letra (solo título, cabecera y audios): canción subida solo con su audio
@@ -822,6 +831,9 @@ function registrarEnBiblioteca_(items, comunidad, u) {
         comunidad: (previa && previa.comunidad) || comunidad || '',
         autor: (previa && previa.autor) || u.email, actualizado: ahora_()
       };
+      if (it.cab.letraDe) e.letraDe = it.cab.letraDe;
+      if (it.cab.musicaDe) e.musicaDe = it.cab.musicaDe;
+      if (previa && previa.partituras && previa.partituras.length) e.partituras = previa.partituras;
       // Canción que estaba solo con audios (subida desde Misas) y ahora llega con letra: el .md nuevo no los
       // nombra, pero siguen siendo suyos
       if (!it.audios.length && e.audios.length) {
@@ -1078,6 +1090,152 @@ function desvincularAudio_(d) {
   }
   auditar_({ tipo: 'audio_quitado', email: u.email, nombre: u.nombre, titulo: r.cancion.titulo });
   return { cancion: r.cancion };
+}
+
+// ==================== PARTITURAS ====================
+// PDF o imagen en Biblioteca/partituras, visibles con el enlace (se ven con la vista previa de Drive).
+// Solo quedan en biblioteca.json: el .md no las nombra y registrarEnBiblioteca_ las conserva al volver a guardar.
+var MAX_PARTITURA_BYTES = 15 * 1024 * 1024;
+var PARTITURAS_ = {
+  pdf: { mime: 'application/pdf', firma: [0x25, 0x50, 0x44, 0x46] },
+  png: { mime: 'image/png', firma: [0x89, 0x50, 0x4e, 0x47] },
+  jpg: { mime: 'image/jpeg', firma: [0xff, 0xd8] },
+  jpeg: { mime: 'image/jpeg', firma: [0xff, 0xd8] }
+};
+
+function subirPartitura_(d) {
+  var u = conPrivilegios_(usuarioDeToken_(d.token));
+  var bytes = Utilities.base64Decode(String(d.base64 || ''));
+  if (!bytes.length || bytes.length > MAX_PARTITURA_BYTES) throw new Error('La partitura está vacía o supera los 15 MB');
+  var original = String(d.nombre || 'partitura').replace(/[\/\\]/g, '-');
+  var ext = (original.match(/\.([a-z0-9]{2,5})$/i) || [, ''])[1].toLowerCase();
+  var tipo = PARTITURAS_[ext];
+  if (!tipo) throw new Error('La partitura tiene que ser un PDF o una imagen PNG o JPG');
+  if (!tipo.firma.every(function (b, i) { return (bytes[i] & 0xff) === b; })) throw new Error('El archivo no es un ' + ext.toUpperCase() + ' válido');
+  var cancionId = String(d.cancionId || ''), voz = String(d.voz || '').slice(0, 30);
+  var previa = buscarCancionBib_(leerBiblioteca_(), cancionId);
+  exigirEditarCancion_(u, previa);
+  var nombreArchivo = (slug_(previa.titulo) + (voz ? '-' + slug_(voz) : '') + '-' + ahora_().slice(0, 16).replace('T', '-').replace(':', '')).slice(0, 140) + '.' + ext;
+  var archivo = carpetaBiblioteca_('partituras').createFile(Utilities.newBlob(bytes, tipo.mime, nombreArchivo));
+  archivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  var p = { fileId: archivo.getId(), nombre: original.replace(/\.[^.]+$/, '').slice(0, 100) || 'Partitura', voz: voz, mime: tipo.mime };
+  var c;
+  try {
+    c = conCandado_(function () {
+      var bib = leerBiblioteca_();
+      var c = buscarCancionBib_(bib, cancionId);
+      if ((c.partituras || []).length >= 12) throw new Error('La canción ya tiene 12 partituras: quitá alguna antes de subir otra');
+      c.partituras = (c.partituras || []).concat([p]);
+      c.actualizado = ahora_();
+      escribirJson_(raiz_(), 'biblioteca.json', bib);
+      return c;
+    });
+  } catch (err) {
+    archivo.setTrashed(true);
+    throw err;
+  }
+  auditar_({ tipo: 'partitura_subida', email: u.email, nombre: u.nombre, titulo: c.titulo });
+  return { cancion: c };
+}
+
+function quitarPartitura_(d) {
+  var u = conPrivilegios_(usuarioDeToken_(d.token));
+  var fileId = String(d.fileId || '');
+  var c = conCandado_(function () {
+    var bib = leerBiblioteca_();
+    var c = buscarCancionBib_(bib, String(d.cancionId || ''));
+    exigirEditarCancion_(u, c);
+    var antes = (c.partituras || []).length;
+    c.partituras = (c.partituras || []).filter(function (p) { return p.fileId !== fileId; });
+    if (c.partituras.length === antes) throw new Error('Esa partitura ya no está en la canción');
+    c.actualizado = ahora_();
+    escribirJson_(raiz_(), 'biblioteca.json', bib);
+    return c;
+  });
+  try {
+    var f = DriveApp.getFileById(fileId);
+    if (enCarpeta_(f, carpetaBiblioteca_('partituras'))) f.setTrashed(true);
+  } catch (_) { /* ya no estaba */ }
+  auditar_({ tipo: 'partitura_quitada', email: u.email, nombre: u.nombre, titulo: c.titulo });
+  return { cancion: c };
+}
+
+// ==================== EN VIVO ====================
+// Quien dirige el canto (Misas) va marcando la canción; el coro la sigue desde reproductor.html#vivo=<código>
+// consultando cada ~4 s. Todo vive en CacheService (rápido y sin tocar el Drive): dura 6 horas.
+var VIVO_SEG_ = 6 * 3600;
+
+function vivoLeer_(codigo) {
+  var t = CacheService.getScriptCache().get('vivo:' + String(codigo || ''));
+  return t ? JSON.parse(t) : null;
+}
+
+function vivoGuardar_(v) {
+  var cache = CacheService.getScriptCache();
+  cache.put('vivo:' + v.codigo, JSON.stringify(v), VIVO_SEG_);
+  if (v.activo) cache.put('vivo-misa:' + v.misaId, v.codigo, VIVO_SEG_);
+  else cache.remove('vivo-misa:' + v.misaId);
+}
+
+function vivoPublico_(v) {
+  return { codigo: v.codigo, nombre: v.nombre, momento: v.momento, cancionId: v.cancionId,
+    desplazamiento: v.desplazamiento, rev: v.rev, activo: v.activo };
+}
+
+function vivoDeQuienDirige_(d) {
+  var u = usuarioDeToken_(d.token);
+  var v = vivoLeer_(d.codigo);
+  if (!v) throw new Error('La transmisión ya no existe (duran 6 horas): volvé a iniciarla');
+  if (!puedeEditar_(u, v.comunidad)) throw new Error('No tenés permiso para dirigir este cancionero');
+  return v;
+}
+
+function iniciarVivo_(d) {
+  var u = usuarioDeToken_(d.token);
+  var misa;
+  try { misa = buscarMisa_(String(d.misaId || '')); } catch (_) { throw new Error('Guardá el cancionero antes de transmitirlo en vivo'); }
+  if (!puedeEditar_(u, misa.comunidad)) throw new Error('No tenés permiso para dirigir este cancionero');
+  return conCandado_(function () {
+    var cache = CacheService.getScriptCache();
+    var v = vivoLeer_(cache.get('vivo-misa:' + misa.id));
+    if (!v || !v.activo) {
+      var codigo = '';
+      for (var i = 0; i < 40 && (!codigo || cache.get('vivo:' + codigo)); i++) codigo = String(1000 + Math.floor(Math.random() * 9000));
+      v = { codigo: codigo, misaId: misa.id, comunidad: misa.comunidad, nombre: misa.nombre || 'Cancionero', momento: '', cancionId: '',
+        desplazamiento: 0, rev: 0, activo: true, email: u.email, inicio: ahora_() };
+      vivoGuardar_(v);
+    }
+    return { codigo: v.codigo, vivo: vivoPublico_(v) };
+  });
+}
+
+function moverVivo_(d) {
+  return conCandado_(function () {
+    var v = vivoDeQuienDirige_(d);
+    if (!v.activo) throw new Error('La transmisión ya terminó');
+    v.cancionId = texto_(d.cancionId, 120);
+    v.momento = texto_(d.momento, 60);
+    v.desplazamiento = Math.max(-11, Math.min(11, Math.round(Number(d.desplazamiento) || 0)));
+    v.rev++;
+    vivoGuardar_(v);
+    return { vivo: vivoPublico_(v) };
+  });
+}
+
+function terminarVivo_(d) {
+  return conCandado_(function () {
+    var v = vivoDeQuienDirige_(d);
+    v.activo = false;
+    v.rev++;
+    vivoGuardar_(v);
+    return { vivo: vivoPublico_(v) };
+  });
+}
+
+function verVivo_(codigo) {
+  var v = vivoLeer_(codigo);
+  if (!v) throw new Error('No hay ninguna transmisión con ese código. Revisalo con quien dirige el canto.');
+  return { ok: true, vivo: vivoPublico_(v) };
 }
 
 function subirCancion_(d) {

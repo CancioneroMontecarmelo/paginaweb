@@ -402,6 +402,55 @@
   font-weight: 560;
 }
 
+.btn-atril.en-vivo {
+  color: #c62828;
+  border-color: rgba(198, 40, 40, 0.5);
+}
+
+/* Franja «En vivo» sobre la canción mientras se dirige */
+.franja-vivo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.9rem;
+  border: 1px solid rgba(198, 40, 40, 0.35);
+  border-radius: 0.5rem;
+  background: rgba(198, 40, 40, 0.06);
+  font-size: 0.88rem;
+}
+
+.franja-vivo[hidden] {
+  display: none;
+}
+
+.franja-vivo b {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  font-size: 1.05rem;
+}
+
+.franja-vivo .espacio {
+  flex: 1;
+}
+
+.franja-vivo a.btn-chico {
+  text-decoration: none;
+}
+
+.vivo-punto {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: #e53935;
+  animation: vivo-latido 1.6s ease-in-out infinite;
+}
+
+@keyframes vivo-latido {
+  50% { opacity: 0.35; }
+}
+
 .momento-agregar {
   display: flex;
   gap: 0.3rem;
@@ -660,6 +709,7 @@
 .song-header { font-family: var(--fuente-cuerpo); margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
 .song-title { font-family: var(--fuente-display); font-size: 1.6em; font-weight: 600; color: var(--verde); }
 .song-meta { font-size: 0.85em; color: #5f6368; margin-top: 4px; }
+.song-credits { font-size: 0.8em; font-style: italic; color: #5f6368; margin-top: 2px; }
 .song-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; font-size: 0.72em; }
 .tag-chip {
   display: inline-flex; align-items: center; gap: 4px;

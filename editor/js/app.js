@@ -491,7 +491,8 @@ const MENUS = [
     { label: 'Tags', submenu: [
       { label: 'Editar tags de esta canción…', action: 'tagDialog', key: 'Ctrl+Alt+E' },
       { label: 'Buscar canciones por tags…', action: 'tagSearch' }
-    ]}
+    ]},
+    { label: 'Créditos (letra y música)…', action: 'creditsDialog' }
   ]},
   { label: 'Ver', items: [
     { group: 'Modo' },
@@ -608,6 +609,7 @@ const ACTIONS = {
   selectAll,
   tagDialog,
   tagSearch: tagSearchDialog,
+  creditsDialog,
 
   modeEdit: () => setMode('edit'),
   modeAtril: () => mcAtrilActivo(),

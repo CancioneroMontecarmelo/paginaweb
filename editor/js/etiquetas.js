@@ -284,6 +284,29 @@ function tagDialog() {
   });
 }
 
+// ============ DIÁLOGO: CRÉDITOS (LETRA Y MÚSICA) ============
+function creditsDialog() {
+  syncFromEditor();
+  const d = cur();
+  return showModal({
+    title: 'Créditos de la canción',
+    body: `<p class="hint">Canción: <b>${escapeHtml(d.title.trim() || 'Sin título')}</b>. Se muestran bajo el título en el atril,
+        en Misas y en las páginas exportadas, y sirven para buscar por autor.</p>
+      <label class="field"><span>Letra de</span><input type="text" id="crLetra" maxlength="120" value="${escapeHtml(d.credits.letra)}" placeholder="Por ejemplo: Esteban Gumucio"></label>
+      <label class="field"><span>Música de</span><input type="text" id="crMusica" maxlength="120" value="${escapeHtml(d.credits.musica)}" placeholder="Si es la misma persona, repite el nombre"></label>`,
+    onOpen: dlg => dlg.querySelector('#crLetra').focus(),
+    buttons: [
+      { label: 'Cancelar' },
+      { label: 'Guardar', primary: true, onClick: dlg => ({ letra: dlg.querySelector('#crLetra').value, musica: dlg.querySelector('#crMusica').value }) }
+    ]
+  }).then(res => {
+    if (!res) return;
+    d.credits = normalizeCredits(res);
+    refresh();
+    toast(creditsText(d.credits) || 'Canción sin créditos', 2500);
+  });
+}
+
 // ============ DIÁLOGO: BUSCAR POR ETIQUETAS ============
 const SCAN_SKIP_DIRS = new Set(['vendor', 'js', 'css', 'servidor', 'node_modules', 'audio', 'cache']);
 

@@ -274,6 +274,7 @@ async function mcArmarArchivos(songs, opts, avance) {
   if (opts.embed) ({ embedded, failed: sinIncluir } = await mcIncrustar(songs));
   const { pkg } = buildSharePackage(songs, opts.titulo);
   const share = { pkg, link: await packToLink(pkg) };
+  await preloadGuitarDb();
   let html = new Blob([buildAtrilHtml(songs, { titulo: opts.titulo, embedded, share })], { type: 'text/html' });
   if (html.size > MC_MAX_ARCHIVO && embedded.size) {
     html = new Blob([buildAtrilHtml(songs, { titulo: opts.titulo, share })], { type: 'text/html' });
@@ -433,6 +434,7 @@ async function mcAbrirCancionBib() {
     const data = parseMarkdown(r.texto, (r.cancion?.titulo || 'cancion') + '.md');
     if (!data.tags?.length && r.cancion?.etiquetas) data.tags = r.cancion.etiquetas;
     const d = makeDoc({ ...data, title: data.title || r.cancion?.titulo || 'Sin título' });
+    d.partituras = r.cancion?.partituras || [];
     markClean(d);
     replaceOrAddTabs([d], false);
     const sinLetra = !d.text.trim();
@@ -620,7 +622,9 @@ async function mcCancionesDeMisa(misa, avance, conMomento = false) {
     }
     if (!data.tags?.length && r.cancion?.etiquetas) data.tags = r.cancion.etiquetas;
     const titulo = data.title || r.cancion?.titulo || 'Sin título';
-    songs.push(makeDoc({ ...data, title: conMomento ? `${c.momento}: ${titulo}` : titulo, clean: true }));
+    const d = makeDoc({ ...data, title: conMomento ? `${c.momento}: ${titulo}` : titulo, clean: true });
+    d.partituras = r.cancion?.partituras || [];
+    songs.push(d);
   }
   return { songs, faltantes: elegidas.length - songs.length };
 }

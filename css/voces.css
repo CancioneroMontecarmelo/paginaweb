@@ -1,0 +1,119 @@
+/* «Aprender las voces»: mezclador por voz */
+
+.btn-voces {
+  justify-self: start;
+  font-weight: 560;
+}
+
+.mezclador {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(47, 74, 56, 0.25);
+  border-radius: 0.5rem;
+  background: var(--blanco);
+  max-width: 40rem;
+  font-family: var(--fuente-cuerpo);
+  font-size: 0.9rem;
+}
+
+.mz-cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  color: var(--verde);
+}
+
+.mz-estado {
+  margin: 0;
+  color: var(--texto-suave);
+}
+
+.mz-mivoz {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--texto-suave);
+}
+
+.mz-mivoz [aria-pressed="true"],
+.mz-pistas [aria-pressed="true"] {
+  background: var(--verde);
+  border-color: var(--verde);
+  color: #fff;
+}
+
+.mz-transporte {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mz-play {
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: none;
+  border: none;
+  border-radius: 50%;
+  background: var(--terracota);
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.mz-avance {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--terracota);
+}
+
+.mz-tiempo {
+  font-variant-numeric: tabular-nums;
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.mz-pistas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.mz-pistas li {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-left: 4px solid var(--vc);
+  border-radius: 0 0.35rem 0.35rem 0;
+  background: color-mix(in srgb, var(--vc) 7%, transparent);
+}
+
+.mz-pistas li.callada {
+  opacity: 0.55;
+}
+
+.mz-voz {
+  font-weight: 560;
+  color: color-mix(in srgb, var(--vc) 70%, #202124);
+}
+
+.mz-vol {
+  min-width: 0;
+  accent-color: var(--vc);
+}
+
+@media (max-width: 480px) {
+  .mz-pistas li {
+    grid-template-columns: 1fr auto auto;
+  }
+  .mz-vol {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

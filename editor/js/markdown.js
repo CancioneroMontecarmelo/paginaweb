@@ -151,6 +151,8 @@ function buildMarkdown(doc, audioList = doc.audios.map(a => ({ name: a.name, src
   if (key) out.push(`tono: ${JSON.stringify(keyLabel(key, true))}`);
   if (doc.scrollSpeed) out.push(`desplazamiento: ${doc.scrollSpeed}`);
   if (doc.tags?.length) out.push(`etiquetas: ${tagsToMeta(doc.tags)}`);
+  if (doc.credits?.letra) out.push(`letra-de: ${JSON.stringify(doc.credits.letra)}`);
+  if (doc.credits?.musica) out.push(`musica-de: ${JSON.stringify(doc.credits.musica)}`);
   if (doc.instruments?.length) out.push(`instrumentos: ${instrumentsToMeta(doc.instruments)}`);
   const capos = caposToMeta(doc.capos);
   if (capos) out.push(`cejilla: ${capos}`);
@@ -261,8 +263,22 @@ function parseMarkdown(md, filename = '') {
     title: title || fileBase(filename), text: body, audios: found, scrollSpeed: +meta.desplazamiento || null,
     sheets, instruments: metaToInstruments(meta.instrumentos), capos: metaToCapos(meta.cejilla),
     view: ['partitura', 'tablatura'].includes(meta.vista) ? meta.vista : null,
-    tags: metaToTags(meta.etiquetas || meta.tags)
+    tags: metaToTags(meta.etiquetas || meta.tags),
+    credits: normalizeCredits({ letra: meta['letra-de'], musica: meta['musica-de'] })
   };
+}
+
+// Créditos de la canción: quién escribió la letra y quién la música
+function normalizeCredits(c) {
+  const limpio = v => String(v || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  return { letra: limpio(c?.letra), musica: limpio(c?.musica) };
+}
+
+// «Letra: … · Música: …» o «Letra y música: …» si es la misma persona
+function creditsText(c) {
+  const { letra, musica } = normalizeCredits(c);
+  if (letra && musica && letra.toLowerCase() === musica.toLowerCase()) return `Letra y música: ${letra}`;
+  return [letra && `Letra: ${letra}`, musica && `Música: ${musica}`].filter(Boolean).join(' · ');
 }
 
 function parseDocument(raw, filename) {

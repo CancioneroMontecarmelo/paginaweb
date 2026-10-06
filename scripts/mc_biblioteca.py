@@ -32,7 +32,7 @@ COMUNIDADES = {
     "monte-carmelo": "Nuestra Señora del Monte Carmelo",
 }
 VOCES = {"todas": "Todas", "unica": "Única", "tenor": "Tenor", "soprano": "Soprano", "bajo": "Bajo",
-         "mezzosoprano": "Mezzosoprano", "castrati": "Castrati"}  # VOICES en editor/js/acordes.js
+         "mezzosoprano": "Mezzosoprano", "contralto": "Contralto", "castrati": "Castrati"}  # VOICES en editor/js/acordes.js
 EXT_VIDEO_AUDIO = re.compile(r"\.(mp4|m4v|mkv|webm|mov|avi|3gp|flv|wmv|mpg|mpeg|ts|mp3|m4a|aac|wav|ogg|oga|opus|flac|weba|amr|wma|aiff?)$", re.I)
 
 

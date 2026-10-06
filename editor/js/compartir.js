@@ -173,6 +173,7 @@ const fmtSize = bytes => bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed
 async function prepareShareFile(titulo, chosen) {
   const { pkg, leftAudios, leftSheets } = buildSharePackage(chosen, titulo);
   const link = await packToLink(pkg);
+  await preloadGuitarDb();
   const html = new Blob([buildAtrilHtml(chosen, { titulo: chosen.length > 1 ? titulo : '', share: { pkg, link } })], { type: 'text/html' });
   const fileName = safeFileName(titulo) + '.html';
   return { titulo, n: chosen.length, html, fileName, file: new File([html], fileName, { type: 'text/html' }), leftAudios, leftSheets };

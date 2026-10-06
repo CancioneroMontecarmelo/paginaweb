@@ -16,6 +16,9 @@ import { llamarApi, sesionActual, puedeEditar, initNavSitio, comunidadesOpciones
 import { COMUNIDADES } from "./comunidades.js";
 import { aM4a, esAudio, esM4a, grabador } from "./audio-aac.js";
 import { leerEtiquetasAudio } from "./etiquetas-audio.js";
+import { activarPosturas } from "./posturas.js";
+import { botonesPartituras } from "./partituras.js";
+import { crearMezclador, pistasDeVoces } from "./voces.js";
 import {
   MOMENTOS_MISA, TIEMPOS, claveMomento, esDelMomento, momentoPorLetra, ordenMomento, hoyIso, proximoDomingo, fechaLarga,
   tituloLiturgico, tiempoPorFecha, momentosDeMisa, sugerirCantos as sugerirDeLaBiblioteca,
@@ -49,7 +52,8 @@ const st = {
   coros: null,
   busqueda: "",
   pestana: "canciones", // pestaña de la Biblioteca: canciones | lecturas
-  lecturas: new Map() // fecha → { cargando, datos, error, promesa }
+  lecturas: new Map(), // fecha → { cargando, datos, error, promesa }
+  vivo: null // { codigo, misaId, enviado, reloj } mientras se dirige en vivo
 };
 
 // ============ SERVIDOR ============
@@ -223,6 +227,8 @@ function momentosHtml() {
       <option value="__otro">Otro…</option></select></div>` : ""}
     <div class="misa-acciones">
       <button type="button" class="btn-chico btn-atril" data-accion="atril" title="Abre las canciones de este cancionero en el atril del editor, en una pestaña nueva">▶ Atril</button>
+      <button type="button" class="btn-chico btn-atril" data-accion="reproducir" title="Escuchar este cancionero en el reproductor, con la letra de cada canción">♪ Reproducir</button>
+      ${ed && !a.borrador ? `<button type="button" class="btn-chico btn-atril${st.vivo?.misaId === a.id ? " en-vivo" : ""}" data-accion="vivo" title="El coro sigue en sus celulares la canción que vas eligiendo, en su tono">${st.vivo?.misaId === a.id ? "● En vivo" : "📡 En vivo"}</button>` : ""}
       ${ed ? `<button type="button" class="btn-chico" data-accion="guardar">${a.borrador ? "Guardar…" : sucio() ? "Guardar cambios…" : "Fechas y ensayos…"}</button>` : ""}
       ${ed && st.biblioteca.length ? '<button type="button" class="btn-chico" data-accion="sugerir" title="Vuelve a elegir los cantos de los momentos que siguen con la sugerencia del sistema o vacíos">Volver a sugerir</button>' : ""}
       ${ed && sucio() && !a.borrador ? '<button type="button" class="btn-chico" data-accion="descartar">Descartar cambios</button>' : ""}
@@ -397,6 +403,110 @@ function abrirAtril() {
   }
   if (a.borrador && !copiada) return avisar("Guardá el cancionero para abrirlo en el atril.", true);
   window.open(new URL("editor/?atril=1&misa=" + encodeURIComponent(a.id), location.href).href, "_blank");
+}
+
+// El reproductor usa esta copia (con los cambios sin guardar) si es del mismo cancionero; si no, la del servidor
+function abrirReproductor() {
+  const a = st.actual;
+  if (!a) return;
+  if (!a.momentos.some((m) => m.canciones.length)) return avisar("Este cancionero todavía no tiene canciones.", true);
+  let copiada = true;
+  try {
+    localStorage.setItem("mc-reproducir", JSON.stringify({ ...copiaParaAtril(a), t: Date.now() }));
+  } catch (_) {
+    copiada = false;
+  }
+  if (a.borrador && !copiada) return avisar("Guardá el cancionero para escucharlo en el reproductor.", true);
+  window.open(new URL("reproductor.html#misa=" + encodeURIComponent(a.id), location.href).href, "_blank");
+}
+
+// ============ EN VIVO (quien dirige) ============
+// El coro sigue desde reproductor.html#vivo=<código>. Cada canción o tono que se elige aquí se envía con
+// moverVivo, esperando un instante por si se cambia varias veces seguidas.
+
+const enlaceVivo = (codigo) => new URL("reproductor.html#vivo=" + codigo, location.href).href;
+
+function pintarFranjaVivo() {
+  const v = st.vivo;
+  $("#franja-vivo").hidden = !v;
+  if (!v) return;
+  $("#vivo-codigo").textContent = v.codigo;
+  $("#vivo-whatsapp").href = "https://wa.me/?text=" + encodeURIComponent(
+    `Seguí en vivo los cantos de «${v.nombre}» (código ${v.codigo}): ${enlaceVivo(v.codigo)}`);
+}
+
+async function iniciarVivo() {
+  const a = st.actual;
+  if (!a || a.borrador) return avisar("Guardá el cancionero antes de transmitirlo en vivo.", true);
+  if (st.vivo?.misaId === a.id) return copiarEnlaceVivo();
+  try {
+    const r = await llamarApi("iniciarVivo", { token: token(), misaId: a.id });
+    st.vivo = { codigo: r.codigo, misaId: a.id, nombre: a.nombre, enviado: "", reloj: 0 };
+    try { sessionStorage.setItem("mc-vivo", JSON.stringify({ codigo: r.codigo, misaId: a.id, nombre: a.nombre })); } catch (_) {}
+    pintarFranjaVivo();
+    pintarMisas();
+    avisar(`En vivo con el código ${r.codigo}: compartí el enlace con el coro.`);
+    programarVivo(0);
+  } catch (e) {
+    avisar(e.message, true);
+  }
+}
+
+function programarVivo(espera = 700) {
+  const v = st.vivo;
+  if (!v || st.actual?.id !== v.misaId || !st.vista) return;
+  clearTimeout(v.reloj);
+  v.reloj = setTimeout(enviarVivo, espera);
+}
+
+async function enviarVivo() {
+  const v = st.vivo;
+  if (!v || st.actual?.id !== v.misaId || !st.vista) return;
+  const datos = { cancionId: st.vista.cancionId, desplazamiento: st.vista.desplazamiento || 0, momento: momentoActual()?.momento || "" };
+  const firma = JSON.stringify(datos);
+  if (firma === v.enviado) return;
+  v.enviado = firma;
+  try {
+    await llamarApi("moverVivo", { token: token(), codigo: v.codigo, ...datos });
+  } catch (e) {
+    v.enviado = "";
+    avisar("En vivo: " + e.message, true);
+  }
+}
+
+async function copiarEnlaceVivo() {
+  const url = enlaceVivo(st.vivo.codigo);
+  try {
+    await navigator.clipboard.writeText(url);
+    avisar("Enlace copiado: " + url);
+  } catch (_) {
+    prompt("Copiá el enlace para el coro:", url);
+  }
+}
+
+async function terminarVivo() {
+  const v = st.vivo;
+  if (!v || !confirm("¿Terminar la transmisión en vivo? Al coro le va a aparecer «Terminó».")) return;
+  clearTimeout(v.reloj);
+  try {
+    await llamarApi("terminarVivo", { token: token(), codigo: v.codigo });
+  } catch (e) {
+    avisar(e.message, true);
+  }
+  st.vivo = null;
+  try { sessionStorage.removeItem("mc-vivo"); } catch (_) {}
+  pintarFranjaVivo();
+  pintarMisas();
+}
+
+function conectarVivo() {
+  $("#vivo-copiar").addEventListener("click", copiarEnlaceVivo);
+  $("#vivo-terminar").addEventListener("click", terminarVivo);
+  try {
+    const guardado = JSON.parse(sessionStorage.getItem("mc-vivo") || "null");
+    if (guardado?.codigo) st.vivo = { ...guardado, enviado: "", reloj: 0 };
+  } catch (_) {}
+  pintarFranjaVivo();
 }
 
 function mostrarCancionDelMomento() {
@@ -757,6 +867,8 @@ async function pintarLienzo() {
   pintarBarraMomento();
   const v = st.vista;
   const box = $("#cancion");
+  if (mezclador && mezclador.cancionId !== v?.cancionId) mezclador.cerrar();
+  programarVivo();
   if (!v) {
     st.tonoOriginal = null;
     mcCancionActual = null;
@@ -794,13 +906,18 @@ async function pintarLienzo() {
   const d = v.desplazamiento || 0;
   const tono = orig ? { idx: mod12(orig.idx + d), minor: orig.minor } : null;
   const texto = orig && d ? transposeText(cancion.text, d, keyPrefersFlats(tono.idx, tono.minor)) : cancion.text;
-  mcCancionActual = { tags: cancion.tags || entrada.etiquetas };
+  mcCancionActual = { tags: cancion.tags || entrada.etiquetas, credits: creditosDe(cancion, entrada) };
   box.innerHTML = cancion.text.trim() ? renderSong(cancion.title || entrada.titulo, texto, tono)
     : `<div class="lienzo-vacio"><p><b>${esc(cancion.title || entrada.titulo)}</b></p>
       <p>Por ahora esta canción tiene solo audio: la letra y los acordes se agregan en el editor.</p></div>`;
   pintarTrasponedor();
   pintarAudios(entrada);
 }
+
+// Los del .md mandan; las canciones guardadas antes de tener créditos pueden traerlos solo en biblioteca.json
+const creditosDe = (cancion, entrada) => normalizeCredits({
+  letra: cancion.credits?.letra || entrada.letraDe, musica: cancion.credits?.musica || entrada.musicaDe
+});
 
 function pintarBarraMomento() {
   const bar = $("#lienzo-momento");
@@ -826,12 +943,43 @@ function pintarBarraMomento() {
 
 const reproduceWebm = !!document.createElement("audio").canPlayType('audio/webm; codecs="opus"');
 
+let mezclador = null;
+
+// Las voces se piden por el respaldo del Apps Script: Web Audio necesita los bytes, sin restricciones entre sitios
+async function bytesDeAudio(fileId) {
+  const r = await leer({ accion: "audio", id: fileId });
+  return Uint8Array.from(atob(r.base64), (ch) => ch.charCodeAt(0)).buffer;
+}
+
+function botonVoces(entrada, box) {
+  const pistas = pistasDeVoces(entrada.audios);
+  if (pistas.length < 2) return null;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "btn-chico btn-voces";
+  b.textContent = "🎚 Aprender las voces";
+  b.title = "Escuchar " + pistas.map((p) => VOICES[p.voz]?.label || p.voz).join(", ") + " juntas, con volumen, silencio y solo por voz";
+  b.addEventListener("click", () => {
+    b.hidden = true;
+    const m = crearMezclador({ contenedor: box, pistas, leerAudio: bytesDeAudio,
+      alCerrar: () => { box.querySelector(".btn-voces")?.removeAttribute("hidden"); if (mezclador === m) mezclador = null; } });
+    mezclador = Object.assign(m, { cancionId: entrada.id, el: box.querySelector(".mezclador") });
+    mezclador.el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  });
+  return b;
+}
+
 function pintarAudios(entrada) {
   const box = $("#audios");
   const lista = entrada.audios || [];
   const puedeAgregar = !$("#btn-subir").hidden && (!entrada.comunidad || puedeEditar(entrada.comunidad));
-  box.hidden = !lista.length && !puedeAgregar;
-  box.replaceChildren(...lista.map((a) => {
+  // Cambiar el tono vuelve a pintar la misma canción: el mezclador sigue sonando
+  const sigue = mezclador?.cancionId === entrada.id && pistasDeVoces(entrada.audios).length >= 2 ? mezclador : null;
+  if (!sigue) mezclador?.cerrar();
+  box.hidden = !lista.length && !puedeAgregar && !entrada.partituras?.length;
+  const voces = botonVoces(entrada, box);
+  if (sigue) voces.hidden = true;
+  box.replaceChildren(...(voces ? [voces] : []), ...(sigue ? [sigue.el] : []), ...lista.map((a) => {
     const div = document.createElement("div");
     div.className = "audio-item";
     const et = document.createElement("span");
@@ -870,6 +1018,8 @@ function pintarAudios(entrada) {
     b.addEventListener("click", () => abrirSubir({ modo: "existente", cancionId: entrada.id }));
     box.append(b);
   }
+  const partituras = botonesPartituras(entrada, { editable: puedeAgregar, alCambiar: actualizarCancionBib });
+  if (partituras) box.append(partituras);
 }
 
 // Si el navegador no puede reproducir el enlace directo de Drive, se pide el audio al Apps Script
@@ -1917,7 +2067,7 @@ function actualizarCancionBib(c) {
 }
 
 // .md con lo que trae el audio (letra y acordes de Editag, etiquetas) o solo con el título
-function mdDeAudio({ titulo, artista, letra, etiquetas }) {
+function mdDeAudio({ titulo, artista, letraDe, musicaDe, letra, etiquetas }) {
   let texto = String(letra || "");
   if (texto && looksLikeChordPro(texto)) texto = chordProToText(texto).text;
   const tono = texto ? detectKey(texto) : null;
@@ -1925,6 +2075,8 @@ function mdDeAudio({ titulo, artista, letra, etiquetas }) {
   if (tono) out.push(`tono: ${JSON.stringify(keyLabel(tono, true))}`);
   if (etiquetas.length) out.push(`etiquetas: ${tagsToMeta(etiquetas)}`);
   if (artista) out.push(`autor: ${JSON.stringify(artista)}`);
+  if (letraDe) out.push(`letra-de: ${JSON.stringify(letraDe)}`);
+  if (musicaDe) out.push(`musica-de: ${JSON.stringify(musicaDe)}`);
   out.push(`exportado: ${hoyIso()}`, "---", "", `# ${titulo}`, "");
   if (tono) out.push(`**Tono:** ${keyLabel(tono, true)}`, "");
   const ticks = Math.max(2, ...(texto.match(/`+/g) || []).map((s) => s.length));
@@ -1967,6 +2119,8 @@ async function subirSoloAudios(audios, estado) {
     const md = mdDeAudio({
       titulo: g.titulo,
       artista: (conLetra || metas[0])?.artista || "",
+      letraDe: metas.find((m) => m.letrista)?.letrista || "",
+      musicaDe: metas.find((m) => m.compositor)?.compositor || "",
       letra: conLetra?.letra || "",
       etiquetas: uniqueTags(metas.flatMap((m) => m.etiquetas).map(canonicalTag))
     });
@@ -2286,6 +2440,8 @@ function conectarEventos() {
     else if (accion === "sugerir") volverASugerir();
     else if (accion === "publicar") publicarCancionero();
     else if (accion === "atril") abrirAtril();
+    else if (accion === "reproducir") abrirReproductor();
+    else if (accion === "vivo") iniciarVivo();
     else if (accion === "descartar") descartarCambios();
     else if (accion === "cerrar") cerrarMisa();
   });
@@ -2326,6 +2482,7 @@ function conectarEventos() {
     const b = e.target.closest("[data-tono]");
     if (b && st.tonoOriginal) transponer(+b.dataset.tono - st.tonoOriginal.idx);
   });
+  activarPosturas($("#cancion"));
   $("#bajar").addEventListener("click", () => transponer((st.vista?.desplazamiento || 0) - 1));
   $("#subir").addEventListener("click", () => transponer((st.vista?.desplazamiento || 0) + 1));
 
@@ -2365,6 +2522,7 @@ function conectarEventos() {
   conectarGuardar();
   conectarCoro();
   conectarSubir();
+  conectarVivo();
 }
 
 async function iniciar() {

@@ -101,9 +101,10 @@ const VOICES = {
   soprano:      { label: 'Soprano',      color: '#d81b60' },
   bajo:         { label: 'Bajo',         color: '#2e7d32' },
   mezzosoprano: { label: 'Mezzosoprano', color: '#8e24aa' },
+  contralto:    { label: 'Contralto',    color: '#00897b' },
   castrati:     { label: 'Castrati',     color: '#ef6c00' }
 };
-const VOICE_ORDER = ['unica', 'tenor', 'soprano', 'bajo', 'mezzosoprano', 'castrati'];
+const VOICE_ORDER = ['unica', 'tenor', 'soprano', 'bajo', 'mezzosoprano', 'contralto', 'castrati'];
 
 function parseVoiceMarker(line) {
   const m = line.match(/^\s*\[\s*(?:voz|voces|voice)\s*:\s*([^\]]+?)\s*\]\s*$/i);
@@ -112,7 +113,8 @@ function parseVoiceMarker(line) {
   const alias = {
     unica: 'unica', todos: 'unica', todas: 'unica', tutti: 'unica',
     soprano: 'soprano', mezzosoprano: 'mezzosoprano', mezzo: 'mezzosoprano', metsosoprano: 'mezzosoprano',
-    tenor: 'tenor', bajo: 'bajo', bass: 'bajo', castrati: 'castrati', castrato: 'castrati'
+    tenor: 'tenor', bajo: 'bajo', bass: 'bajo', castrati: 'castrati', castrato: 'castrati',
+    contralto: 'contralto', alto: 'contralto', contraltos: 'contralto'
   };
   const key = alias[norm] || norm;
   return { key, label: VOICES[key]?.label || m[1] };

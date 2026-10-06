@@ -6,17 +6,42 @@
 // ============ DATOS DE CADA CANCIÓN ============
 const lineText = parts => parts.map(p => ' '.repeat(p.pad) + p.text).join('');
 
-// Una línea de acordes en los 12 tonos y en las dos notaciones (texto; la página pone los colores)
-function chordVariants(line, key) {
+// Una línea de acordes en los 12 tonos y en las dos notaciones (texto; la página pone los colores).
+// `pos` junta cada acorde que aparece (tal como se ve) para calcularle la postura de guitarra.
+function chordVariants(line, key, pos) {
   const x = layoutChordLine(line, t => t).map((p, i) => p.isChord ? -1 : i).filter(i => i >= 0);
   const v = { latin: [], eng: [] };
+  const juntar = parts => { if (pos) for (const p of parts) if (p.isChord && !pos.has(p.text)) pos.set(p.text, splitPunct(p.text)[1]); return parts; };
   for (let t = 0; t < 12; t++) {
     const semis = mod12(t - key.idx);
     const moved = semis ? transposeText(line, semis, keyPrefersFlats(t, key.minor)) : line;
-    v.latin.push(lineText(layoutChordLine(moved, tok => convertTokenNotation(tok, true))));
-    v.eng.push(lineText(layoutChordLine(moved, tok => convertTokenNotation(tok, false))));
+    v.latin.push(lineText(juntar(layoutChordLine(moved, tok => convertTokenNotation(tok, true)))));
+    v.eng.push(lineText(juntar(layoutChordLine(moved, tok => convertTokenNotation(tok, false)))));
   }
   return { x, v };
+}
+
+// ============ POSTURAS DE GUITARRA ============
+// Cada acorde va como «trastes:dedos» de la 6.ª a la 1.ª cuerda (x = no se toca, a = traste 10…):
+// unos 15 bytes por acorde, que la página dibuja al tocarlo.
+const fretChar = f => f < 0 ? 'x' : f.toString(36);
+
+// Antes de armar la página: con la base de posturas cargada salen las de siempre (si no, las calcula el generador)
+async function preloadGuitarDb() {
+  if (window.CANCIOTRAS_ACORDES?.guitarra) return;
+  try { await loadScript(`${ACORDES_BASE}guitarra.js`); voicingCache.clear(); } catch (_) { /* queda el generador */ }
+}
+
+function guitarPositions(pos) {
+  const out = {}, porCore = new Map();
+  for (const [shown, core] of pos) {
+    if (!porCore.has(core)) {
+      const v = findVoicings(DEFAULT_INSTRUMENT, core)[0];
+      porCore.set(core, v ? v.frets.map(fretChar).join('') + ':' + v.frets.map((f, i) => f > 0 ? v.fingers?.[i] || 0 : 0).join('') : null);
+    }
+    if (porCore.get(core)) out[shown] = porCore.get(core);
+  }
+  return out;
 }
 
 // ============ AUDIOS INCRUSTADOS ============
@@ -130,7 +155,7 @@ function exportAudios(d, embedded = new Map()) {
   return { players, links, missing };
 }
 
-function songExportData(d, n, latin, embedded) {
+function songExportData(d, n, latin, embedded, pos) {
   const key = detectKey(d.text);
   const lines = [], seen = new Map();
   let body = '', open = false;
@@ -146,7 +171,7 @@ function songExportData(d, n, latin, embedded) {
       continue;
     }
     if (key && isChordLine(line)) {
-      if (!seen.has(line)) { seen.set(line, lines.length); lines.push(chordVariants(line, key)); }
+      if (!seen.has(line)) { seen.set(line, lines.length); lines.push(chordVariants(line, key, pos)); }
       body += `<div class="line chord-line" data-c="${seen.get(line)}">${chordLineHtml(line, latin)}</div>`;
     } else {
       body += renderLine(line);
@@ -159,11 +184,15 @@ function songExportData(d, n, latin, embedded) {
   const audios = [
     ...au.players.map(p => `<div class="audio"><span class="au-name">🎵 ${escapeHtml(p.name)}</span><audio controls preload="none" src="${escapeHtml(p.src)}" data-speed="${p.speed}" data-name="${escapeHtml(p.name)}"${p.drive ? ` data-drive="${escapeHtml(p.drive)}"` : ''}></audio>${p.page ? `<a class="orig" href="${escapeHtml(p.page)}" target="_blank" rel="noopener" title="Abrir la página original">↗</a>` : ''}</div>`),
     ...au.links.map(l => `<div class="audio"><a href="${escapeHtml(l.url)}" target="_blank" rel="noopener">▶ Escuchar ${l.site ? 'en ' + escapeHtml(l.site) : 'en su página'}</a><span>${escapeHtml(l.name)}</span></div>`),
-    ...au.missing.map(m => `<div class="note">El audio «${escapeHtml(m)}» es un archivo de este equipo y no va incluido.</div>`)
+    ...au.missing.map(m => `<div class="note">El audio «${escapeHtml(m)}» es un archivo de este equipo y no va incluido.</div>`),
+    ...(d.partituras || []).filter(p => p.fileId).map(p => {
+      const voz = p.voz && p.voz !== 'todas' ? VOICES[p.voz]?.label || p.voz : '';
+      return `<div class="audio"><a href="https://drive.google.com/file/d/${encodeURIComponent(p.fileId)}/preview" target="_blank" rel="noopener">𝄞 Partitura${voz ? ' · ' + escapeHtml(voz) : ''}</a></div>`;
+    })
   ].join('');
   const html = `<article class="song" id="c${n}">
 <header class="song-header"><div class="song-title">${escapeHtml(title)}</div>
-<div class="song-meta">${key ? `Tono: <strong class="key-label">${escapeHtml(keyLabel(key, latin))}</strong>` : '&nbsp;'}</div></header>
+${creditsText(d.credits) ? `<div class="song-credits">${escapeHtml(creditsText(d.credits))}</div>\n` : ''}<div class="song-meta">${key ? `Tono: <strong class="key-label">${escapeHtml(keyLabel(key, latin))}</strong>` : '&nbsp;'}</div></header>
 ${audios ? `<div class="audios">${audios}</div>` : ''}
 <div class="song-body">${body || '<div class="line blank">&nbsp;</div>'}</div>
 </article>`;
@@ -184,13 +213,14 @@ ${audios ? `<div class="audios">${audios}</div>` : ''}
 function buildAtrilHtml(list, { titulo = '', embedded = new Map(), share = null } = {}) {
   const latin = isLatin();
   const book = list.length > 1 || !!titulo;
-  const songs = list.map((d, i) => songExportData(d, i + 1, latin, embedded));
+  const pos = new Map();
+  const songs = list.map((d, i) => songExportData(d, i + 1, latin, embedded, pos));
   const pageTitle = book ? (titulo || state.cancioneroName || 'Cancionero') : songs[0].title;
   const data = {
     book, notation: latin ? 'latin' : 'eng', font: Math.max(state.fontSize, 16),
     comments: state.showComments, night: state.night, speeds: SCROLL_SPEEDS,
     scroll: clampLevel(list[0].scrollSpeed || state.scrollSpeed), songs: songs.map(s => s.data),
-    api: exportApi()
+    api: exportApi(), pos: guitarPositions(pos)
   };
   const index = book ? `<header class="cover"><h1>${escapeHtml(pageTitle)}</h1><p>${songs.length} canciones</p></header>
 <nav class="index"><h2>Índice</h2><ol>${songs.map((s, i) =>
@@ -246,6 +276,7 @@ main { max-width: 860px; margin: 0 auto; padding: 14px 10px 50vh; }
 .song-header { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
 .song-title { font-size: 1.6em; font-weight: bold; }
 .song-meta { font-size: .9em; color: #5f6368; margin-top: 4px; }
+.song-credits { font-size: .85em; font-style: italic; color: #5f6368; margin-top: 2px; }
 .keys { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: -4px 0 12px; }
 .keys .lbl { font-size: 13px; color: #5f6368; margin-right: 2px; }
 .keys button { min-width: 38px; padding: 2px 6px; font-size: 13px; }
@@ -279,6 +310,12 @@ body.has-player main { padding-bottom: calc(50vh + 70px); }
 .line { white-space: pre; min-height: 1.5em; }
 .chord-line, .chord { color: #d93025; font-weight: bold; }
 .chord-extra { color: #80868b; font-weight: normal; }
+body.has-pos .chord { cursor: pointer; border-radius: 3px; }
+.pos-pop { position: fixed; z-index: 20; padding: 8px 10px 4px; background: #fff; color: #202124; border: 1px solid #dadce0;
+  border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.18); font-family: Arial, sans-serif; text-align: center; }
+.pos-pop[hidden] { display: none; }
+.pos-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12px; color: #5f6368; }
+.pos-head b { font-size: 16px; color: #d93025; }
 .section-heading { font-family: Arial, sans-serif; font-weight: bold; color: #1a73e8; margin: 10px 0 2px; white-space: pre-wrap; }
 .section-heading.h1 { font-size: 1.3em; }
 .section-heading.h2 { font-size: 1.1em; }
@@ -306,7 +343,7 @@ body.no-comments .comment-line { display: none; }
   body.night .bar button, body.night .bar select, body.night .keys button, body.night .speed button { background: #000; border-color: #555; color: #fff; }
   body.night .bar button.on, body.night .keys button.on { background: #fff; border-color: #fff; color: #000; }
   body.night .keys button.sharp { background: #1a1400; border-color: #b38f00; }
-  body.night .keys .lbl, body.night .song-meta, body.night .strum-name, body.night .audio, body.night .cover p, body.night .index small { color: #bbb; }
+  body.night .keys .lbl, body.night .song-meta, body.night .song-credits, body.night .strum-name, body.night .audio, body.night .cover p, body.night .index small { color: #bbb; }
   body.night .bar .lv { color: #fff; }
   body.night .cover h1 { color: #fff; }
   body.night .index, body.night .song { background: #000; box-shadow: 0 0 0 1px #262626; }
@@ -344,7 +381,7 @@ body.no-comments .comment-line { display: none; }
   .speed span { min-width: 2.6em; }
 }
 @media print {
-  .bar, .keys, .audios, .foot, .player { display: none !important; }
+  .bar, .keys, .audios, .foot, .player, .pos-pop { display: none !important; }
   body { background: #fff; }
   main { padding: 0; max-width: none; }
   .song { box-shadow: none; padding: 0; margin: 0; break-before: page; }
@@ -402,6 +439,59 @@ function atrilRuntime(D) {
       fit();
     });
   });
+
+  // Postura de guitarra al tocar un acorde (D.pos: «trastes:dedos» por acorde, tal como se ve)
+  const pop = el('div', 'pos-pop');
+  pop.hidden = true;
+  document.body.append(pop);
+  if (D.pos && Object.keys(D.pos).length) document.body.classList.add('has-pos');
+  function diagram(code) {
+    const [fs, ds] = code.split(':');
+    const frets = fs.split('').map(ch => ch === 'x' ? -1 : parseInt(ch, 36)), fingers = ds.split('').map(Number);
+    const n = frets.length, sx = 17, fy = 18, padL = 20, padT = 22;
+    const on = frets.filter(f => f > 0), maxF = on.length ? Math.max(...on) : 0, minF = on.length ? Math.min(...on) : 0;
+    const start = maxF <= 5 ? 1 : minF, rows = Math.max(4, maxF - start + 1);
+    const w = padL + (n - 1) * sx + 14, h = padT + rows * fy + 16;
+    const x = i => padL + i * sx, y = r => padT + r * fy;
+    const txt = (cx, cy, t, a) => `<text x="${cx}" y="${cy}" text-anchor="middle" ${a}>${t}</text>`;
+    const names = st.n === 'latin' ? ['Mi', 'La', 'Re', 'Sol', 'Si', 'Mi'] : ['E', 'A', 'D', 'G', 'B', 'E'];
+    let s = `<svg viewBox="0 0 ${w} ${h}" width="${Math.round(w * 1.4)}" height="${Math.round(h * 1.4)}" font-family="Arial, sans-serif">`;
+    for (let r = 0; r <= rows; r++) s += `<line x1="${x(0)}" y1="${y(r)}" x2="${x(n - 1)}" y2="${y(r)}" stroke="#5f6368" stroke-width="${r === 0 && start === 1 ? 4 : 1}"/>`;
+    for (let i = 0; i < n; i++) s += `<line x1="${x(i)}" y1="${y(0)}" x2="${x(i)}" y2="${y(rows)}" stroke="#5f6368"/>`;
+    if (start > 1) s += txt(padL - 9, y(0) + fy * 0.68, start, 'font-size="11" fill="#202124"');
+    const barres = {};
+    frets.forEach((f, i) => { if (f > 0 && fingers[i]) (barres[fingers[i] + '@' + f] = barres[fingers[i] + '@' + f] || []).push(i); });
+    Object.keys(barres).forEach(k => {
+      const strs = barres[k];
+      if (strs.length < 2) return;
+      const cy = y(+k.split('@')[1] - start) + fy / 2;
+      s += `<rect x="${x(strs[0]) - 7}" y="${cy - 7}" width="${x(strs[strs.length - 1]) - x(strs[0]) + 14}" height="14" rx="7" fill="#202124"/>`;
+    });
+    frets.forEach((f, i) => {
+      if (f < 0) s += txt(x(i), padT - 7, '×', 'font-size="13" fill="#d93025"');
+      else if (f === 0) s += `<circle cx="${x(i)}" cy="${padT - 10}" r="4.5" fill="none" stroke="#202124" stroke-width="1.4"/>`;
+      else {
+        const cy = y(f - start) + fy / 2;
+        s += `<circle cx="${x(i)}" cy="${cy}" r="7" fill="#202124"/>`;
+        if (fingers[i]) s += txt(x(i), cy + 3.5, fingers[i], 'font-size="10" font-weight="bold" fill="#fff"');
+      }
+    });
+    if (n === 6) names.forEach((nm, i) => { s += txt(x(i), h - 3, nm, 'font-size="8" fill="#80868b"'); });
+    return s + '</svg>';
+  }
+  document.addEventListener('click', e => {
+    const c = e.target.closest('.chord');
+    const code = c && D.pos && D.pos[c.textContent];
+    if (!code) { if (!e.target.closest('.pos-pop')) pop.hidden = true; return; }
+    if (!pop.hidden && pop.chord === c) { pop.hidden = true; return; }
+    pop.chord = c;
+    pop.innerHTML = `<div class="pos-head"><b>${esc(c.textContent)}</b><span>Guitarra</span></div>${diagram(code)}`;
+    pop.hidden = false;
+    const r = c.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+    pop.style.left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8) + 'px';
+    pop.style.top = (r.bottom + 8 + h <= window.innerHeight || r.top - 8 - h < 0 ? r.bottom + 8 : r.top - 8 - h) + 'px';
+  });
+  window.addEventListener('scroll', () => { pop.hidden = true; }, { passive: true });
 
   // Reproductor abajo, como la barra de audio de la app. Sin JavaScript quedan los reproductores
   // normales de cada canción.
@@ -685,6 +775,7 @@ async function saveAtrilHtml(list, name, titulo, withAudio) {
   if (!save) return;
   let embedded = new Map(), failed = 0;
   if (withAudio) ({ embedded, failed } = await collectEmbedded(list));
+  await preloadGuitarDb();
   const { pkg } = buildSharePackage(list, titulo || name);
   const share = { pkg, link: await packToLink(pkg) };
   const html = new Blob([buildAtrilHtml(list, { titulo, embedded, share })], { type: 'text/html;charset=utf-8' });

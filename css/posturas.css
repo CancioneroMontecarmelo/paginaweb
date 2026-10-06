@@ -1,0 +1,26 @@
+/* Ventanita con la postura de un acorde (js/posturas.js), en Misas y en el reproductor */
+.con-posturas .chord[data-chord] { cursor: pointer; border-radius: 3px; }
+.con-posturas .chord[data-chord]:hover { background: rgba(217, 48, 37, 0.12); }
+
+.postura-pop {
+  position: fixed;
+  z-index: 1000;
+  min-width: 180px;
+  padding: 8px 10px 6px;
+  background: #fff;
+  color: #202124;
+  border: 1px solid #dadce0;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+}
+.postura-cabeza { display: flex; align-items: center; gap: 6px; }
+.postura-nombre { font-size: 16px; color: #d93025; margin-right: auto; }
+.postura-inst { font: inherit; font-size: 12px; padding: 2px 4px; border: 1px solid #dadce0; border-radius: 6px; background: #fff; }
+.postura-cerrar { border: 0; background: none; font-size: 15px; cursor: pointer; color: #5f6368; padding: 2px 4px; }
+.postura-dibujo { display: flex; justify-content: center; padding: 6px 0 2px; }
+.postura-dibujo .chord-svg { width: 150px; height: auto; }
+.postura-nada { margin: 10px 0; color: #5f6368; max-width: 180px; text-align: center; }
+.postura-pie { display: flex; align-items: center; justify-content: center; gap: 10px; color: #5f6368; }
+.postura-pie button { border: 1px solid #dadce0; background: #fff; border-radius: 14px; padding: 2px 10px; cursor: pointer; }

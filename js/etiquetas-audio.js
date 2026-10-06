@@ -1,6 +1,6 @@
 /**
  * etiquetas-audio.js — Lee del ID3 de un MP3 lo que escribe Editag (Mp3editag/js/id3.js):
- * título (TIT2), artista (TPE1), etiquetas (TCON), letra con acordes (TXXX «MP3EDITAG», antes «CIC»),
+ * título (TIT2), artista (TPE1), compositor (TCOM), letrista (TEXT), etiquetas (TCON), letra con acordes (TXXX «MP3EDITAG», antes «CIC»),
  * letra simple (USLT) y momentos y tiempos litúrgicos (TXXX «LITURGICAL_MOMENTS» / «LITURGICAL_SEASONS»).
  * Los audios se convierten a .m4a al subirlos y la conversión no conserva estas etiquetas: se leen antes.
  */
@@ -84,7 +84,7 @@ function framesId3(u) {
     const comprimido = ver === 4 ? f2 & 0x08 || f2 & 0x04 : f2 & 0x80 || f2 & 0x40;
     if (ver === 4 && f2 & 0x02) datos = quitarDesincronizacion(datos);
     if (ver === 4 && f2 & 0x01) datos = datos.subarray(4);
-    if (!comprimido) frames.push({ id: ver === 2 ? { TT2: "TIT2", TP1: "TPE1", TCO: "TCON", TXX: "TXXX", ULT: "USLT" }[id] || id : id, datos });
+    if (!comprimido) frames.push({ id: ver === 2 ? { TT2: "TIT2", TP1: "TPE1", TCM: "TCOM", TXT: "TEXT", TCO: "TCON", TXX: "TXXX", ULT: "USLT" }[id] || id : id, datos });
     pos += cab + tam;
   }
   return { frames, tag };
@@ -144,7 +144,7 @@ const listaIds = (s) => String(s || "").split(/[,;]+/).map((x) => x.trim().toLow
 
 /**
  * @param {File|Blob} archivo
- * @returns {Promise<null|{ titulo: string, artista: string, letra: string, conAcordes: boolean, etiquetas: string[] }>}
+ * @returns {Promise<null|{ titulo: string, artista: string, compositor: string, letrista: string, letra: string, conAcordes: boolean, etiquetas: string[] }>}
  *   null si el archivo no tiene ID3v2. «letra» es la del tag privado (con acordes) o, si no está, la USLT.
  */
 export async function leerEtiquetasAudio(archivo) {
@@ -158,12 +158,14 @@ export async function leerEtiquetasAudio(archivo) {
   const tam = Math.min(10 + synchsafe(cabeza, 6), MAX_TAG);
   const r = framesId3(new Uint8Array(await archivo.slice(0, tam).arrayBuffer()));
   if (!r) return null;
-  const out = { titulo: "", artista: "", letra: "", conAcordes: false, etiquetas: [] };
+  const out = { titulo: "", artista: "", compositor: "", letrista: "", letra: "", conAcordes: false, etiquetas: [] };
   let simple = "", momentos = [], tiempos = [];
   for (const { id, datos } of r.frames) {
     if (datos.length < 2) continue;
     if (id === "TIT2" && !out.titulo) out.titulo = textoDeFrame(datos);
     else if (id === "TPE1" && !out.artista) out.artista = textoDeFrame(datos);
+    else if (id === "TCOM" && !out.compositor) out.compositor = textoDeFrame(datos);
+    else if (id === "TEXT" && !out.letrista) out.letrista = textoDeFrame(datos);
     else if (id === "TCON") {
       out.etiquetas.push(...textoDeFrame(datos).replace(/^\(\d+\)/, "").split(/[,;/|]+/).map((x) => x.trim()).filter(Boolean));
     } else if (id === "USLT" && !simple) simple = uslt(datos);

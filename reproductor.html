@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Escuchá las canciones de la Biblioteca de la Parroquia Monte Carmelo con su letra y acordes, en listas o siguiendo un cancionero de misa.">
+  <meta name="theme-color" content="#14110d">
+  <title>Reproductor · Monte Carmelo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/site.css">
+  <link rel="stylesheet" href="./css/posturas.css">
+  <link rel="stylesheet" href="./css/partituras.css">
+  <link rel="stylesheet" href="./css/voces.css">
+  <link rel="stylesheet" href="./css/reproductor.css">
+</head>
+<body class="pagina-reproductor rp-noche">
+  <nav class="nav-sitio scrolled" aria-label="Principal">
+    <a class="nav-marca" href="./inicio.html">Monte Carmelo</a>
+    <button type="button" class="nav-toggle" aria-label="Menú">Menú</button>
+    <ul class="nav-links">
+      <li><a href="./inicio.html">Inicio</a></li>
+      <li><a href="./misas.html">Misas</a></li>
+      <li><a href="./reproductor.html" aria-current="page">Reproductor</a></li>
+      <li><a href="./editor/">Editor</a></li>
+      <li><a href="./noticias.html">Noticias</a></li>
+      <li><a href="./login.html" data-nav-sesion>Identificarse</a></li>
+    </ul>
+  </nav>
+
+  <main class="rp">
+    <div class="rp-pestanas" role="tablist" aria-label="Secciones del reproductor">
+      <button type="button" class="rp-pestana activa" role="tab" aria-selected="true" data-vista="canciones">Canciones</button>
+      <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="listas">Listas</button>
+      <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="sonando">Reproduciendo</button>
+      <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="vivo">En vivo</button>
+    </div>
+
+    <div class="rp-compartida" id="rp-compartida" hidden>
+      <span>Lista compartida: <b id="rp-compartida-nombre"></b></span>
+      <button type="button" class="rp-btn" id="rp-guardar-compartida">Guardar en mis listas</button>
+    </div>
+
+    <!-- Canciones de la Biblioteca -->
+    <section class="rp-vista" id="vista-canciones" role="tabpanel">
+      <div class="rp-buscar">
+        <input type="search" id="rp-buscar" placeholder="Buscar por título, frase de la letra, autor o momento" autocomplete="off" aria-label="Buscar canciones">
+        <label class="rp-check"><input type="checkbox" id="rp-con-audio"> Solo con audio</label>
+      </div>
+      <p class="rp-aviso" id="rp-estado-bib">Cargando la Biblioteca…</p>
+      <ul class="rp-lista" id="rp-canciones"></ul>
+    </section>
+
+    <!-- Mis listas y cancioneros de misa -->
+    <section class="rp-vista" id="vista-listas" role="tabpanel" hidden>
+      <div class="rp-bloque-cabeza">
+        <h2>Mis listas</h2>
+        <button type="button" class="rp-btn" id="rp-nueva-lista">+ Nueva lista</button>
+      </div>
+      <p class="rp-aviso" id="rp-sin-listas">Todavía no tenés listas. Creá una, o tocá «+» junto a una canción.</p>
+      <ul class="rp-listas" id="rp-listas"></ul>
+
+      <div class="rp-bloque-cabeza">
+        <h2>Cancioneros de misa</h2>
+        <select id="rp-comunidad" aria-label="Comunidad"></select>
+      </div>
+      <p class="rp-aviso" id="rp-estado-misas">Cargando…</p>
+      <ul class="rp-listas" id="rp-misas"></ul>
+    </section>
+
+    <!-- Reproduciendo -->
+    <section class="rp-vista" id="vista-sonando" role="tabpanel" hidden>
+      <div class="rp-vacio" id="rp-nada">
+        <p>Elegí una canción o una lista para empezar.</p>
+      </div>
+      <div id="rp-sonando" hidden>
+        <div class="rp-cabeza">
+          <div>
+            <p class="rp-momento" id="rp-momento" hidden></p>
+            <p class="rp-donde" id="rp-donde"></p>
+          </div>
+          <div class="rp-ajustes">
+            <button type="button" class="rp-btn" id="rp-acordes" aria-pressed="true" title="Mostrar u ocultar los acordes">Letra y acordes</button>
+            <button type="button" class="rp-btn" id="rp-menos" title="Letra más chica">A−</button>
+            <button type="button" class="rp-btn" id="rp-mas" title="Letra más grande">A+</button>
+            <button type="button" class="rp-btn" id="rp-tema" title="Modo día o noche">☀︎</button>
+          </div>
+        </div>
+        <div class="rp-extras">
+          <label class="rp-voz" id="rp-voz-caja" hidden>Voz
+            <select id="rp-voz"></select>
+          </label>
+          <div id="rp-extras"></div>
+        </div>
+        <p class="rp-sin-audio" id="rp-sin-audio" hidden>Esta canción no tiene audio: cantala con la letra y pasá a la siguiente cuando quieras.</p>
+        <article class="song-render rp-letra" id="rp-letra"></article>
+      </div>
+    </section>
+
+    <!-- Seguir en vivo -->
+    <section class="rp-vista" id="vista-vivo" role="tabpanel" hidden>
+      <form class="rp-vivo-entrar" id="rp-vivo-form">
+        <h2>Seguir en vivo</h2>
+        <p class="rp-aviso">Escribí el código de 4 cifras que muestra quien dirige el canto: tu pantalla va a ir mostrando la canción que se canta, en su tono.</p>
+        <div class="rp-vivo-codigo">
+          <input type="text" id="rp-vivo-codigo" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="0000" autocomplete="off" aria-label="Código">
+          <button type="submit" class="rp-btn rp-btn-fuerte">Seguir</button>
+        </div>
+        <p class="rp-error" id="rp-vivo-error" hidden></p>
+      </form>
+      <div class="rp-vivo" id="rp-vivo" hidden>
+        <div class="rp-vivo-barra">
+          <span class="rp-vivo-punto" aria-hidden="true"></span>
+          <span id="rp-vivo-estado">En vivo</span>
+          <span class="espacio"></span>
+          <div class="rp-segmentado" role="group" aria-label="Qué mostrar">
+            <button type="button" class="rp-btn" data-vivo-vista="letra">Solo letra</button>
+            <button type="button" class="rp-btn" data-vivo-vista="acordes">Letra y acordes</button>
+          </div>
+          <button type="button" class="rp-btn" id="rp-vivo-salir">Salir</button>
+        </div>
+        <p class="rp-momento" id="rp-vivo-momento" hidden></p>
+        <article class="song-render rp-letra" id="rp-vivo-letra"><div class="rp-vacio"><p>Esperando la primera canción…</p></div></article>
+      </div>
+    </section>
+  </main>
+
+  <!-- Barra de reproducción -->
+  <footer class="rp-barra" id="rp-barra" hidden>
+    <button type="button" class="rp-barra-titulo" id="rp-barra-titulo" title="Ver la letra"></button>
+    <div class="rp-controles">
+      <button type="button" class="rp-ctl" id="rp-anterior" aria-label="Anterior">⏮</button>
+      <button type="button" class="rp-ctl rp-play" id="rp-play" aria-label="Reproducir">▶</button>
+      <button type="button" class="rp-ctl" id="rp-siguiente" aria-label="Siguiente">⏭</button>
+    </div>
+    <div class="rp-avance">
+      <span id="rp-actual">0:00</span>
+      <input type="range" id="rp-progreso" min="0" max="1" step="0.1" value="0" aria-label="Avance">
+      <span id="rp-total">0:00</span>
+    </div>
+    <audio id="rp-audio" preload="auto"></audio>
+  </footer>
+
+  <!-- Agregar a una lista -->
+  <dialog class="rp-dlg" id="rp-dlg-agregar">
+    <form method="dialog">
+      <h2>Agregar a una lista</h2>
+      <p class="rp-aviso" id="rp-agregar-que"></p>
+      <ul class="rp-elegir" id="rp-agregar-listas"></ul>
+      <div class="rp-dlg-acciones">
+        <button type="button" class="rp-btn" id="rp-agregar-nueva">+ Nueva lista</button>
+        <span class="espacio"></span>
+        <button type="submit" class="rp-btn">Cerrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="rp-toast" id="rp-toast" role="status" hidden></div>
+
+  <script src="./js/misas-shim.js"></script>
+  <script src="./editor/js/acordes.js"></script>
+  <script src="./editor/js/markdown.js"></script>
+  <script src="./editor/js/etiquetas.js"></script>
+  <script src="./editor/js/buscar.js"></script>
+  <script src="./editor/js/instrumentos.js"></script>
+  <script src="./editor/js/rasgueos.js"></script>
+  <script src="./editor/js/render.js"></script>
+  <script type="module" src="./js/reproductor.js"></script>
+</body>
+</html>

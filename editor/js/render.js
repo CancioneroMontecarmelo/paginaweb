@@ -20,8 +20,12 @@ function renderLine(line) {
   return `<div class="line lyric-line">${inlineMd(line)}</div>`;
 }
 
-function renderHeader(title, key, tags = cur()?.tags) {
+function renderHeader(title, key, tags = cur()?.tags, credits = cur()?.credits) {
   let html = `<header class="song-header"><div class="song-title">${escapeHtml(title.trim() || 'Sin título')}</div>`;
+  const cred = creditsText(credits);
+  // Fuera del editor (Misas, reproductor) no hay diálogos: los créditos solo se muestran
+  const editable = typeof showModal === 'function' ? ' data-action="creditsDialog" title="Editar los créditos"' : '';
+  if (cred) html += `<div class="song-credits"${editable}>${escapeHtml(cred)}</div>`;
   const meta = [];
   if (key) meta.push(`Tono: <strong>${escapeHtml(keyLabel(key))}</strong>`);
   if (state.highlight !== 'todas') meta.push(`Resaltando: <strong>${escapeHtml(VOICES[state.highlight]?.label || state.highlight)}</strong>`);

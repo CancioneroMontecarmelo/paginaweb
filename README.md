@@ -89,6 +89,8 @@ clasp update-deployment <ID de la implementación> -d "descripción"
 | `comunidades/` | Página de cada comunidad: noticias y cancioneros publicados |
 | `noticias/` | Blog estático por comunidad (JSON) |
 | `misas.html` | Pantalla Misas: cancioneros de misa de todas las comunidades, Biblioteca de canciones, coros y ensayos |
+| `reproductor.html` + `js/reproductor.js` | Reproductor: canciones con su letra, listas, cancioneros de misa y En vivo para el coro |
+| `js/posturas.js`, `js/partituras.js`, `js/voces.js` | Posturas al tocar un acorde, partituras y el mezclador «Aprender las voces» (Misas y reproductor) |
 | `inicio.html` + `js/inicio.js` | Inicio: actividades, calendario litúrgico, próximo domingo, libro de visitas y Colaborar |
 | `js/liturgia.js` | Calendario litúrgico y cantos sugeridos (común a Misas e Inicio) |
 | `ver.html` | Muestra un cancionero guardado en el Drive (`ver.html?id=…`) |
@@ -272,6 +274,49 @@ quedan como elegidas.
   `audiosAConvertir`, `leerAudioAConvertir` y `reemplazarAudio` del Apps Script (usa el servicio avanzado
   de Drive).
 
+### Créditos (letra y música)
+
+- Cada canción puede decir quién escribió la letra y quién la música: en el `.md` son `letra-de:` y
+  `musica-de:` en la cabecera. En el editor se cargan con el botón **Créditos** junto al título (o el
+  menú del título → **Créditos (letra y música)…**).
+- Se muestran bajo el título como «Letra: … · Música: …» (o «Letra y música: …» si es la misma persona)
+  en el atril, en Misas, en las páginas `.html` exportadas y en el reproductor.
+- El Apps Script los guarda también en `biblioteca.json` (`letraDe`, `musicaDe`), así el **buscador**
+  encuentra las canciones por autor («gumucio»).
+- Los MP3 de Editag con compositor (`TCOM`) y letrista (`TEXT`) los traen solos al subirlos como audio.
+
+### Posturas al tocar un acorde
+
+- En Misas y en el reproductor, tocar un acorde de la canción abre una ventanita con cómo se toca:
+  el diagrama, las flechas ◀ ▶ para ver otras posturas y el instrumento (guitarra, ukelele, charango o
+  mandolina; se recuerda en el equipo). Usa las mismas posturas que el editor (`js/posturas.js`).
+- Las páginas `.html` exportadas o publicadas también lo hacen, sin internet: al exportar se calcula la
+  postura de guitarra de cada acorde en los 12 tonos y en las dos notaciones, y se guarda solo como
+  trastes y dedos (unos 20 bytes por acorde). Siguen el tono que se elija en la página.
+
+### Partituras
+
+- Debajo de la canción, en Misas, los botones **𝄞 Partitura · Soprano**… abren la partitura dentro de la
+  página, con la vista previa de Drive (el celular no pregunta con qué app abrirla), y **Descargar**.
+- Quien puede editar la canción tiene **+ Partitura**: sube un PDF o una foto PNG o JPG (hasta 15 MB),
+  elige la voz, y desde el mismo diálogo puede **Quitar** las que ya tiene.
+- Quedan en `MonteCarmelo/Biblioteca/partituras`, visibles con el enlace, y en `biblioteca.json`
+  (`partituras: [{fileId, nombre, voz, mime}]`); volver a guardar la canción desde el editor las conserva.
+  Acciones del Apps Script: `subirPartitura` y `quitarPartitura`.
+- Las páginas `.html` de los cancioneros y el reproductor tienen el enlace **Partitura**.
+
+### Aprender las voces
+
+- En canciones con audios de dos o más voces distintas (soprano, contralto, tenor, bajo…), el botón
+  **🎚 Aprender las voces** abre un mezclador: todas las voces suenan juntas, exactamente sincronizadas,
+  con reproducir/pausa y barra de avance comunes.
+- Por voz: volumen, **Silenciar** y **Solo**. Los botones **Mi voz: …** dejan esa voz al 100 % y las demás
+  bajas, como guía; la elección queda recordada en el equipo (y el reproductor elige esa voz primero).
+- Baja cada voz por el respaldo del servidor (`accion=audio`) y las mezcla con Web Audio (`js/voces.js`).
+- Las voces quedan alineadas solo si sus audios **empiezan en el mismo compás**, como las pistas de un
+  mismo arreglo. Grabaciones sueltas, cada una con su propia entrada, se desfasan.
+- La voz **Contralto** (también se escribe `[Voz: Alto]`) se suma a las del editor.
+
 ### Aplicación de escritorio: subir canciones a la Biblioteca (`scripts/subir-canciones.py`)
 
 Ventana para Linux Mint que busca las canciones `.md` que el editor guardó en la computadora (por
@@ -323,3 +368,44 @@ scripts/video-a-webm.py ensayo.mov --sin-subir --salida ~/Música/m4a      # sol
   (`--si` responde que sí).
 - Siempre deja en `--salida` (por defecto, la carpeta actual) el `.m4a` y el `.md` de la canción, que se
   pueden abrir en el editor o subir después desde **Misas → Canciones y audios**. Máximo 30 MB por audio.
+
+## Reproductor (`reproductor.html`)
+
+Escuchar las canciones de la Biblioteca con su letra, en el celular o en la computadora, sin iniciar
+sesión. Oscuro por defecto (☀︎ lo pasa a modo día). Lo hace `js/reproductor.js` con los mismos scripts
+del editor que usa Misas; todo son lecturas públicas del Apps Script.
+
+- **Canciones**: el buscador de la Biblioteca (título, frase de la letra, autor o etiqueta) y **Solo con
+  audio**. Tocar una canción la hace sonar; la cola es la lista que se está viendo. **+** la agrega a una
+  lista.
+- **Listas**:
+  - **Mis listas**, guardadas en el equipo (`localStorage` `mc-listas`): crear, renombrar, ordenar con
+    ↑ ↓, quitar canciones y borrar. **WhatsApp** y **Copiar enlace** las comparten con un enlace
+    `reproductor.html#l=…` que lleva la lista adentro; quien lo abre la escucha enseguida y puede
+    **Guardar en mis listas**.
+  - **Cancioneros de misa**, por comunidad y del más reciente al más antiguo:
+    `reproductor.html#misa=<id>` los reproduce con sus momentos y en el tono elegido. En Misas, el botón
+    **♪ Reproducir** del cancionero abre esa dirección (incluso con cambios todavía sin guardar).
+- **Reproduciendo**: el momento, la letra con acordes (o **Solo letra**), **A− / A+**, los créditos, las
+  posturas al tocar un acorde, **Partitura** y **Aprender las voces**. Si la canción tiene varios audios,
+  un selector de voz. Abajo, una barra mínima: anterior, reproducir/pausa, siguiente y avance.
+- Primero prueba el enlace directo de Drive y, si falla, el respaldo `accion=audio`. Precarga la canción
+  siguiente; las canciones sin audio no se saltan solas, para poder cantarlas.
+- En el celular: controles en la pantalla bloqueada y en los auriculares (Media Session) y la pantalla no
+  se apaga mientras se lee la letra (Wake Lock, donde exista).
+
+### En vivo (para el coro)
+
+- Quien dirige el canto abre el cancionero en Misas y toca **📡 En vivo**. Aparece una franja con un
+  **código de 4 cifras**, **WhatsApp**, **Copiar enlace** y **Terminar**.
+- El coro abre `reproductor.html#vivo=<código>` (o **En vivo** en el reproductor, escribiendo el código):
+  la pantalla muestra la canción que quien dirige va eligiendo, en su tono, y vuelve arriba al cambiar
+  de canción. Cada uno elige **Solo letra** o **Letra y acordes**.
+- Cada vez que se elige una canción o se cambia el tono en Misas se envía `moverVivo` (si se cambia
+  varias veces seguidas, solo lo último). Los celulares consultan cada 4 segundos, con un pequeño desfase
+  al azar, y dejan de consultar con la pantalla apagada o en otra app. Al **Terminar**, les aparece
+  «Terminó».
+- El estado vive en el `CacheService` del Apps Script (sin tocar el Drive) y dura 6 horas; tocar
+  **En vivo** de nuevo reutiliza el mismo código. Acciones: `iniciarVivo`, `moverVivo`, `terminarVivo` y
+  el GET público `accion=vivo&codigo=…`. Con 40 a 60 celulares son unas 15 consultas por segundo, dentro
+  de lo que aguanta el Apps Script gratuito.

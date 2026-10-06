@@ -1,0 +1,141 @@
+/* Partituras: botones bajo la canción y diálogos (vista previa de Drive y subir/quitar) */
+
+.partituras-fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.btn-partitura {
+  font-weight: 560;
+}
+
+.dlg-partitura {
+  width: min(60rem, 97vw);
+  height: min(92vh, 70rem);
+  padding: 0;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--crema-clara);
+  color: var(--texto);
+  box-shadow: 0 1.5rem 4rem var(--sombra);
+  overflow: hidden;
+}
+
+.dlg-partitura[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.dlg-partitura::backdrop {
+  background: rgba(42, 36, 28, 0.55);
+}
+
+.dlg-partitura-subir {
+  width: min(34rem, 96vw);
+  height: auto;
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.partitura-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--borde, rgba(154, 79, 46, 0.2));
+}
+
+.partitura-titulo {
+  flex: 1;
+  margin: 0;
+  font-family: var(--fuente-display);
+  color: var(--verde);
+  font-size: 1.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partitura-bajar {
+  text-decoration: none;
+}
+
+.partitura-marco {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.partitura-cuerpo {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.partitura-cuerpo label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.partitura-cuerpo input,
+.partitura-cuerpo select {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid rgba(154, 79, 46, 0.35);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  color: var(--texto);
+}
+
+.partitura-actuales {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.partitura-actuales li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+}
+
+.partitura-actuales .peligro {
+  color: #b3261e;
+  border-color: rgba(179, 38, 30, 0.4);
+}
+
+.partitura-estado {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--verde);
+}
+
+.partitura-estado.error {
+  color: #b3261e;
+}
+
+.partitura-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .dlg-partitura:not(.dlg-partitura-subir) {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+  }
+}

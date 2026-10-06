@@ -7,7 +7,7 @@ let activeId = null;
 const cur = () => docs.find(d => d.id === activeId) || docs[0];
 
 function makeDoc({ id, title = 'Sin título', text = '', audios = [], currentAudioId = null, clean = true, scrollSpeed = null,
-  sheets = [], instruments = [], capos = {}, view = null, sheetSel = {}, panelInst = 0, tags = [] } = {}) {
+  sheets = [], instruments = [], capos = {}, view = null, sheetSel = {}, panelInst = 0, tags = [], credits = null } = {}) {
   const d = {
     id: id || uid(),
     title, text,
@@ -19,6 +19,7 @@ function makeDoc({ id, title = 'Sin título', text = '', audios = [], currentAud
     capos: capos || {},
     view, sheetSel: sheetSel || {}, panelInst: panelInst || 0,
     tags: uniqueTags(tags || []),
+    credits: normalizeCredits(credits),
     hist: { stack: [{ text, s: 0, e: 0 }], idx: 0, timer: null },
     sel: [0, 0],
     scroll: 0,
@@ -30,7 +31,7 @@ function makeDoc({ id, title = 'Sin título', text = '', audios = [], currentAud
 }
 
 const docSignature = d => [d.title, d.text, d.audios.map(a => a.src).join('|'), d.sheets.map(h => h.src).join('|'),
-  instrumentsToMeta(d.instruments), caposToMeta(d.capos), tagsToMeta(d.tags)].join('\u0000');
+  instrumentsToMeta(d.instruments), caposToMeta(d.capos), tagsToMeta(d.tags), d.credits.letra, d.credits.musica].join('\u0000');
 const isDirty = d => docSignature(d) !== d.clean;
 const isBlank = d => !d.text.trim() && !d.audios.length && !d.sheets.length;
 const markClean = (d = cur()) => { d.clean = docSignature(d); };
@@ -257,6 +258,7 @@ function saveNow() {
         sheets: d.sheets.map(storableSheet),
         instruments: d.instruments, capos: d.capos, view: d.view, sheetSel: d.sheetSel, panelInst: d.panelInst,
         tags: d.tags,
+        credits: d.credits,
         clean: !isDirty(d)
       }))
     }));

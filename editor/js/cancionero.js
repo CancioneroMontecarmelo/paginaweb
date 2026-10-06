@@ -24,7 +24,7 @@
  *
  * - Varias voces de una canción = entradas seguidas con la misma CANCIOTRAS-CANCION.
  * - Valores de CANCIOTRAS-AUDIO codificados con encodeURIComponent (voz: todas|tenor|soprano|
- *   bajo|mezzosoprano|castrati; pagina: página cuyo audio se obtiene con yt-dlp (VLC no sabe
+ *   bajo|mezzosoprano|contralto|castrati; pagina: página cuyo audio se obtiene con yt-dlp (VLC no sabe
  *   sacarlo de YouTube, por eso la entrada apunta al servidor de CancioTras); origen: página de
  *   donde salió un audio local, para escucharlo desde ahí si el archivo no aparece).
  * - Se leen también las listas anteriores (entrada = página de YouTube con extraer=1, o el .md).
