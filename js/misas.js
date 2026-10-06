@@ -19,6 +19,7 @@ import { leerEtiquetasAudio } from "./etiquetas-audio.js";
 import { activarPosturas } from "./posturas.js";
 import { botonesPartituras } from "./partituras.js";
 import { crearMezclador, pistasDeVoces } from "./voces.js";
+import { desbloquear } from "./silencio.js";
 import {
   MOMENTOS_MISA, TIEMPOS, claveMomento, esDelMomento, momentoPorLetra, ordenMomento, hoyIso, proximoDomingo, fechaLarga,
   tituloLiturgico, tiempoPorFecha, momentosDeMisa, sugerirCantos as sugerirDeLaBiblioteca,
@@ -987,12 +988,12 @@ function pintarAudios(entrada) {
     et.textContent = "♪ " + (a.nombre || "Audio") + (voz ? " · " + voz : "");
     div.append(et);
     if (a.fileId) {
-      const au = document.createElement("audio");
-      au.controls = true;
-      au.preload = "none";
-      au.src = "https://drive.google.com/uc?export=download&id=" + encodeURIComponent(a.fileId);
-      au.addEventListener("error", () => audioDeRespaldo(au, a.fileId), { once: true });
-      div.append(au);
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn-chico btn-escuchar";
+      b.textContent = "▶ Escuchar";
+      b.addEventListener("click", () => audioDeRespaldo(b, a.fileId));
+      div.append(b);
     } else if (a.url && /youtu\.?be|vimeo\.com/i.test(a.url)) {
       const link = document.createElement("a");
       link.href = a.url;
@@ -1022,11 +1023,16 @@ function pintarAudios(entrada) {
   if (partituras) box.append(partituras);
 }
 
-// Si el navegador no puede reproducir el enlace directo de Drive, se pide el audio al Apps Script
-async function audioDeRespaldo(au, fileId) {
+// Drive rechaza el enlace directo pedido desde otra página: el audio se pide al Apps Script al tocar «Escuchar».
+// El <audio> se crea y suena dentro del toque (en iPhone tiene que ser así) y recibe el archivo al llegar.
+async function audioDeRespaldo(boton, fileId) {
+  const au = document.createElement("audio");
+  au.controls = true;
   const aviso = document.createElement("small");
   aviso.textContent = "Cargando el audio desde el Drive…";
+  boton.replaceWith(au);
   au.after(aviso);
+  desbloquear(au);
   try {
     const r = await leer({ accion: "audio", id: fileId });
     if (/webm/i.test(r.mime || r.nombre || "") && !reproduceWebm) {

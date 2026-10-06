@@ -7,8 +7,9 @@
  *    que se comparten con un enlace #l=… (WhatsApp o Copiar), y los cancioneros de misa (#misa=<id>) con
  *    sus momentos y tonos.
  *  - Reproduciendo: la letra con acordes en el tono del cancionero, créditos, posturas al tocar un acorde,
- *    partituras y «Aprender las voces». Un solo <audio>: el enlace directo de Drive y, si falla, el respaldo
- *    accion=audio del Apps Script. Precarga la siguiente, Media Session (pantalla bloqueada y auriculares)
+ *    partituras y «Aprender las voces». Un solo <audio>, que los audios del Drive reciben por accion=audio
+ *    del Apps Script (Drive rechaza con 403 el enlace directo pedido desde otra página). Precarga la
+ *    siguiente, Media Session (pantalla bloqueada y auriculares)
  *    y Wake Lock (la pantalla no se apaga mientras se lee).
  *  - En vivo (#vivo=<código>): sigue la canción que elige quien dirige desde Misas, consultando cada 4 s.
  *
@@ -21,6 +22,7 @@ import { COMUNIDADES } from "./comunidades.js";
 import { activarPosturas, cerrar as cerrarPostura } from "./posturas.js";
 import { botonesPartituras } from "./partituras.js";
 import { crearMezclador, pistasDeVoces } from "./voces.js";
+import { SILENCIO, desbloquear } from "./silencio.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => escapeHtml(s == null ? "" : s);
@@ -49,7 +51,6 @@ const st = {
   misas: null,
   comunidad: guardado("mc-rp-comunidad", ""),
   vista: "canciones",
-  driveFalla: false,
   mezclador: null,
   vivo: null
 };
@@ -80,17 +81,33 @@ function textoCancion(id) {
   return st.textos.get(id);
 }
 
+const reproduceWebm = !!audio.canPlayType('audio/webm; codecs="opus"');
+let desbloqueado = false;
+const MAX_BLOBS = 12;
 const blobs = new Map();
 function blobDeAudio(fileId) {
-  if (!blobs.has(fileId)) {
-    const p = leer({ accion: "audio", id: fileId }).then((r) => {
-      const bytes = Uint8Array.from(atob(r.base64), (ch) => ch.charCodeAt(0));
-      return URL.createObjectURL(new Blob([bytes], { type: r.mime || "audio/mp4" }));
-    });
+  if (blobs.has(fileId)) {
+    const p = blobs.get(fileId);
+    blobs.delete(fileId);
     blobs.set(fileId, p);
-    p.catch(() => blobs.delete(fileId));
+    return p;
   }
-  return blobs.get(fileId);
+  const p = leer({ accion: "audio", id: fileId }).then((r) => {
+    if (/webm/i.test(r.mime || r.nombre || "") && !reproduceWebm) {
+      throw new Error("este audio todavía está en el formato anterior (WebM), que este equipo no reproduce. Cuando la Biblioteca termine de pasar a .m4a va a sonar.");
+    }
+    const bytes = Uint8Array.from(atob(r.base64), (ch) => ch.charCodeAt(0));
+    return URL.createObjectURL(new Blob([bytes], { type: r.mime || "audio/mp4" }));
+  });
+  blobs.set(fileId, p);
+  p.catch(() => blobs.delete(fileId));
+  // Los más viejos se liberan, salvo el que está sonando
+  for (const [id, viejo] of blobs) {
+    if (blobs.size <= MAX_BLOBS) break;
+    viejo.then((url) => { if (audio.src !== url) URL.revokeObjectURL(url); }, () => {});
+    blobs.delete(id);
+  }
+  return p;
 }
 
 const bytesDeAudio = async (fileId) => {
@@ -386,30 +403,24 @@ function cargarAudio(a, tocar) {
     pintarBarra();
     return;
   }
-  const respaldo = async () => {
-    if (t !== turno) return;
-    st.driveFalla = true;
-    pintarDonde("Cargando el audio desde el Drive…");
-    try {
-      const url = await blobDeAudio(a.fileId);
-      if (t !== turno) return;
-      audio.src = url;
-      if (tocar) audio.play().catch(() => {});
-    } catch (e) {
-      if (t === turno) avisar("No se pudo cargar el audio: " + e.message);
-    } finally {
-      if (t === turno) pintarDonde();
-    }
-  };
-  if (a.fileId && st.driveFalla) {
-    respaldo();
+  if (!a.fileId) {
+    audio.onerror = () => { if (t === turno) avisar("No se pudo cargar el audio: el enlace no responde."); };
+    audio.src = a.url;
+    if (tocar) audio.play().catch(() => {});
     return;
   }
-  if (a.fileId) {
-    audio.onerror = respaldo;
-    audio.src = "https://drive.google.com/uc?export=download&id=" + encodeURIComponent(a.fileId);
-  } else audio.src = a.url;
-  if (tocar) audio.play().catch(() => {});
+  if (tocar && !desbloqueado) {
+    desbloqueado = true;
+    desbloquear(audio);
+  } else audio.removeAttribute("src");
+  pintarDonde("Cargando el audio desde el Drive…");
+  blobDeAudio(a.fileId).then((url) => {
+    if (t !== turno) return;
+    audio.src = url;
+    if (tocar) audio.play().catch(() => {});
+  }, (e) => {
+    if (t === turno) avisar("No se pudo cargar el audio: " + e.message);
+  }).finally(() => { if (t === turno) pintarDonde(); });
 }
 
 function pintarDonde(extra) {
@@ -512,14 +523,7 @@ function precargar(i) {
   const entrada = st.porId.get(it.cancionId);
   const { lista, i: k } = elegirAudio(entrada || {});
   const a = lista[k];
-  if (!a?.fileId) return;
-  if (st.driveFalla) blobDeAudio(a.fileId).catch(() => {});
-  else {
-    const previo = new Audio();
-    previo.preload = "auto";
-    previo.onerror = () => blobDeAudio(a.fileId).catch(() => {});
-    previo.src = "https://drive.google.com/uc?export=download&id=" + encodeURIComponent(a.fileId);
-  }
+  if (a?.fileId) blobDeAudio(a.fileId).catch(() => {});
 }
 
 const siguiente = () => st.cola && st.indice < st.cola.items.length - 1 && reproducir(st.indice + 1);
@@ -815,6 +819,7 @@ function conectar() {
   audio.addEventListener("play", () => { if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing"; });
   audio.addEventListener("pause", () => { if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "paused"; });
   audio.addEventListener("ended", () => {
+    if (audio.src === SILENCIO) return;
     if (!siguiente()) avisar("Terminó la lista.");
   });
 

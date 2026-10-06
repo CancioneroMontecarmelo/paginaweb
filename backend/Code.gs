@@ -114,6 +114,7 @@ var ACCIONES = {
   audiosAConvertir: audiosAConvertir_,
   leerAudioAConvertir: leerAudioAConvertir_,
   reemplazarAudio: reemplazarAudio_,
+  vincularAudiosSueltos: vincularAudiosSueltos_,
   subirCancion: subirCancion_,
   vincularAudio: vincularAudio_,
   desvincularAudio: desvincularAudio_,
@@ -697,12 +698,12 @@ function urlAudioDrive_(fileId) {
   return 'https://drive.google.com/uc?export=download&id=' + fileId;
 }
 
-// Un audio con enlace: si apunta a un archivo de Biblioteca/audios queda como fileId (reproducción con respaldo)
+// Un audio con enlace: si apunta a un audio de la Biblioteca queda como fileId (reproducción con respaldo)
 function audioDeEnlace_(nombre, voz, url, audiosBib) {
   var id = idDeDrive_(url);
   if (id) {
     try {
-      if (enCarpeta_(DriveApp.getFileById(id), audiosBib)) return { nombre: nombre, voz: voz, fileId: id };
+      if (audioPropio_(DriveApp.getFileById(id), audiosBib)) return { nombre: nombre, voz: voz, fileId: id };
     } catch (_) { /* no es nuestro: queda como enlace */ }
   }
   return { nombre: nombre || url, voz: voz, url: url };
@@ -954,38 +955,68 @@ var AUDIO_UNIVERSAL_RE_ = /\.(m4a|mp3)$/i;
 
 function soloAdminGeneral_(token) {
   var u = usuarioDeToken_(token);
-  if (u.rol !== 'admin_general') throw new Error('Solo el administrador general puede convertir los audios.');
+  if (u.rol !== 'admin_general') throw new Error('Solo el administrador general puede revisar y convertir los audios de la Biblioteca.');
   return u;
 }
 
+// Un audio de Biblioteca/audios o cualquier otro archivo vinculado a una canción (los audios sueltos que se
+// vincularon por título siguen en su carpeta de Drive)
 function audioDeLaBiblioteca_(fileId) {
   var f;
   try { f = DriveApp.getFileById(String(fileId || '')); } catch (_) { throw new Error('Audio no encontrado'); }
-  if (!enCarpeta_(f, carpetaBiblioteca_('audios'))) throw new Error('Ese archivo no es un audio de la Biblioteca');
+  if (!audioPropio_(f, carpetaBiblioteca_('audios'))) throw new Error('Ese archivo no es un audio de la Biblioteca');
   return f;
+}
+
+var idsVinculados_ = null;
+function audioVinculado_(fileId) {
+  if (!idsVinculados_) {
+    idsVinculados_ = {};
+    leerBiblioteca_().canciones.forEach(function (c) {
+      (c.audios || []).forEach(function (a) { if (a.fileId) idsVinculados_[a.fileId] = true; });
+    });
+  }
+  return !!idsVinculados_[fileId];
+}
+
+// Audio de la Biblioteca: está en Biblioteca/audios o ya está vinculado a alguna canción desde otra carpeta
+function audioPropio_(archivo, audiosBib) {
+  return enCarpeta_(archivo, audiosBib) || audioVinculado_(archivo.getId());
 }
 
 function audiosAConvertir_(d) {
   soloAdminGeneral_(d.token);
-  var usados = {};
+  var usados = {}, canciones = 0, usos = 0, externos = 0, videos = 0;
   leerBiblioteca_().canciones.forEach(function (c) {
+    var conDrive = false;
     (c.audios || []).forEach(function (a) {
-      if (a.fileId && !usados[a.fileId]) usados[a.fileId] = { cancion: c.titulo, voz: a.voz || '' };
+      if (a.fileId) {
+        usos++;
+        conDrive = true;
+        if (!usados[a.fileId]) usados[a.fileId] = { cancion: c.titulo, voz: a.voz || '' };
+      } else if (/youtu\.?be|vimeo\.com/i.test(a.url || '')) videos++;
+      else if (a.url) externos++;
     });
+    if (conDrive) canciones++;
   });
-  var pendientes = [], convertidos = 0, bytesPendientes = 0, bytesTotal = 0;
-  var it = carpetaBiblioteca_('audios').getFiles();
-  while (it.hasNext()) {
-    var f = it.next(), id = f.getId(), uso = usados[id];
-    if (!uso) continue;
+  var pendientes = [], convertidos = 0, bytesPendientes = 0, bytesTotal = 0, perdidos = 0, fuera = 0;
+  var audiosBib = carpetaBiblioteca_('audios');
+  Object.keys(usados).forEach(function (id) {
+    var f, uso = usados[id];
+    try { f = DriveApp.getFileById(id); } catch (_) { perdidos++; return; }
+    if (f.isTrashed()) { perdidos++; return; }
+    if (!enCarpeta_(f, audiosBib)) fuera++;
     var nombre = f.getName(), tam = f.getSize();
     bytesTotal += tam;
-    if (AUDIO_UNIVERSAL_RE_.test(nombre)) { convertidos++; continue; }
+    if (AUDIO_UNIVERSAL_RE_.test(nombre)) { convertidos++; return; }
     bytesPendientes += tam;
     pendientes.push({ fileId: id, nombre: nombre, tamano: tam, mime: f.getMimeType(), cancion: uso.cancion, voz: uso.voz });
-  }
+  });
   pendientes.sort(function (a, b) { return a.cancion.localeCompare(b.cancion); });
-  return { pendientes: pendientes, convertidos: convertidos, bytesPendientes: bytesPendientes, bytesTotal: bytesTotal };
+  return {
+    pendientes: pendientes, convertidos: convertidos, bytesPendientes: bytesPendientes, bytesTotal: bytesTotal,
+    resumen: { archivos: Object.keys(usados).length, usos: usos, canciones: canciones, externos: externos, videos: videos, perdidos: perdidos, fuera: fuera }
+  };
 }
 
 function leerAudioAConvertir_(d) {
@@ -1018,10 +1049,17 @@ function exigirEditarCancion_(u, c) {
 
 // Reescribe en el .md de Drive las etiquetas <audio>: agrega las de `nuevos` y quita las de `quitados`
 function actualizarAudiosMd_(c, nuevos, quitados) {
+  actualizarMd_(c, function (texto) { return textoConAudios_(texto, nuevos, quitados); });
+}
+
+function actualizarMd_(c, cambiar) {
   if (!c.mdId) return;
   var f;
   try { f = DriveApp.getFileById(c.mdId); } catch (_) { return; }
-  var texto = f.getBlob().getDataAsString('UTF-8').replace(/\r\n?/g, '\n');
+  f.setContent(cambiar(f.getBlob().getDataAsString('UTF-8').replace(/\r\n?/g, '\n')));
+}
+
+function textoConAudios_(texto, nuevos, quitados) {
   (quitados || []).forEach(function (a) {
     texto = texto.replace(/[ \t]*<audio\b[^>]*>(?:\s*<\/audio>)?[ \t]*\n?/gi, function (tag) {
       var src = desescapar_((tag.match(/\ssrc="([^"]*)"/i) || [])[1] || '');
@@ -1033,7 +1071,16 @@ function actualizarAudiosMd_(c, nuevos, quitados) {
   if (nuevos && nuevos.length) {
     texto = texto.replace(/\s*$/, '\n\n') + nuevos.map(etiquetaAudio_).join('\n\n') + '\n';
   }
-  f.setContent(texto.replace(/\n{3,}/g, '\n\n'));
+  return texto.replace(/\n{3,}/g, '\n\n');
+}
+
+// Reescribe la línea «etiquetas:» de la cabecera (como cambiar_etiquetas_md en scripts/mc_biblioteca.py)
+function textoConEtiquetas_(texto, etiquetas) {
+  var linea = 'etiquetas: ' + etiquetas.join(', ');
+  var m = texto.match(/^---\n([\s\S]*?)\n---/);
+  if (!m) return '---\n' + linea + '\n---\n\n' + texto;
+  var cab = /^(etiquetas|tags):.*$/m.test(m[1]) ? m[1].replace(/^(etiquetas|tags):.*$/m, function () { return linea; }) : m[1] + '\n' + linea;
+  return '---\n' + cab + '\n---' + texto.slice(m[0].length);
 }
 
 function vincularAudio_(d) {
@@ -1090,6 +1137,279 @@ function desvincularAudio_(d) {
   }
   auditar_({ tipo: 'audio_quitado', email: u.email, nombre: u.nombre, titulo: r.cancion.titulo });
   return { cancion: r.cancion };
+}
+
+// ==================== AUDIOS SUELTOS DEL DRIVE ====================
+// Panel del administrador general (login.html): recorre todo el Drive, empareja por título cada audio que no está
+// en ninguna canción y lo vincula (biblioteca.json y <audio> en el .md). El archivo se queda en su carpeta y el
+// nombre de esa carpeta (p. ej. «Entrada») pasa a ser la primera etiqueta de la canción. Trabaja por tandas: el
+// panel vuelve a llamar con el cursor hasta recorrer todo.
+var EXT_AUDIO_RE_ = /\.(webm|weba|m4a|mp3|ogg|oga|opus|wav|aac|flac)$/i;
+var VOCES_ALIAS_ = {
+  soprano: 'soprano', sopranos: 'soprano', contralto: 'contralto', contraltos: 'contralto', alto: 'contralto', altos: 'contralto',
+  tenor: 'tenor', tenores: 'tenor', bajo: 'bajo', bajos: 'bajo', mezzo: 'mezzosoprano', mezzosoprano: 'mezzosoprano',
+  todas: 'todas', tutti: 'todas'
+};
+var PALABRAS_VACIAS_ = { de: 1, del: 1, la: 1, el: 1, lo: 1, los: 1, las: 1, y: 1, a: 1, al: 1, en: 1, un: 1, una: 1, oh: 1 };
+var PARECIDO_MINIMO_ = 0.75;
+var SUELTOS_SEG_ = 150;
+var SUELTOS_MAX_ = 60;
+
+// Como slug_, sin cortar ni valor por defecto
+function claveTitulo_(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+// «07 Fruto Nuevo De Tu Cielo.mp3», «santo-soprano-2026-10-05-2215.webm», «Cordero - grabación 2026-10-01 22-16.m4a»
+function nombreLimpioAudio_(nombre) {
+  var voz = '';
+  var s = String(nombre || '').replace(EXT_AUDIO_RE_, '')
+    .replace(/[(\[]([^)\]]*)[)\]]/g, function (_, dentro) {
+      var v = VOCES_ALIAS_[claveTitulo_(dentro).replace(/-/g, '')];
+      if (v) voz = v;
+      return ' ';
+    })
+    .replace(/_+/g, ' ')
+    .replace(/\s*-?\s*grabaci[oó]n\b.*$/i, '')
+    .replace(/[-\s]*\d{4}-\d{2}-\d{2}(?:[-\s]\d{2}[-:]?\d{2})?.*$/, '')
+    .replace(/^\s*\d{1,3}(?:[-.]\d{1,3})*\s*[-.)]?\s+/, '');
+  var partes = claveTitulo_(s).split('-').filter(Boolean);
+  while (partes.length > 1 && VOCES_ALIAS_[partes[partes.length - 1]]) {
+    var v = VOCES_ALIAS_[partes.pop()];
+    voz = voz || v;
+  }
+  return { clave: partes.join('-'), voz: voz === 'todas' ? '' : voz };
+}
+
+function palabrasClave_(clave) {
+  return clave.split('-').filter(function (p) { return p && !PALABRAS_VACIAS_[p]; });
+}
+
+// Coeficiente de Dice entre dos listas de palabras
+function parecidoPalabras_(a, b) {
+  if (!a.length || !b.length) return 0;
+  var resto = b.slice(), comunes = 0;
+  a.forEach(function (p) {
+    var i = resto.indexOf(p);
+    if (i >= 0) { comunes++; resto.splice(i, 1); }
+  });
+  return 2 * comunes / (a.length + b.length);
+}
+
+// Títulos de la Biblioteca. «Acción de gracias: Alabo tu bondad» también se encuentra como «Alabo tu bondad».
+function indiceTitulos_(canciones) {
+  var exactos = {}, partes = {}, lista = [];
+  var agregar = function (mapa, k, id) {
+    if (!k) return;
+    mapa[k] = mapa[k] || [];
+    if (mapa[k].indexOf(id) < 0) mapa[k].push(id);
+  };
+  canciones.forEach(function (c) {
+    var t = String(c.titulo || ''), claves = [claveTitulo_(t)];
+    agregar(exactos, claves[0], c.id);
+    var i = t.indexOf(':');
+    if (i > 0) {
+      claves.push(claveTitulo_(t.slice(i + 1)));
+      agregar(partes, claves[1], c.id);
+    }
+    lista.push({ id: c.id, palabras: claves.filter(Boolean).map(palabrasClave_) });
+  });
+  return { exactos: exactos, partes: partes, lista: lista };
+}
+
+// { ids: canciones elegidas, voz, puntaje (0 a 1) }. Si el parecido empata entre varias, no elige ninguna.
+function emparejarAudio_(nombre, indice) {
+  var n = nombreLimpioAudio_(nombre);
+  var r = { ids: [], voz: n.voz, puntaje: 0, clave: n.clave };
+  if (!n.clave) return r;
+  // «Alabo tu bondad» y «Acción de gracias: Alabo tu bondad» son la misma canción: el audio va a las dos
+  var exacto = (indice.exactos[n.clave] || []).concat((indice.partes[n.clave] || []).filter(function (id) {
+    return (indice.exactos[n.clave] || []).indexOf(id) < 0;
+  }));
+  if (exacto.length) {
+    r.ids = exacto;
+    r.puntaje = 1;
+    return r;
+  }
+  var pa = palabrasClave_(n.clave), mejor = 0, ids = [];
+  indice.lista.forEach(function (e) {
+    var p = 0;
+    e.palabras.forEach(function (w) { p = Math.max(p, parecidoPalabras_(pa, w)); });
+    if (p > mejor + 1e-9) { mejor = p; ids = [e.id]; }
+    else if (p > 0 && Math.abs(p - mejor) < 1e-9) ids.push(e.id);
+  });
+  r.puntaje = Math.round(mejor * 100) / 100;
+  if (mejor >= PARECIDO_MINIMO_ && ids.length === 1) r.ids = ids;
+  else if (ids.length > 1 && mejor >= PARECIDO_MINIMO_) r.empate = ids.length;
+  return r;
+}
+
+// La etiqueta de la carpeta va primera; las que ya tenía la canción quedan detrás, sin repetir
+function etiquetasConPrincipales_(actuales, principales) {
+  var vistas = {}, salida = [];
+  (principales || []).concat(actuales || []).forEach(function (t) {
+    t = String(t || '').replace(/[,\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
+    var k = claveTitulo_(t);
+    if (k && !vistas[k]) { vistas[k] = true; salida.push(t); }
+  });
+  return salida.slice(0, 40);
+}
+
+// Carpetas que no dan etiqueta: la raíz, la de la app, Biblioteca y sus subcarpetas, sistema, Lecturas y Cancioneros
+function carpetasTecnicas_() {
+  var raiz = raiz_(), ids = {}, cancioneros = '';
+  ids[DriveApp.getRootFolder().getId()] = true;
+  ids[raiz.getId()] = true;
+  ['Biblioteca', 'sistema', 'Lecturas', 'Cancioneros'].forEach(function (n) {
+    var it = raiz.getFoldersByName(n);
+    while (it.hasNext()) {
+      var f = it.next();
+      ids[f.getId()] = true;
+      if (n === 'Cancioneros') cancioneros = f.getId();
+      if (n === 'Biblioteca') {
+        var subs = f.getFolders();
+        while (subs.hasNext()) ids[subs.next().getId()] = true;
+      }
+    }
+  });
+  return { ids: ids, cancioneros: cancioneros };
+}
+
+function dentroDe_(carpeta, ancestroId) {
+  var f = carpeta;
+  for (var i = 0; ancestroId && i < 8; i++) {
+    var padres = f.getParents();
+    if (!padres.hasNext()) return false;
+    f = padres.next();
+    if (f.getId() === ancestroId) return true;
+  }
+  return false;
+}
+
+// { nombre, etiqueta } de la carpeta del archivo; etiqueta vacía si es una carpeta técnica
+function carpetaDeAudio_(archivo, tecnicas, cache) {
+  var padres = archivo.getParents();
+  if (!padres.hasNext()) return { nombre: '', etiqueta: '' };
+  var carpeta = padres.next(), id = carpeta.getId();
+  if (!cache[id]) {
+    var nombre = carpeta.getName();
+    var tecnica = tecnicas.ids[id] || dentroDe_(carpeta, tecnicas.cancioneros);
+    cache[id] = { nombre: nombre, etiqueta: tecnica ? '' : nombre.replace(/[,\n\r]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) };
+  }
+  return cache[id];
+}
+
+function vincularAudiosSueltos_(d) {
+  var u = soloAdminGeneral_(d.token);
+  var inicio = Date.now();
+  var it = d.cursor ? DriveApp.continueFileIterator(String(d.cursor)) : DriveApp.searchFiles(
+    "trashed = false and (mimeType contains 'audio/' or mimeType = 'video/webm' or mimeType = 'application/octet-stream')");
+  var bib = leerBiblioteca_();
+  var indice = indiceTitulos_(bib.canciones);
+  var usados = {};
+  bib.canciones.forEach(function (c) {
+    (c.audios || []).forEach(function (a) {
+      if (a.fileId) (usados[a.fileId] = usados[a.fileId] || []).push(c.id);
+    });
+  });
+  var tecnicas = carpetasTecnicas_(), cache = {};
+  var propuestas = [], sinCancion = [], etiquetasDeVinculados = [], revisados = 0;
+  while (propuestas.length < SUELTOS_MAX_ && Date.now() - inicio < SUELTOS_SEG_ * 1000 && it.hasNext()) {
+    var f = it.next(), nombre = f.getName();
+    if (!EXT_AUDIO_RE_.test(nombre) && !/^audio\//i.test(f.getMimeType())) continue;
+    revisados++;
+    var carpeta = carpetaDeAudio_(f, tecnicas, cache), id = f.getId();
+    if (usados[id]) {
+      if (carpeta.etiqueta) usados[id].forEach(function (cid) { etiquetasDeVinculados.push({ cancionId: cid, etiqueta: carpeta.etiqueta }); });
+      continue;
+    }
+    var m = emparejarAudio_(nombre, indice);
+    var item = { fileId: id, nombre: nombre, carpeta: carpeta.nombre, etiqueta: carpeta.etiqueta, tamano: f.getSize(), voz: m.voz, puntaje: m.puntaje };
+    if (!m.ids.length) {
+      if (m.empate) item.empate = m.empate;
+      sinCancion.push(item);
+      continue;
+    }
+    item.canciones = m.ids;
+    propuestas.push(item);
+  }
+  var cursor = it.hasNext() ? it.getContinuationToken() : '';
+  var r = { revisados: revisados, cursor: cursor, vinculados: [], repetidos: [], sinCancion: sinCancion, canciones: [] };
+  if (d.soloBuscar) {
+    r.vinculados = propuestas;
+    return r;
+  }
+  if (!propuestas.length && !etiquetasDeVinculados.length) return r;
+
+  var hecho = conCandado_(function () {
+    var bib2 = leerBiblioteca_(), porId = {}, cambios = {}, tamanos = {};
+    bib2.canciones.forEach(function (c) { porId[c.id] = c; });
+    var cambio = function (c) {
+      return cambios[c.id] = cambios[c.id] || { c: c, nuevos: [], etiquetas: [] };
+    };
+    // Tamaños de los audios que la canción ya tiene: el mismo archivo copiado en otra carpeta no se vincula dos veces
+    var tamanosDe = function (c) {
+      if (!tamanos[c.id]) {
+        tamanos[c.id] = {};
+        (c.audios || []).forEach(function (a) {
+          if (!a.fileId) return;
+          try { tamanos[c.id][DriveApp.getFileById(a.fileId).getSize()] = true; } catch (_) { /* ya no está */ }
+        });
+      }
+      return tamanos[c.id];
+    };
+    var vinculados = [], repetidos = [];
+    propuestas.forEach(function (p) {
+      var titulos = [];
+      p.canciones.forEach(function (cid) {
+        var c = porId[cid];
+        if (!c || (c.audios || []).some(function (a) { return a.fileId === p.fileId; })) return;
+        var t = tamanosDe(c);
+        if (t[p.tamano]) return;
+        t[p.tamano] = true;
+        var a = { nombre: p.nombre.replace(/\.[a-z0-9]{2,5}$/i, '').slice(0, 150), voz: p.voz, fileId: p.fileId };
+        c.audios = (c.audios || []).concat([a]);
+        var cam = cambio(c);
+        cam.nuevos.push(a);
+        if (p.etiqueta) cam.etiquetas.push(p.etiqueta);
+        titulos.push(c.titulo);
+      });
+      if (titulos.length) vinculados.push({ fileId: p.fileId, nombre: p.nombre, carpeta: p.carpeta, etiqueta: p.etiqueta, voz: p.voz, puntaje: p.puntaje, canciones: titulos });
+      else repetidos.push({ fileId: p.fileId, nombre: p.nombre, carpeta: p.carpeta });
+    });
+    etiquetasDeVinculados.forEach(function (e) {
+      if (porId[e.cancionId]) cambio(porId[e.cancionId]).etiquetas.push(e.etiqueta);
+    });
+    var canciones = [];
+    Object.keys(cambios).forEach(function (cid) {
+      var cam = cambios[cid], c = cam.c;
+      var antes = (c.etiquetas || []).join(', ');
+      var etiquetas = etiquetasConPrincipales_(c.etiquetas, cam.etiquetas);
+      var nuevasEtiquetas = etiquetas.join(', ') !== antes;
+      if (!cam.nuevos.length && !nuevasEtiquetas) return;
+      c.etiquetas = etiquetas;
+      actualizarMd_(c, function (texto) {
+        var t = cam.nuevos.length ? textoConAudios_(texto, cam.nuevos, []) : texto;
+        return nuevasEtiquetas ? textoConEtiquetas_(t, etiquetas) : t;
+      });
+      c.actualizado = ahora_();
+      canciones.push({ id: c.id, titulo: c.titulo, audios: cam.nuevos.length, etiquetas: etiquetas.slice(0, 4), etiquetasCambiaron: nuevasEtiquetas });
+    });
+    if (canciones.length) escribirJson_(raiz_(), 'biblioteca.json', bib2);
+    return { vinculados: vinculados, repetidos: repetidos, canciones: canciones };
+  });
+  hecho.vinculados.forEach(function (v) {
+    try { DriveApp.getFileById(v.fileId).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (_) { /* no es de la cuenta */ }
+  });
+  if (hecho.canciones.length) {
+    auditar_({ tipo: 'audios_vinculados_por_titulo', email: u.email, nombre: u.nombre,
+      titulo: hecho.vinculados.length + ' audios en ' + hecho.canciones.length + ' canciones' });
+  }
+  r.vinculados = hecho.vinculados;
+  r.repetidos = hecho.repetidos;
+  r.canciones = hecho.canciones;
+  return r;
 }
 
 // ==================== PARTITURAS ====================
@@ -1249,7 +1569,7 @@ function subirCancion_(d) {
     if (a.fileId) {
       var f;
       try { f = DriveApp.getFileById(String(a.fileId)); } catch (_) { return null; }
-      return enCarpeta_(f, audiosBib) ? { nombre: nombre || f.getName(), voz: voz, fileId: f.getId() } : null;
+      return audioPropio_(f, audiosBib) ? { nombre: nombre || f.getName(), voz: voz, fileId: f.getId() } : null;
     }
     return /^https?:\/\//i.test(String(a.url || '')) ? audioDeEnlace_(nombre, voz, String(a.url), audiosBib) : null;
   }).filter(Boolean);

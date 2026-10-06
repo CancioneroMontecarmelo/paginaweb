@@ -262,10 +262,24 @@ quedan como elegidas.
   navegador codifica AAC (Safari, Chrome en Mac/Windows/Android) y, si no, con ffmpeg.wasm
   (`js/vendor/ffmpeg/`, MIT; el núcleo de 32 MB se baja de jsDelivr solo la primera vez). Cada resultado
   se comprueba (cabecera MP4, canales y duración) antes de subirlo.
-- Si el Drive no entrega el audio directo, Misas y las páginas `.html` exportadas lo piden al servidor de
-  la parroquia y lo reproducen dentro de la página: el celular ya no pregunta con qué app abrirlo.
+- Drive ya no entrega el audio directo a otras páginas (responde 403). Misas muestra **▶ Escuchar**, que
+  pide el audio al servidor de la parroquia (`accion=audio`) y lo reproduce dentro de la página; las
+  páginas `.html` exportadas hacen lo mismo cuando falla el enlace directo.
+- **Vincular los audios sueltos del Drive** (solo el **administrador general**, en **Identificarse →
+  Audios sueltos del Drive**): recorre todo el Drive por tandas, busca los audios (mp3, m4a, webm, ogg,
+  wav, opus…) que no están en ninguna canción y los vincula con la canción del mismo título. Antes de
+  comparar limpia el nombre: la fecha de las subidas, el número de pista (`07 `, `5. `), «grabación …» y
+  lo que va entre paréntesis; la voz (`soprano`, `contralto`/`alto`, `tenor`, `bajo`) queda como voz del
+  audio. Primero busca el título exacto (también la parte después de «:», como «Acción de gracias: Alabo
+  tu bondad»); si no, el más parecido por palabras (75 % o más, sin empates). El archivo **se queda en su
+  carpeta** y el nombre de esa carpeta (por ejemplo «Entrada») pasa a ser la **primera etiqueta** de la
+  canción, en `biblioteca.json` y en la línea `etiquetas:` del `.md`; las carpetas del sitio (`Biblioteca`,
+  `Cancioneros`, la raíz) no dan etiqueta. Una copia del mismo tamaño que la canción ya tiene no se
+  vincula dos veces. Muestra lo vinculado, el total por carpeta y lo que quedó sin canción. Lo hace
+  `js/vincular-audios.js` con la acción `vincularAudiosSueltos`.
 - **Pasar a .m4a los audios viejos** (solo el **administrador general**, en **Identificarse → Audios de
-  la Biblioteca**; los demás no lo ven): cuenta los audios que siguen en WebM u otro formato y los
+  la Biblioteca**; los demás no lo ven): cuenta los archivos vinculados (también los que quedaron en otra
+  carpeta del Drive), los MP3 externos y los videos de YouTube, y los audios que siguen en WebM u otro formato, y los
   convierte uno por uno en ese navegador, reemplazando el contenido del **mismo archivo** de Drive (el
   enlace no cambia, así que `biblioteca.json`, los `.md` y los cancioneros publicados siguen funcionando;
   Drive guarda la versión anterior 30 días). Se puede **Pausar** y **Seguir**, o cerrar y continuar otro
@@ -389,8 +403,11 @@ del editor que usa Misas; todo son lecturas públicas del Apps Script.
 - **Reproduciendo**: el momento, la letra con acordes (o **Solo letra**), **A− / A+**, los créditos, las
   posturas al tocar un acorde, **Partitura** y **Aprender las voces**. Si la canción tiene varios audios,
   un selector de voz. Abajo, una barra mínima: anterior, reproducir/pausa, siguiente y avance.
-- Primero prueba el enlace directo de Drive y, si falla, el respaldo `accion=audio`. Precarga la canción
-  siguiente; las canciones sin audio no se saltan solas, para poder cantarlas.
+- Los audios del Drive llegan siempre por `accion=audio` (Drive responde 403 al enlace directo pedido
+  desde otra página). Al tocar, el `<audio>` suena primero una décima de silencio (`js/silencio.js`) para
+  que en iPhone pueda sonar cuando llega el archivo. Guarda en memoria los últimos 12 y precarga la
+  canción siguiente; las canciones sin audio no se saltan solas, para poder cantarlas. Si un audio sigue
+  en WebM y el equipo no lo reproduce, lo dice.
 - En el celular: controles en la pantalla bloqueada y en los auriculares (Media Session) y la pantalla no
   se apaga mientras se lee la letra (Wake Lock, donde exista).
 

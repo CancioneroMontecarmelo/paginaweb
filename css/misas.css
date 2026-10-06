@@ -698,6 +698,10 @@
   max-width: 34rem;
 }
 
+.audio-item .btn-escuchar {
+  justify-self: start;
+}
+
 /* ============ CANCIÓN (copiado de editor/css/canciotras.css) ============ */
 .song-render {
   font-family: 'Courier New', monospace;

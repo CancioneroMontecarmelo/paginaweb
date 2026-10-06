@@ -30,9 +30,16 @@ export function iniciarConversionAudios({ caja, llamarApi, token }) {
 
   function pintarResumen(r) {
     const n = st.pendientes.length;
-    $("#aac-resumen").textContent = n
+    const s = r.resumen;
+    const total = s
+      ? [`${s.archivos} archivos de audio en el Drive (${s.usos} usos en ${s.canciones} canciones)`,
+        s.externos && `${s.externos} ${s.externos === 1 ? "MP3 externo, que ya suena" : "MP3 externos, que ya suenan"}`,
+        s.videos && `${s.videos} ${s.videos === 1 ? "video de YouTube, que no se convierte" : "videos de YouTube, que no se convierten"}`,
+        s.perdidos && `${s.perdidos} ${s.perdidos === 1 ? "audio borrado del Drive" : "audios borrados del Drive"}`].filter(Boolean).join(" · ") + ". "
+      : "";
+    $("#aac-resumen").textContent = total + (n
       ? `${n} ${n === 1 ? "audio está" : "audios están"} en el formato anterior (${mb(r.bytesPendientes)}) · ${r.convertidos} ya en .m4a o MP3.`
-      : `Todos los audios de la Biblioteca ya están en .m4a o MP3 (${r.convertidos}, ${mb(r.bytesTotal)}).`;
+      : `Todos los audios de la Biblioteca ya están en .m4a o MP3 (${r.convertidos}, ${mb(r.bytesTotal)}).`);
     $("#aac-iniciar").hidden = !n || st.corriendo;
     $("#aac-iniciar").textContent = st.hechos ? "Seguir convirtiendo" : "Convertir todo a AAC (.m4a)";
   }
@@ -145,6 +152,7 @@ export function iniciarConversionAudios({ caja, llamarApi, token }) {
     }
   });
   $("#aac-contar").addEventListener("click", () => { if (!st.corriendo) contar(); });
+  document.addEventListener("mc-audios-vinculados", () => { if (!st.corriendo) contar(); });
 
   caja.hidden = false;
   contar();
