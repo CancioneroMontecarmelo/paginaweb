@@ -127,8 +127,8 @@ En el Drive: `MonteCarmelo/actividades.json` (público), `MonteCarmelo/sistema/l
 ## Editor: menú Archivo
 
 - **Nuevo** ▸ Canción · Cancionero.
-- **Abrir** ▸ Canción de la Biblioteca de la parroquia (buscador por título o etiqueta; marca las que
-  tienen **solo audio** para escribirles la letra) o de este equipo · Cancionero del Drive, de este
+- **Abrir** ▸ Canción de la Biblioteca de la parroquia (buscador por título, etiqueta o frase de la letra,
+  igual que en Misas; marca las que tienen **solo audio** para escribirles la letra) o de este equipo · Cancionero del Drive, de este
   equipo o de la colección.
 - **Guardar** es siempre en el Drive de la parroquia: **Guardar canción en la Biblioteca** (Ctrl+S) sube
   sus audios del equipo convertidos a WebM y la deja en la Biblioteca; si ya había una canción con el
@@ -163,7 +163,10 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
   guardado en el cancionero).
 - **Panel derecho — Cancioneros**: los cancioneros de misa ya creados (nombre, fecha, tiempo litúrgico) y
   sus momentos (Entrada, Gloria, Santo…). **+ Agregar nuevo** pide primero el nombre y después la fecha
-  de la misa; entonces se despliegan los momentos (Entrada, Acto penitencial, Gloria, Salmo, Aleluya,
+  de la misa. Si el nombre trae una fecha («Misa 18 de octubre», «18/10», «2026-10-18»), se usa esa; si
+  después se elige otra, avisa con un botón para volver a la del nombre. Debajo, un **buscador de fechas**:
+  la lista de los próximos domingos y fiestas (con su ciclo) y, al escribir, busca la celebración
+  («cristo rey», «ramos», «XXIX domingo») o la fecha («18 de octubre») en el próximo año. Entonces se despliegan los momentos (Entrada, Acto penitencial, Gloria, Salmo, Aleluya,
   **Post evangelio**, Ofertorio, Santo, Cordero, Comunión, Acción de gracias y Salida), cada uno con un
   **canto sugerido** (marcado «sugerida») que se cambia tocando el momento. Los momentos se **reordenan
   arrastrando** su asa ⠿ (con el mouse o el dedo; con el teclado, flechas ↑ ↓), por si el sacerdote o la
@@ -175,11 +178,23 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
   («Abrir … (activo en Misas)» o «Seguir con las pestañas abiertas»); si después cambia en Misas, el
   editor avisa con **Actualizar**. Se comunica por `localStorage` (`mc-activo`), en el mismo navegador.
 - **Panel izquierdo — Biblioteca**, con dos pestañas:
-  - **Canciones**: al tocar un momento, lista todas las canciones del sitio con esa etiqueta; al marcarla
-    queda en el cancionero (reemplaza a la sugerida) y se muestra en el centro.
+  - **Canciones**: al tocar un momento, lista primero las canciones con esa etiqueta y después, en otro
+    grupo, las que no la tienen pero cuyo título o letra la sugieren (el nombre del momento, sus sinónimos
+    o palabras típicas: «santo santo», «hosanna», «pan de vida», «cordero de dios»…), con el motivo
+    («Por el título» / «Su letra dice …»). Al marcarla queda en el cancionero (reemplaza a la sugerida) y
+    se muestra en el centro.
+  - **Buscar**: por título, etiqueta o cualquier frase de la letra (la primera estrofa y el comienzo de
+    las demás), sin distinguir mayúsculas ni tildes y tolerando faltas comunes («habre tu corason»,
+    «kordero de dioz», «resusito»); en frases largas perdona una palabra de cada cuatro. Muestra la línea
+    donde coincidió, marcada. Lo hace `editor/js/buscar.js`, con el campo `inicio` que el Apps Script
+    guarda en `biblioteca.json` (lo completa solo para las canciones que no lo tienen).
   - **Lecturas**: las lecturas del día de la misa (antífona, lecturas, salmo, evangelio y oraciones),
     tomadas de [eucaristiadiaria.cl](https://www.eucaristiadiaria.cl/) (Área de Liturgia del Arzobispado
     de Santiago). Se publican mes a mes: para fechas más lejanas la pestaña avisa que todavía no están.
+    Quien puede editar el cancionero puede **tomarlas de otro día** (no cambia la fecha de la misa) o
+    **corregir el texto** (o escribirlo si todavía no está publicado); se guardan con el cancionero, en
+    `MonteCarmelo/Lecturas/misa-<id>.json`, y también se usan para los cantos sugeridos. **Volver a las
+    del día de la misa** deshace las dos cosas.
 - **Publicar** (al final del cancionero): lo guarda de inmediato en la web y arma su página `.html` en el
   Drive, como **Guardar en Drive** del editor: aparece en la página de la comunidad y quedan los enlaces
   para verla, compartirla y **editarla en el editor**. Publicar de nuevo reemplaza la misma página.
@@ -205,7 +220,8 @@ archivos privados `coros.json` y `ensayos.json`.
 
 ### Cantos sugeridos
 
-Para cada momento se elige, entre las canciones de la Biblioteca con esa etiqueta, la de mayor puntaje:
+Para cada momento se elige, entre las canciones de la Biblioteca con esa etiqueta (si no hay ninguna,
+entre las que lo sugieren por el título o la letra), la de mayor puntaje:
 
 - +5 si tiene la etiqueta del tiempo litúrgico de la fecha (+3 si es de un tiempo cercano: Cuaresma en
   Semana Santa, Pascua en Pentecostés…) y −4 si es de otro tiempo (un canto de Adviento en Tiempo ordinario).

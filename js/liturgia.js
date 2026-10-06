@@ -33,6 +33,55 @@ export const esDelMomento = (cancion, momento) => {
   const k = claveMomento(momento);
   return (cancion.etiquetas || []).some((t) => claveMomento(t) === k);
 };
+
+// Muchas canciones no tienen etiquetas: se reconocen por el título (que empieza con el nombre del momento
+// o un sinónimo: «Santo Fones», «Cordero Solemne») o por frases típicas en su letra (Biblioteca: «inicio»).
+// Usa buscarPlano, buscarClaves y fraseEnCancion de editor/js/buscar.js (script clásico, cargado antes).
+const PALABRAS_MOMENTO = {
+  "Entrada": ["venimos", "reunidos", "nos reunimos", "casa del señor", "vamos a la casa", "a tu casa", "entrada", "bienvenidos"],
+  "Acto penitencial": ["ten piedad", "kyrie", "perdoname", "hemos pecado", "piedad", "perdon", "misericordia"],
+  "Gloria": ["gloria a dios", "gloria en el cielo", "gloria gloria"],
+  "Salmo responsorial": ["salmo"],
+  "Aleluya": ["aleluya"],
+  "Post evangelio": ["tu palabra", "palabra de dios", "tu palabra es", "palabra de vida"],
+  "Ofertorio": ["pan y vino", "ofrenda", "ofrendas", "te ofrecemos", "ofrecemos", "te ofrezco", "ofrecer", "frutos de la tierra", "altar", "dones"],
+  "Santo": ["santo santo", "santo es el señor", "hosanna", "sanctus"],
+  "Padre Nuestro": ["padre nuestro", "santificado sea"],
+  "Paz": ["saludo de la paz", "la paz", "paz"],
+  "Cordero de Dios": ["cordero de dios", "cordero"],
+  "Comunión": ["pan de vida", "cuerpo", "sangre", "cena", "comunion", "pan del cielo", "banquete", "mesa del señor", "caliz", "comulgar"],
+  "Acción de gracias": ["te damos gracias", "gracias", "alabanza", "alabare", "te alabo", "bendecid"],
+  "Salida": ["id por el mundo", "enviados", "envio", "misioneros", "mision", "anunciar", "anunciad", "id"],
+  "Canto a María": ["ave maria", "maria", "virgen", "madre", "señora"]
+};
+const PALABRAS_POR_CLAVE = new Map(Object.entries(PALABRAS_MOMENTO).map(([m, l]) => [claveMomento(m), l]));
+const nombresMomento = (k) => [...(SINONIMOS.find((g) => tagNorm(g[0]) === k) || []), ...MOMENTOS_MISA.filter((x) => claveMomento(x) === k)];
+// Posición del nombre (palabras seguidas) en el título: 0 = al comienzo, -1 = no está
+const posicionEnTitulo = (titulo, nombre) => {
+  const t = buscarClaves(buscarPlano(titulo)), n = buscarClaves(buscarPlano(nombre));
+  if (!n.length) return -1;
+  for (let i = 0; i + n.length <= t.length; i++) if (n.every((w, k) => t[i + k] === w)) return i;
+  return -1;
+};
+const empiezaCon = (titulo, nombre) => posicionEnTitulo(titulo, nombre) === 0;
+
+const TODOS_LOS_NOMBRES = [...new Set([...MOMENTOS_MISA, ...SINONIMOS.flat()])];
+
+// Sin etiqueta del momento: { como: "titulo" | "letra", palabra, orden } si el título o la letra lo
+// sugieren, o null. Un título que ya nombra otro momento («Salmo…», «Aleluya…») no se busca por la letra.
+// orden: 0 por el título; después, la posición de la frase en la lista (las primeras son las más seguras).
+export function momentoPorLetra(cancion, momento) {
+  const k = claveMomento(momento);
+  const nombre = [momento, ...nombresMomento(k)].find((n) => empiezaCon(cancion.titulo, n));
+  if (nombre) return { como: "titulo", palabra: nombre, orden: 0 };
+  if (TODOS_LOS_NOMBRES.some((n) => claveMomento(n) !== k && empiezaCon(cancion.titulo, n))) return null;
+  const enTitulo = [momento, ...nombresMomento(k)].find((n) => posicionEnTitulo(cancion.titulo, n) > 0);
+  if (enTitulo) return { como: "titulo", palabra: enTitulo, orden: 0 };
+  const frases = PALABRAS_POR_CLAVE.get(k) || [];
+  const i = frases.findIndex((f) => fraseEnCancion(cancion, f));
+  return i < 0 ? null : { como: "letra", palabra: frases[i], orden: i + 1 };
+}
+
 export const ordenMomento = (nombre) => {
   const i = MOMENTOS_MISA.findIndex((x) => claveMomento(x) === claveMomento(nombre));
   return i < 0 ? 999 : i;
@@ -99,6 +148,117 @@ export function tiempoPorFecha(iso) {
   const epifania = sumarDias(enero2, (7 - enero2.getDay()) % 7);
   if (+f === +epifania) return "Epifanía";
   return f < sumarDias(epifania, 7) ? "Navidad" : "Tiempo ordinario";
+}
+
+// ============ FECHAS ESCRITAS Y CALENDARIO PARA ELEGIR LA FECHA ============
+
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const isoDe = (d) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
+
+// «18 de octubre», «domingo 18 octubre 2026», «18/10», «18-10-2026», «2026-10-18» → «2026-10-18» ("" si no hay
+// fecha). Sin año: el de la próxima vez que llega ese día (hasta 30 días atrás cuenta como este año).
+export function fechaEscrita(texto, hoy = hoyIso()) {
+  const t = String(texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace("setiembre", "septiembre");
+  let d, m, y;
+  const iso = t.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  const larga = t.match(new RegExp(`\\b(\\d{1,2})\\s*(?:de\\s+)?(${MESES.join("|")})(?:\\s*(?:de|del)?\\s*(\\d{4}))?`));
+  const corta = t.match(/\b(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2}|\d{4}))?\b/);
+  if (iso) [y, m, d] = [+iso[1], +iso[2], +iso[3]];
+  else if (larga) [d, m, y] = [+larga[1], MESES.indexOf(larga[2]) + 1, larga[3] ? +larga[3] : 0];
+  else if (corta) [d, m, y] = [+corta[1], +corta[2], corta[3] ? +corta[3] : 0];
+  else return "";
+  if (y && y < 100) y += 2000;
+  const h = fechaMedioDia(hoy);
+  if (!y) {
+    y = h.getFullYear();
+    if (new Date(y, m - 1, d, 12) < sumarDias(h, -30)) y++;
+  }
+  const f = new Date(y, m - 1, d, 12);
+  return f.getMonth() === m - 1 && f.getDate() === d ? isoDe(f) : "";
+}
+
+const ROMANOS = [["M", 1000], ["CM", 900], ["D", 500], ["CD", 400], ["C", 100], ["XC", 90], ["L", 50], ["XL", 40], ["X", 10], ["IX", 9], ["V", 5], ["IV", 4], ["I", 1]];
+const romano = (n) => ROMANOS.reduce((s, [r, v]) => { while (n >= v) { s += r; n -= v; } return s; }, "");
+
+function inicioAdviento(y) {
+  const navidad = new Date(y, 11, 25, 12);
+  return sumarDias(navidad, -(navidad.getDay() || 7) - 21);
+}
+
+// Ciclo de lecturas dominicales: el año litúrgico que empieza en el Adviento de 2025 es el A
+function cicloDe(f) {
+  const fin = f >= inicioAdviento(f.getFullYear()) ? f.getFullYear() + 1 : f.getFullYear();
+  return ["C", "A", "B"][fin % 3];
+}
+
+// Domingos (con su número) y fiestas principales del año litúrgico en Chile, calculados sin internet:
+// [{ fecha, nombre, numero, domingo }] desde «desde» durante «dias» días
+export function calendarioLiturgico(desde = hoyIso(), dias = 84) {
+  const ini = fechaMedioDia(desde), fin = sumarDias(ini, dias);
+  const lista = [];
+  for (let y = ini.getFullYear() - 1; y <= fin.getFullYear(); y++) lista.push(...anioLiturgico(y));
+  return lista.filter((x) => { const f = fechaMedioDia(x.fecha); return f >= ini && f < fin; })
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+// Año litúrgico que termina en noviembre del año «y» + el comienzo del siguiente hasta fin de diciembre
+function anioLiturgico(y) {
+  const dias = new Map();
+  const poner = (f, nombre, extra = {}) => dias.set(isoDe(f), { fecha: isoDe(f), nombre, domingo: f.getDay() === 0, ...extra });
+  const pascua = domingoDePascua(y), p = (n) => sumarDias(pascua, n);
+  const enero2 = new Date(y, 0, 2, 12);
+  const epifania = sumarDias(enero2, (7 - enero2.getDay()) % 7);
+  const bautismo = epifania.getDate() >= 7 ? sumarDias(epifania, 1) : sumarDias(epifania, 7);
+  const ceniza = p(-46), adviento = inicioAdviento(y), cristoRey = sumarDias(adviento, -7);
+  // Tiempo ordinario antes de Cuaresma: el domingo después del Bautismo es el II
+  for (let f = sumarDias(bautismo, 7 - bautismo.getDay() || 7), n = 2; f < ceniza; f = sumarDias(f, 7), n++) {
+    poner(f, `${romano(n)} Domingo del Tiempo Ordinario`, { numero: n });
+  }
+  // Después de Pentecostés se cuenta hacia atrás desde Cristo Rey (XXXIV)
+  for (let f = cristoRey, n = 34; f > p(49); f = sumarDias(f, -7), n--) {
+    poner(f, `${romano(n)} Domingo del Tiempo Ordinario`, { numero: n });
+  }
+  poner(cristoRey, "Cristo Rey: Jesucristo, Rey del Universo (XXXIV Domingo del Tiempo Ordinario)", { numero: 34 });
+  poner(new Date(y, 0, 1, 12), "Santa María, Madre de Dios");
+  poner(epifania, "Epifanía del Señor");
+  poner(bautismo, "Bautismo del Señor");
+  poner(ceniza, "Miércoles de Ceniza");
+  for (let n = 1; n <= 5; n++) poner(p(-49 + 7 * n), `${romano(n)} Domingo de Cuaresma`, { numero: n });
+  poner(p(-7), "Domingo de Ramos en la Pasión del Señor");
+  poner(p(-3), "Jueves Santo, Cena del Señor");
+  poner(p(-2), "Viernes Santo, Pasión del Señor");
+  poner(p(-1), "Vigilia Pascual");
+  poner(pascua, "Domingo de Pascua de Resurrección");
+  for (let n = 2; n <= 6; n++) poner(p(7 * (n - 1)), `${romano(n)} Domingo de Pascua`, { numero: n });
+  poner(p(42), "Ascensión del Señor");
+  poner(p(49), "Pentecostés");
+  poner(p(56), "Santísima Trinidad");
+  poner(p(63), "Santísimo Cuerpo y Sangre de Cristo (Corpus Christi)");
+  poner(p(68), "Sagrado Corazón de Jesús");
+  // Fiestas de fecha fija (si caen en un domingo de Adviento, Cuaresma o Pascua, pasan al lunes)
+  const fuerte = (f) => ["Adviento", "Cuaresma", "Semana Santa", "Domingo de Ramos", "Pascua"].includes(tiempoPorFecha(isoDe(f)));
+  [[1, 2, "Presentación del Señor"], [2, 19, "San José, esposo de la Virgen María"], [2, 25, "Anunciación del Señor"],
+    [5, 29, "San Pedro y San Pablo, apóstoles"], [6, 16, "Nuestra Señora del Carmen, Reina y Patrona de Chile"],
+    [7, 6, "Transfiguración del Señor"], [7, 15, "Asunción de la Virgen María"], [8, 14, "Exaltación de la Santa Cruz"],
+    [10, 1, "Todos los Santos"], [10, 2, "Conmemoración de todos los fieles difuntos"], [11, 8, "Inmaculada Concepción de la Virgen María"],
+    [11, 12, "Nuestra Señora de Guadalupe"], [11, 25, "Natividad del Señor (Navidad)"]
+  ].forEach(([mes, dia, nombre]) => {
+    let f = new Date(y, mes, dia, 12);
+    if (mes >= 1 && mes <= 3 && (f >= p(-7) && f <= p(7))) return; // Semana Santa y octava de Pascua: otro año litúrgico
+    if (f.getDay() === 0 && fuerte(f) && mes !== 11 || (mes === 11 && dia === 8 && f.getDay() === 0)) f = sumarDias(f, 1);
+    poner(f, nombre);
+  });
+  // Adviento y la Sagrada Familia (domingo entre Navidad y Año Nuevo; si no hay, el 30 de diciembre)
+  for (let n = 1; n <= 4; n++) poner(sumarDias(adviento, 7 * (n - 1)), `${romano(n)} Domingo de Adviento`, { numero: n });
+  const navidad = new Date(y, 11, 25, 12);
+  poner(navidad.getDay() === 0 ? new Date(y, 11, 30, 12) : sumarDias(navidad, 7 - navidad.getDay()), "Sagrada Familia de Jesús, María y José");
+  return [...dias.values()].map((x) => x.domingo && !/Ceniza|Jueves|Viernes|Vigilia/.test(x.nombre)
+    ? { ...x, nombre: `${x.nombre} · ciclo ${cicloDe(fechaMedioDia(x.fecha))}` } : x);
+}
+
+// Nombre litúrgico calculado de un día («XXVIII Domingo del Tiempo Ordinario · ciclo A»), o su tiempo
+export function nombreDelDia(iso) {
+  return calendarioLiturgico(iso, 1)[0]?.nombre || tiempoPorFecha(iso);
 }
 
 // Color propio del tiempo, para cuando las lecturas del día todavía no están publicadas
@@ -237,11 +397,15 @@ export function sugerirCantos(misa, lecturas, { reemplazar = false, biblioteca =
   for (const m of misa.momentos) {
     if (m.canciones.some((c) => !c.sugerida) || (m.canciones.length && !reemplazar)) continue;
     let mejor = null, mejorP = -Infinity, mejorH = 0;
-    for (const c of biblioteca) {
-      if (usadas.has(c.id) || !esDelMomento(c, m.momento)) continue;
-      const p = puntajeCanto(c, ctx);
-      const h = hashTexto((misa.fechaUso || "") + "|" + (misa.comunidad || "") + "|" + c.id);
-      if (p > mejorP || (p === mejorP && h < mejorH)) [mejor, mejorP, mejorH] = [c, p, h];
+    // Primero las que tienen la etiqueta del momento; si no hay, las que lo sugieren por el título o la letra
+    for (const delMomento of [(c) => esDelMomento(c, m.momento), (c) => !!momentoPorLetra(c, m.momento)]) {
+      for (const c of biblioteca) {
+        if (usadas.has(c.id) || !delMomento(c)) continue;
+        const p = puntajeCanto(c, ctx);
+        const h = hashTexto((misa.fechaUso || "") + "|" + (misa.comunidad || "") + "|" + c.id);
+        if (p > mejorP || (p === mejorP && h < mejorH)) [mejor, mejorP, mejorH] = [c, p, h];
+      }
+      if (mejor) break;
     }
     m.canciones = mejor ? [{ cancionId: mejor.id, desplazamiento: 0, sugerida: true }] : [];
     if (mejor) {

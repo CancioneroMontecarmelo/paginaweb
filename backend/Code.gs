@@ -63,7 +63,7 @@ function doGet(e) {
     if (p.accion === 'cancion') return json_(cancionBiblioteca_(p.id));
     if (p.accion === 'audio') return json_(audioBiblioteca_(p.id));
     if (p.accion === 'misas') return json_(listarMisas_(p));
-    if (p.accion === 'lecturas') return json_(lecturas_(p.fecha));
+    if (p.accion === 'lecturas') return json_(p.misa ? lecturasDeMisa_(p.misa) : lecturas_(p.fecha));
     if (p.accion === 'calendario') return json_(calendario_(p));
     if (p.accion === 'actividades') return json_(actividades_(p));
     if (p.accion === 'visitas') return json_(visitas_());
@@ -738,6 +738,49 @@ function soloAudioMd_(texto) {
   return !cuerpo.trim();
 }
 
+// Línea de acordes (como isChordLine de editor/js/acordes.js): casi todas sus palabras son acordes
+var ACORDE_RE_ = /^\(?(do|re|mi|fa|sol|la|si|[a-g])(#|b|♯|♭)?(maj|min|dim|aug|sus|add|alt|m|º|°|ø|\+|-|'|\*|\d|#|b|♯|♭|\(|\)|,|\/(?=[0-9#b♯♭]))*(\/(do|re|mi|fa|sol|la|si|[a-g])(#|b|♯|♭)?)?\)?[.,;]?$/i;
+var NEUTRO_RE_ = /^(\|+:?|:?\|+|-+|\/+|\.{2,}|%|x\d+|\(x?\d+x?\)|\(?bis\)?|.+:)$/i;
+function lineaDeAcordes_(l) {
+  var a = 0, o = 0;
+  l.trim().split(/\s+/).forEach(function (t) {
+    var partes = t.split(/-(?=.)/).filter(Boolean);
+    if (ACORDE_RE_.test(t) || (partes.length > 1 && partes.every(function (p) { return ACORDE_RE_.test(p); }))) a++;
+    else if (!NEUTRO_RE_.test(t)) o++;
+  });
+  return a > 0 && a / (a + o) >= 0.7 && !/(?:^|\s)(do|re|mi|fa|sol|la|si|[a-g])[,.;!?]* \1(?=[\s,.;!?]|$)/.test(l);
+}
+
+// Letra para buscar: la primera estrofa entera y las dos primeras líneas de las demás, sin acordes,
+// separadas por « / » (la Biblioteca pública la usa para buscar canciones por su letra)
+function letraInicio_(texto) {
+  var t = String(texto || '').replace(/\r\n?/g, '\n').replace(/^---\n[\s\S]*?\n---/, '');
+  var bloque = t.match(/(`{3,}|~{3,})[^\n]*\n([\s\S]*?)\n\1/);
+  var cuerpo = bloque ? bloque[2] : t.replace(/^#\s+.*$/gm, '').replace(/^\*\*[^*\n]+:\*\*.*$/gm, '');
+  var estrofas = [], actual = [];
+  cuerpo.replace(/<audio\b[^>]*>(\s*<\/audio>)?/gi, '').split('\n').forEach(function (cruda) {
+    var l = cruda.replace(/\*\*|__/g, '').replace(/!?\[[^\]]*\]\([^)]*\)/g, '').trim();
+    if (!l) {
+      if (actual.length) estrofas.push(actual);
+      actual = [];
+      return;
+    }
+    if (/^(>|#)/.test(l) || /^\[[^\]]*\]$/.test(l) || /^[^\s]{1,20}:$/.test(l) || lineaDeAcordes_(l)) return;
+    l = l.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
+    if (l) actual.push(l);
+  });
+  if (actual.length) estrofas.push(actual);
+  var lineas = [];
+  estrofas.forEach(function (e, i) { lineas = lineas.concat(i ? e.slice(0, 2) : e); });
+  var r = '';
+  for (var i = 0; i < lineas.length; i++) {
+    var mas = (r ? ' / ' : '') + lineas[i];
+    if (r.length + mas.length > 900) break;
+    r += mas;
+  }
+  return r;
+}
+
 function enCarpeta_(archivo, carpeta) {
   var padres = archivo.getParents();
   while (padres.hasNext()) if (padres.next().getId() === carpeta.getId()) return true;
@@ -771,7 +814,7 @@ function registrarEnBiblioteca_(items, comunidad, u) {
       else f = carpeta.createFile(slug_(it.cab.titulo) + '.md', it.texto, 'text/markdown');
       var e = {
         id: id, titulo: it.cab.titulo, tono: it.cab.tono, etiquetas: it.cab.etiquetas, mdId: f.getId(),
-        soloAudio: soloAudioMd_(it.texto),
+        soloAudio: soloAudioMd_(it.texto), inicio: letraInicio_(it.texto),
         audios: it.audios.length ? it.audios : (previa ? previa.audios : []),
         comunidad: (previa && previa.comunidad) || comunidad || '',
         autor: (previa && previa.autor) || u.email, actualizado: ahora_()
@@ -819,7 +862,29 @@ function indexarEnBiblioteca_(carpeta, comunidad, u) {
 }
 
 function biblioteca_() {
-  return { ok: true, canciones: leerBiblioteca_().canciones };
+  var bib = leerBiblioteca_();
+  if (bib.canciones.some(function (c) { return c.inicio === undefined; })) {
+    try { bib = completarInicios_(40); } catch (err) { console.warn('Letra de la Biblioteca: ' + err); }
+  }
+  return { ok: true, canciones: bib.canciones };
+}
+
+// Canciones guardadas antes de que la Biblioteca tuviera su letra: se completan de a poco con cada lectura
+function completarInicios_(max) {
+  return conCandado_(function () {
+    var bib = leerBiblioteca_(), n = 0;
+    bib.canciones.forEach(function (c) {
+      if (n >= max || c.inicio !== undefined) return;
+      n++;
+      try {
+        c.inicio = c.mdId ? letraInicio_(DriveApp.getFileById(c.mdId).getBlob().getDataAsString('UTF-8')) : '';
+      } catch (_) {
+        c.inicio = '';
+      }
+    });
+    if (n) escribirJson_(raiz_(), 'biblioteca.json', bib);
+    return bib;
+  });
 }
 
 function cancionBiblioteca_(id) {
@@ -1021,6 +1086,8 @@ function guardarMisa_(d) {
   if (!puedeEditar_(u, comunidad)) throw new Error('No tenés permiso para guardar cancioneros de ' + COMUNIDADES[comunidad]);
   var nombre = texto_(m.nombre, 120);
   if (!nombre) throw new Error('Escribí el nombre del cancionero');
+  // lecturas: objeto = texto propio del cancionero; null = volver a las del día; sin el campo = no cambian
+  var lecturas = m.lecturas ? limpiarLecturas_(m.lecturas) : m.lecturas;
   var misa = conCandado_(function () {
     var data = leerMisas_();
     var previa = m.id ? data.misas.filter(function (x) { return x.id === m.id; })[0] : null;
@@ -1028,7 +1095,9 @@ function guardarMisa_(d) {
     var nueva = {
       id: previa ? previa.id : 'm-' + Date.now(),
       nombre: nombre, comunidad: comunidad, comunidadNombre: COMUNIDADES[comunidad],
-      fechaUso: fecha_(m.fechaUso), tiempoLiturgico: texto_(m.tiempoLiturgico, 60), coroId: texto_(m.coroId, 40),
+      fechaUso: fecha_(m.fechaUso), fechaLecturas: fecha_(m.fechaLecturas),
+      lecturasPropias: lecturas === undefined ? !!(previa && previa.lecturasPropias) : !!lecturas,
+      tiempoLiturgico: texto_(m.tiempoLiturgico, 60), coroId: texto_(m.coroId, 40),
       momentos: limpiarMomentos_(m.momentos),
       autor: previa ? previa.autor : u.email, autorNombre: previa ? previa.autorNombre : u.nombre,
       creado: previa ? previa.creado : ahora_(), actualizado: ahora_()
@@ -1047,6 +1116,8 @@ function guardarMisa_(d) {
     return nueva;
   });
   if (d.ensayos) escribirEnsayos_(misa.id, d.ensayos);
+  if (lecturas) escribirJson_(subcarpeta_(raiz_(), 'Lecturas'), 'misa-' + misa.id + '.json', lecturas);
+  else if (lecturas === null) borrarLecturasMisa_(misa.id);
   auditar_({ tipo: 'misa_guardada', email: u.email, nombre: u.nombre, titulo: misa.nombre, comunidad: comunidad });
   return { misa: misa };
 }
@@ -1063,8 +1134,45 @@ function borrarMisa_(d) {
     delete ens[m.id];
     escribirJson_(sistema_(), 'ensayos.json', ens);
   });
+  if (m.lecturasPropias) borrarLecturasMisa_(m.id);
   auditar_({ tipo: 'misa_borrada', email: u.email, nombre: u.nombre, titulo: m.nombre });
   return {};
+}
+
+// Lecturas corregidas a mano de un cancionero: Lecturas/misa-<id>.json (públicas, como el cancionero)
+function limpiarLecturas_(l) {
+  var tipos = { h: 1, c: 1, e: 1, p: 1 };
+  var r = {
+    titulo: texto_(l.titulo, 200), dia: texto_(l.dia, 120), color: texto_(l.color, 40),
+    secciones: (Array.isArray(l.secciones) ? l.secciones : []).slice(0, 12).map(function (s) {
+      return {
+        id: texto_(s && s.id, 20).replace(/[^\w-]/g, '') || 'propia', nombre: texto_(s && s.nombre, 80) || 'Lectura',
+        bloques: (Array.isArray(s && s.bloques) ? s.bloques : []).slice(0, 120).map(function (b) {
+          return { t: tipos[b && b.t] ? b.t : 'p', x: texto_(b && b.x, 10000) };
+        }).filter(function (b) { return b.x; })
+      };
+    }).filter(function (s) { return s.bloques.length; })
+  };
+  if (JSON.stringify(r).length > 120000) throw new Error('Las lecturas son demasiado largas para guardarlas');
+  return r;
+}
+
+function lecturasDeMisa_(id) {
+  var m = buscarMisa_(id);
+  var fecha = m.fechaLecturas || m.fechaUso;
+  if (!m.lecturasPropias) return fecha ? lecturas_(fecha) : { ok: true, lecturas: { disponible: false, secciones: [] } };
+  var l = leerJson_(subcarpeta_(raiz_(), 'Lecturas'), 'misa-' + m.id + '.json', null);
+  if (!l) return lecturas_(fecha);
+  l.disponible = true;
+  l.propias = true;
+  l.fecha = fecha;
+  l.tiempo = tiempoDeTitulo_(l.titulo) || (fecha ? lecturas_(fecha).lecturas.tiempo : '');
+  return { ok: true, lecturas: l };
+}
+
+function borrarLecturasMisa_(id) {
+  var f = archivoEn_(subcarpeta_(raiz_(), 'Lecturas'), 'misa-' + id + '.json');
+  if (f) f.setTrashed(true);
 }
 
 function limpiarEnsayos_(e) {

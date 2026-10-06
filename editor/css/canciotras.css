@@ -70,6 +70,8 @@ body.has-audio { --audio-h: 64px; padding-bottom: var(--audio-h); }
 .mc-lista li small { color: #5f6368; display: block; }
 .mc-lista li[hidden] { display: none; }
 .mc-solo-audio { font-style: normal; font-size: 11px; background: #fef7e0; color: #8a5a00; border: 1px solid #f9d77e; border-radius: 9px; padding: 0 6px; margin-left: 4px; }
+.mc-letra { display: block; font-style: italic; }
+.mc-letra mark { background: #fde2c8; color: inherit; font-style: normal; border-radius: 3px; padding: 0 2px; }
 .mc-campos { display: grid; gap: 6px; margin: 8px 0; }
 .mc-campos label { font-size: 13px; font-weight: 600; }
 .mc-campos input, .mc-campos select { padding: 6px 8px; font-size: 14px; border: 1px solid #dadce0; border-radius: 4px; }

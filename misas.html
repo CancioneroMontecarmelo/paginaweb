@@ -58,7 +58,8 @@
       </div>
       <span class="tono-info" id="tono-info"></span>
       <form class="buscar" id="form-buscar" role="search">
-        <input type="search" id="buscar" placeholder="Buscar canción o etiqueta" aria-label="Buscar canción o etiqueta">
+        <input type="search" id="buscar" placeholder="Título, etiqueta o frase de la letra" aria-label="Buscar canción por título, etiqueta o frase de la letra"
+          title="No importan mayúsculas, tildes ni faltas de ortografía; también encuentra un pedazo de una línea de la letra">
         <button type="submit" class="btn-chico">Buscar</button>
       </form>
       <button type="button" class="btn-chico boton-cajon" id="abrir-cancioneros" aria-controls="panel-cancioneros">Cancioneros ☰</button>
@@ -137,6 +138,11 @@
             </label>
           </div>
           <p class="n-dia" id="n-dia" aria-live="polite"></p>
+          <p class="n-aviso-fecha" id="n-aviso-fecha" hidden></p>
+          <label class="n-buscar-fecha">Buscar fecha o celebración
+            <input type="search" id="n-buscar-fecha" placeholder="Ej.: 18 de octubre, Cristo Rey, 30 domingo, Navidad" autocomplete="off">
+          </label>
+          <ul class="n-fechas" id="n-fechas" aria-label="Próximos domingos y fiestas"></ul>
         </div>
         <p class="msg-error" id="n-error" hidden></p>
         <div class="dlg-acciones">
@@ -291,7 +297,7 @@
         <div class="s-existente" id="s-existente" hidden>
           <div class="form-grilla">
             <label>Buscar
-              <input type="text" id="s-buscar" placeholder="Título o etiqueta" autocomplete="off">
+              <input type="text" id="s-buscar" placeholder="Título, etiqueta o frase de la letra" autocomplete="off">
             </label>
             <label>Canción de la Biblioteca
               <select id="s-cancion"></select>
@@ -329,6 +335,7 @@
   <script src="./editor/js/acordes.js"></script>
   <script src="./editor/js/markdown.js"></script>
   <script src="./editor/js/etiquetas.js"></script>
+  <script src="./editor/js/buscar.js"></script>
   <script src="./editor/js/instrumentos.js"></script>
   <script src="./editor/js/rasgueos.js"></script>
   <script src="./editor/js/render.js"></script>

@@ -394,23 +394,32 @@ async function mcAbrirCancionBib() {
     showModal({ title: 'Biblioteca de la parroquia', body: '<p>Todavía no hay canciones en la Biblioteca.</p>' });
     return;
   }
-  const plano = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   let elegida = null;
   await showModal({
     title: 'Abrir canción de la Biblioteca',
     wide: true,
     body: `<div class="mc-campos"><label for="mcBuscarBib">Buscar</label>
-        <input type="search" id="mcBuscarBib" placeholder="Título o etiqueta" autocomplete="off"></div>
-      <ul class="mc-lista mc-lista-bib">${lista.map(c => `<li data-q="${escapeHtml(plano(c.titulo + ' ' + (c.etiquetas || []).join(' ')))}">
+        <input type="search" id="mcBuscarBib" placeholder="Título, etiqueta o frase de la letra" autocomplete="off"
+          title="No importan mayúsculas, tildes ni faltas de ortografía; también encuentra un pedazo de una línea de la letra"></div>
+      <ul class="mc-lista mc-lista-bib">${lista.map(c => `<li data-id="${escapeHtml(c.id)}">
         <span>${escapeHtml(c.titulo)}${c.soloAudio ? ' <em class="mc-solo-audio">solo audio</em>' : ''}
           <small>${escapeHtml([c.tono, (c.etiquetas || []).slice(0, 5).join(', '), (c.audios || []).length ? `♪ ${(c.audios || []).length}` : '']
-            .filter(Boolean).join(' · '))}</small></span>
+            .filter(Boolean).join(' · '))}</small><small class="mc-letra" hidden></small></span>
         <button type="button" class="btn primary" data-id="${escapeHtml(c.id)}">Abrir</button></li>`).join('')}</ul>`,
     onOpen: d => {
       const q = d.querySelector('#mcBuscarBib');
+      const ul = d.querySelector('.mc-lista-bib');
+      const filas = new Map([...ul.children].map(li => [li.dataset.id, li]));
       q.oninput = () => {
-        const t = plano(q.value.trim());
-        d.querySelectorAll('.mc-lista-bib li').forEach(li => { li.hidden = !!t && !li.dataset.q.includes(t); });
+        const halladas = buscarCanciones(lista, q.value);
+        const si = new Set(halladas.map(c => c.id));
+        filas.forEach((li, id) => { li.hidden = !si.has(id); });
+        halladas.forEach(c => {
+          const li = filas.get(c.id), linea = li.querySelector('.mc-letra');
+          linea.innerHTML = q.value.trim() ? fragmentoLetra(c, q.value) : '';
+          linea.hidden = !linea.innerHTML;
+          ul.appendChild(li);
+        });
       };
       q.focus();
       d.querySelectorAll('[data-id]').forEach(b => { b.onclick = () => { elegida = b.dataset.id; d.close(); }; });

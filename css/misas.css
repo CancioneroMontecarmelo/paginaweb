@@ -156,7 +156,7 @@
   border: 1px solid var(--borde);
   border-radius: var(--radio);
   background: var(--blanco);
-  width: 13rem;
+  width: clamp(13rem, 26vw, 24rem);
 }
 
 .boton-cajon {
@@ -509,6 +509,44 @@
   display: block;
   color: var(--texto-suave);
   font-size: 0.76rem;
+}
+
+.bib-letra {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--texto-suave);
+}
+
+.bib-letra mark {
+  background: rgba(154, 79, 46, 0.18);
+  color: var(--terracota-oscura);
+  font-style: normal;
+  border-radius: 0.2rem;
+  padding: 0 0.1rem;
+}
+
+.bib-motivo {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  color: var(--terracota-oscura);
+}
+
+.bib-grupo {
+  margin: 0.8rem 0.35rem 0.25rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--borde);
+  font-size: 0.78rem;
+  font-weight: 560;
+  color: var(--texto-suave);
+}
+
+.bib-grupo:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .bib-etiquetas {
@@ -996,6 +1034,98 @@
   margin: 0.5rem 0 0;
 }
 
+.lect-herramientas {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.5rem 0.25rem 0.65rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px dashed var(--borde);
+}
+
+.lect-de {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--verde);
+}
+
+.lect-otra-fecha {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+}
+
+.lect-otra-fecha input,
+.lect-editor input,
+.lect-editor textarea {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  color: var(--texto);
+  font: inherit;
+}
+
+.lect-botones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.lect-botones .espacio {
+  flex: 1;
+}
+
+.lect-editor {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.35rem 0.25rem;
+}
+
+.lect-editor > label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+
+.lect-editor textarea {
+  resize: vertical;
+  min-height: 7rem;
+  line-height: 1.45;
+}
+
+.lect-ed-seccion {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.lect-ed-cab {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.lect-ed-cab input {
+  flex: 1;
+  font-weight: 600;
+  color: var(--terracota);
+}
+
+.lect-ayuda {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+}
+
 /* Cantos sugeridos y publicar */
 .canciones-momento .sugerida {
   font-style: normal;
@@ -1061,6 +1191,83 @@
   margin: 0.6rem 0 0;
   font-size: 0.88rem;
   color: var(--verde);
+}
+
+.n-aviso-fecha {
+  margin: 0.5rem 0 0;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radio);
+  background: rgba(154, 79, 46, 0.1);
+  color: var(--terracota-oscura);
+  font-size: 0.85rem;
+}
+
+.n-aviso-fecha .btn-chico {
+  margin-left: 0.3rem;
+}
+
+.n-buscar-fecha {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.8rem;
+  font-size: 0.85rem;
+}
+
+.n-buscar-fecha input {
+  font: inherit;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.n-fechas {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.n-fechas li + li {
+  border-top: 1px solid var(--borde);
+}
+
+.n-fechas button {
+  display: flex;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.35rem 0.55rem;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.n-fechas button b {
+  flex: 0 0 8.5rem;
+  font-weight: 560;
+}
+
+.n-fechas button:not(.domingo) span {
+  color: var(--texto-suave);
+}
+
+.n-fechas button:hover {
+  background: rgba(47, 74, 56, 0.06);
+}
+
+.n-fechas button.elegida {
+  background: rgba(47, 74, 56, 0.12);
+  color: var(--verde);
+}
+
+.n-fechas .aviso {
+  padding: 0.5rem;
+  font-size: 0.85rem;
 }
 
 #p-barra {
