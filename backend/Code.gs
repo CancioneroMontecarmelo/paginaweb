@@ -680,6 +680,48 @@ function carpetaBiblioteca_(sub) {
   return carpetaRuta_(raiz_(), ['Biblioteca', sub]);
 }
 
+// Carpetas que sube la app de escritorio «Subir canciones» tal como están en la computadora
+// («cancionero/Momentos litúrgicos/Comunión»): quedan dentro de Biblioteca, con el .md y su audio juntos
+var CARPETAS_RESERVADAS_ = { audios: true, canciones: true, partituras: true };
+function partesCarpeta_(ruta) {
+  if (!ruta) return null;
+  var partes = String(ruta).split('/').map(function (p) {
+    return p.replace(/[\x00-\x1f\\]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
+  }).filter(function (p) { return p && p !== '.' && p !== '..'; });
+  if (!partes.length) return null;
+  if (partes.length > 8) throw new Error('La carpeta tiene demasiados niveles: ' + ruta);
+  if (CARPETAS_RESERVADAS_[partes[0].toLowerCase()]) throw new Error('«' + partes[0] + '» es una carpeta interna de la Biblioteca: elegí otra carpeta para subir');
+  return partes;
+}
+
+function carpetaEspejo_(partes) {
+  return carpetaRuta_(raiz_(), ['Biblioteca'].concat(partes));
+}
+
+function nombreArchivoDrive_(nombre) {
+  return String(nombre || 'archivo').replace(/[\x00-\x1f\/\\]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 150) || 'archivo';
+}
+
+// Acceso directo de Drive a `fileId` dentro de `carpeta` (no repite si ya hay algo con ese nombre)
+function accesoDirecto_(carpeta, fileId, nombre) {
+  if (carpeta.getFilesByName(nombre).hasNext()) return false;
+  Drive.Files.create({ name: nombre, mimeType: 'application/vnd.google-apps.shortcut', shortcutDetails: { targetId: fileId }, parents: [carpeta.getId()] });
+  return true;
+}
+
+// true si el archivo está en cualquier carpeta dentro de MonteCarmelo/Biblioteca
+var idBiblioteca_ = '';
+function enBiblioteca_(archivo) {
+  if (!idBiblioteca_) idBiblioteca_ = carpetaRuta_(raiz_(), ['Biblioteca']).getId();
+  var padres = archivo.getParents();
+  for (var nivel = 0; nivel < 10 && padres.hasNext(); nivel++) {
+    var p = padres.next();
+    if (p.getId() === idBiblioteca_) return true;
+    padres = p.getParents();
+  }
+  return false;
+}
+
 function desescapar_(s) {
   return String(s || '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 }
@@ -800,9 +842,10 @@ function enCarpeta_(archivo, carpeta) {
   return false;
 }
 
-// Devuelve el id del audio en Biblioteca/audios (reutiliza el que tenga el mismo nombre y tamaño)
-function guardarAudioBiblioteca_(nombre, tamano, crear) {
-  var carpeta = carpetaBiblioteca_('audios');
+// Devuelve el id del audio en Biblioteca/audios u otra carpeta de la Biblioteca (reutiliza el que tenga el
+// mismo nombre y tamaño)
+function guardarAudioBiblioteca_(nombre, tamano, crear, carpeta) {
+  carpeta = carpeta || carpetaBiblioteca_('audios');
   var it = carpeta.getFilesByName(nombre);
   while (it.hasNext()) {
     var f = it.next();
@@ -823,8 +866,14 @@ function registrarEnBiblioteca_(items, comunidad, u) {
       var previa = bib.canciones.filter(function (x) { return x.id === id; })[0];
       var f = null;
       if (previa && previa.mdId) { try { f = DriveApp.getFileById(previa.mdId); } catch (_) {} }
-      if (f) f.setContent(it.texto);
-      else f = carpeta.createFile(slug_(it.cab.titulo) + '.md', it.texto, 'text/markdown');
+      if (f && f.isTrashed()) f = null;
+      if (f) {
+        f.setContent(it.texto);
+        if (it.carpeta && !enCarpeta_(f, it.carpeta)) f.moveTo(it.carpeta);
+        if (it.nombreMd && f.getName() !== it.nombreMd) f.setName(it.nombreMd);
+      } else {
+        f = (it.carpeta || carpeta).createFile(it.nombreMd || slug_(it.cab.titulo) + '.md', it.texto, 'text/markdown');
+      }
       var e = {
         id: id, titulo: it.cab.titulo, tono: it.cab.tono, etiquetas: it.cab.etiquetas, mdId: f.getId(),
         soloAudio: soloAudioMd_(it.texto), inicio: letraInicio_(it.texto),
@@ -832,6 +881,8 @@ function registrarEnBiblioteca_(items, comunidad, u) {
         comunidad: (previa && previa.comunidad) || comunidad || '',
         autor: (previa && previa.autor) || u.email, actualizado: ahora_()
       };
+      if (it.rutaCarpeta) e.carpeta = it.rutaCarpeta;
+      else if (previa && previa.carpeta) e.carpeta = previa.carpeta;
       if (it.cab.letraDe) e.letraDe = it.cab.letraDe;
       if (it.cab.musicaDe) e.musicaDe = it.cab.musicaDe;
       if (previa && previa.partituras && previa.partituras.length) e.partituras = previa.partituras;
@@ -923,10 +974,11 @@ function subirAudioBiblioteca_(d) {
   conPrivilegios_(usuarioDeToken_(d.token));
   var bytes = Utilities.base64Decode(String(d.base64 || ''));
   if (bytes.length > MAX_ARCHIVO_BYTES) throw new Error('El audio supera los 30 MB');
-  var nombre = nombreAudio_(d);
+  var partes = partesCarpeta_(d.carpeta);
+  var nombre = partes ? nombreArchivoDrive_(d.nombre) : nombreAudio_(d);
   var id = guardarAudioBiblioteca_(nombre, bytes.length, function (carpeta) {
     return carpeta.createFile(Utilities.newBlob(bytes, mimeAudio_(nombre, d.mime), nombre));
-  });
+  }, partes ? carpetaEspejo_(partes) : null);
   return { fileId: id, nombre: nombre };
 }
 
@@ -979,9 +1031,10 @@ function audioVinculado_(fileId) {
   return !!idsVinculados_[fileId];
 }
 
-// Audio de la Biblioteca: está en Biblioteca/audios o ya está vinculado a alguna canción desde otra carpeta
+// Audio de la Biblioteca: está en Biblioteca/audios, ya está vinculado a alguna canción desde otra carpeta o
+// está en una carpeta subida dentro de Biblioteca
 function audioPropio_(archivo, audiosBib) {
-  return enCarpeta_(archivo, audiosBib) || audioVinculado_(archivo.getId());
+  return enCarpeta_(archivo, audiosBib) || audioVinculado_(archivo.getId()) || enBiblioteca_(archivo);
 }
 
 function audiosAConvertir_(d) {
@@ -1610,12 +1663,43 @@ function subirCancion_(d) {
     return /^https?:\/\//i.test(String(a.url || '')) ? audioDeEnlace_(nombre, voz, String(a.url), audiosBib) : null;
   }).filter(Boolean);
   var comunidad = COMUNIDADES[d.comunidad] ? d.comunidad : (u.comunidad || '');
-  var e = registrarEnBiblioteca_([{ texto: texto, cab: cabeceraMd_(texto, d.nombre), audios: audios }], comunidad, u)[0];
+  var item = { texto: texto, cab: cabeceraMd_(texto, d.nombre), audios: audios };
+  var partes = partesCarpeta_(d.carpeta);
+  if (partes) {
+    item.carpeta = carpetaEspejo_(partes);
+    item.rutaCarpeta = partes.join('/');
+    item.nombreMd = nombreArchivoDrive_(d.nombre || slug_(item.cab.titulo) + '.md');
+  }
+  var e = registrarEnBiblioteca_([item], comunidad, u)[0];
   // Los audios subidos reemplazan en el .md a su ruta local (misma etiqueta title) por el enlace de Drive
   var sinEnlace = audios.filter(function (a) { return a.fileId && texto.indexOf(a.fileId) < 0; });
   if (sinEnlace.length) actualizarAudiosMd_(e, sinEnlace, sinEnlace);
+  var accesos = partes ? accesosDeCancion_(e, item.carpeta, d.accesos) : 0;
   auditar_({ tipo: 'cancion_subida', email: u.email, nombre: u.nombre, titulo: e.titulo });
-  return { cancion: e };
+  return { cancion: e, accesos: accesos };
+}
+
+// La misma canción en otras carpetas de la computadora (Comunión y Navidad/Comunión): en esas carpetas del
+// Drive queda un acceso directo al .md y a los audios que están en la carpeta principal
+function accesosDeCancion_(e, carpeta, rutas) {
+  var archivos = [DriveApp.getFileById(e.mdId)];
+  (e.audios || []).forEach(function (a) {
+    if (!a.fileId) return;
+    try {
+      var f = DriveApp.getFileById(a.fileId);
+      if (enCarpeta_(f, carpeta)) archivos.push(f);
+    } catch (_) {}
+  });
+  var hechos = 0;
+  (Array.isArray(rutas) ? rutas : []).slice(0, 10).forEach(function (ruta) {
+    var partes = partesCarpeta_(ruta);
+    if (!partes || partes.join('/') === e.carpeta) return;
+    var destino = carpetaEspejo_(partes);
+    archivos.forEach(function (f) {
+      try { if (accesoDirecto_(destino, f.getId(), f.getName())) hechos++; } catch (err) { console.warn('Acceso directo: ' + err); }
+    });
+  });
+  return hechos;
 }
 
 // ==================== CANCIONEROS DE MISA ====================

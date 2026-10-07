@@ -347,6 +347,21 @@ de la parroquia (Drive de cancionerolitugico@gmail.com):
   si se deja marcada la opción (si no, quedan como enlace); los enlaces a mp3 quedan como enlace. Un audio
   que ya estaba en la canción no se vuelve a subir. Usa la misma clave que `video-a-webm.py`
   (**Pegar la clave…**, con la guía para conseguirla en Identificarse).
+- Reconoce también los audios enlazados como `[Escuchar](<Abandónate.webm>)` o `audio: "Abandónate.webm"`
+  en la cabecera (así vienen las canciones del Copiador de canciones): el enlace se reemplaza, en el mismo
+  lugar, por el `<audio>` de Drive. Si la canción ya está en la Biblioteca sin ese audio aparece como
+  **Le falta el audio**.
+- **Guardar en carpetas, igual que en esta computadora** (marcada por defecto): el `.md` y su audio quedan
+  juntos en `MonteCarmelo/Biblioteca/<carpeta elegida>/<subcarpetas>` (por ejemplo
+  `Biblioteca/cancionero/Momentos litúrgicos/Comunión/Abandónate.md` y `Abandónate.m4a`), y la carpeta es
+  la primera etiqueta (después las de en medio, como «Navidad», y el momento y tiempo litúrgico de la
+  cabecera). Las canciones que ya estaban en la Biblioteca fuera de su carpeta aparecen como **Suelta en
+  el Drive**: al subirlas se **mueve** el mismo `.md` (no cambia su id, así que Misas y los cancioneros
+  siguen igual) y se sube su audio. Si el mismo título está en varias carpetas, se sube una vez (la que
+  tiene audio) y en las otras carpetas del Drive queda un **acceso directo** al `.md` y al audio. Recorre
+  hasta 4 niveles de subcarpetas. **Detener** para después de la canción en curso; al volver a abrir,
+  la lista muestra solo lo que falta. En la Biblioteca, cada canción guarda su carpeta (`carpeta`), y los
+  audios de esas carpetas cuentan como de la Biblioteca (reproductor y conversión a .m4a).
 - Los cancioneros (`.m3u8`) se siguen subiendo desde el editor (Archivo → Guardar cancionero en el Drive).
 
 **Instalar en el menú** (una vez, sin sudo): `scripts/instalar-escritorio.sh`. Queda en **Sonido y video**

@@ -27,23 +27,28 @@ import mc_biblioteca as mc  # noqa: E402
 NOMBRE = "Subir canciones a la Biblioteca"
 PREFS = mc.CONFIG.parent / "subir-canciones.json"
 ICONO = mc.RAIZ / "editor" / "icons" / "icono-192.png"
-COLORES = {"nueva": "#1a7f37", "solo-audio": "#0969da", "cambiada": "#b35900", "igual": "#6e7781",
-           "repetida": "#cf222e", "sin-conexion": "#6e7781"}
-ORDEN = {"nueva": 0, "solo-audio": 1, "cambiada": 2, "repetida": 3, "sin-conexion": 4, "igual": 5}
+COLORES = {"nueva": "#1a7f37", "solo-audio": "#0969da", "cambiada": "#b35900", "suelta": "#8250df", "sin-audio": "#0969da",
+           "igual": "#6e7781", "repetida": "#cf222e", "sin-conexion": "#6e7781"}
+ORDEN = {"nueva": 0, "solo-audio": 1, "cambiada": 2, "suelta": 3, "sin-audio": 4, "repetida": 5, "sin-conexion": 6, "igual": 7}
 RESUMEN = {"nueva": ("nueva", "nuevas"), "solo-audio": ("solo con audio", "solo con audio"), "cambiada": ("cambiada", "cambiadas"),
+           "suelta": ("suelta en el Drive", "sueltas en el Drive"), "sin-audio": ("sin su audio", "sin su audio"),
            "repetida": ("con título repetido", "con título repetido"), "sin-conexion": ("sin comparar", "sin comparar"),
            "igual": ("ya está", "ya están")}
 # Columnas de la lista
 C_MARCA, C_TITULO, C_ESTADO, C_COLOR, C_AUDIOS, C_CONSEJO, C_RUTA, C_ACTIVA = range(8)
 
 
-def carpeta_inicial():
+def leer_prefs():
     try:
-        guardada = json.loads(PREFS.read_text(encoding="utf-8")).get("carpeta", "")
-        if guardada and Path(guardada).is_dir():
-            return Path(guardada)
+        return json.loads(PREFS.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        pass
+        return {}
+
+
+def carpeta_inicial():
+    guardada = leer_prefs().get("carpeta", "")
+    if guardada and Path(guardada).is_dir():
+        return Path(guardada)
     musica = Path(GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_MUSIC) or Path.home() / "Música")
     for p in (musica / "desde Cancionero on line", musica, Path.home()):
         if p.is_dir():
@@ -51,12 +56,16 @@ def carpeta_inicial():
     return Path.home()
 
 
-def guardar_carpeta(carpeta):
+def guardar_prefs(**cambios):
     try:
         PREFS.parent.mkdir(parents=True, exist_ok=True)
-        PREFS.write_text(json.dumps({"carpeta": str(carpeta)}), encoding="utf-8")
+        PREFS.write_text(json.dumps({**leer_prefs(), **cambios}), encoding="utf-8")
     except OSError:
         pass
+
+
+def guardar_carpeta(carpeta):
+    guardar_prefs(carpeta=str(carpeta))
 
 
 class Ventana(Gtk.ApplicationWindow):
@@ -87,7 +96,10 @@ class Ventana(Gtk.ApplicationWindow):
             "<b>2.</b> Mirá qué pasa con cada una: las <span foreground='#1a7f37'><b>nuevas</b></span> y las "
             "<span foreground='#b35900'><b>cambiadas</b></span> ya vienen marcadas; las que ya están en la Biblioteca no aparecen.   "
             "<b>3.</b> Tocá <b>Subir las marcadas</b>: quedan en la Biblioteca de la parroquia "
-            "(Drive de cancionerolitugico@gmail.com) con sus audios en AAC (.m4a), que suenan en iPhone, Mac, Android y PC.")
+            "(Drive de cancionerolitugico@gmail.com) con sus audios en AAC (.m4a), que suenan en iPhone, Mac, Android y PC. "
+            "Con <b>Guardar en carpetas</b>, cada canción y su audio quedan juntos en Biblioteca, en las mismas carpetas que aquí, "
+            "y la carpeta es su etiqueta principal; las que ya se subieron sueltas aparecen como "
+            "<span foreground='#8250df'><b>sueltas</b></span> y se ordenan sin repetirlas.")
         caja.pack_start(guia, False, False, 0)
 
         fila = Gtk.Box(spacing=8)
@@ -142,6 +154,13 @@ class Ventana(Gtk.ApplicationWindow):
         caja.pack_start(desliz, True, True, 0)
 
         fila = Gtk.Box(spacing=12)
+        self.chk_carpetas = Gtk.CheckButton(label="Guardar en carpetas, igual que en esta computadora",
+                                            active=leer_prefs().get("carpetas", True))
+        self.chk_carpetas.set_tooltip_text("Cada canción queda con su audio en Biblioteca/<carpeta>/… del Drive y la carpeta es "
+                                           "su etiqueta principal. Si la misma canción está en varias carpetas, en las otras "
+                                           "queda un acceso directo.")
+        self.chk_carpetas.connect("toggled", self.al_cambiar_carpetas)
+        fila.pack_start(self.chk_carpetas, False, False, 0)
         self.chk_videos = Gtk.CheckButton(label="Convertir los videos (YouTube…) a audio .m4a y subirlos", active=True)
         self.chk_videos.set_tooltip_text("Si no, quedan como enlace al video. En .m4a suenan en el sitio y en cualquier celular sin depender de YouTube.")
         fila.pack_start(self.chk_videos, False, False, 0)
@@ -167,6 +186,11 @@ class Ventana(Gtk.ApplicationWindow):
         self.btn_subir.get_style_context().add_class("suggested-action")
         self.btn_subir.connect("clicked", lambda *_: self.subir())
         fila.pack_start(self.btn_subir, False, False, 0)
+        self.detener = threading.Event()
+        self.btn_detener = Gtk.Button(label="Detener", sensitive=False)
+        self.btn_detener.set_tooltip_text("Termina la canción que está subiendo y para. Después podés seguir donde quedó.")
+        self.btn_detener.connect("clicked", lambda *_: self.al_detener())
+        fila.pack_start(self.btn_detener, False, False, 0)
         caja.pack_start(fila, False, False, 0)
 
         detalle = Gtk.Expander(label="Detalle de lo que se va haciendo")
@@ -232,14 +256,21 @@ class Ventana(Gtk.ApplicationWindow):
         guardar_carpeta(self.carpeta)
         self.revisar()
 
+    def al_cambiar_carpetas(self, boton):
+        guardar_prefs(carpetas=boton.get_active())
+        self.revisar()
+
     def revisar(self):
         if self.trabajando:
             return
         self.ocupado(True, "Buscando canciones y comparando con la Biblioteca…")
         carpeta = self.carpeta
+        en_carpetas = self.chk_carpetas.get_active()
 
         def tarea():
             canciones, ilegibles = mc.escanear(carpeta)
+            if en_carpetas:
+                canciones = mc.agrupar_por_carpetas(carpeta, canciones)
             biblioteca, error = None, ""
             try:
                 biblioteca = {c["id"]: c for c in mc.Api(mc.api_de_config(), "").get(accion="biblioteca").get("canciones") or []}
@@ -265,6 +296,8 @@ class Ventana(Gtk.ApplicationWindow):
             else:
                 codigo, estado, consejo, marcar = mc.estado_cancion(c, biblioteca.get(c["id"]), repetida)
             c["codigo"] = codigo
+            if c.get("accesos") and codigo != "igual":
+                consejo += " También está en «" + "», «".join(c["accesos"]) + "»: allí queda un acceso directo."
             if self.elegidos:
                 marcar = c["ruta"].resolve() in self.elegidos and codigo not in ("repetida", "sin-conexion")
             cuenta[codigo] = cuenta.get(codigo, 0) + 1
@@ -275,7 +308,9 @@ class Ventana(Gtk.ApplicationWindow):
         if not canciones:
             texto = f"No hay canciones .md del editor en «{carpeta}». Elegí la carpeta donde el editor guarda tus canciones."
         else:
-            texto = f"<b>{len(canciones)} canciones</b> en {GLib.markup_escape_text(carpeta.name or str(carpeta))}: " + \
+            copias = sum(len(c.get("copias") or []) for c in canciones)
+            texto = f"<b>{len(canciones)} canciones</b> en {GLib.markup_escape_text(carpeta.name or str(carpeta))}" + \
+                (f" (y {copias} copias en otras carpetas)" if copias else "") + ": " + \
                 ", ".join(f"{n} {RESUMEN[cod][n > 1]}" for cod, n in sorted(cuenta.items(), key=lambda x: ORDEN[x[0]]))
             if cuenta.get("igual") == len(canciones):
                 texto += ". Ya están todas en la Biblioteca: no queda nada por subir"
@@ -316,10 +351,16 @@ class Ventana(Gtk.ApplicationWindow):
 
     # ------------------------------------------------------------ subir
 
+    def al_detener(self):
+        self.detener.set()
+        self.btn_detener.set_sensitive(False)
+        self.anotar("\nSe detiene al terminar la canción que está subiendo…")
+
     def ocupado(self, si, texto=""):
         self.trabajando = si
         self.btn_revisar.set_sensitive(not si)
         self.selector.set_sensitive(not si)
+        self.chk_carpetas.set_sensitive(not si)
         self.progreso.set_text(texto)
         self.progreso.set_fraction(0)
         if si:
@@ -344,14 +385,17 @@ class Ventana(Gtk.ApplicationWindow):
         if hay_letra:
             dlg = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.QUESTION,
                                     buttons=Gtk.ButtonsType.OK_CANCEL, text="¿Reemplazar la letra en la Biblioteca?")
-            dlg.format_secondary_text("Estas canciones ya están en la Biblioteca y se van a reemplazar por la versión de esta "
-                                      "computadora (los audios que ya tienen se conservan):\n\n• " + "\n• ".join(hay_letra))
+            lista = "\n• ".join(hay_letra[:15]) + (f"\n… y {len(hay_letra) - 15} más" if len(hay_letra) > 15 else "")
+            dlg.format_secondary_text(f"Estas {len(hay_letra)} canciones ya están en la Biblioteca y se van a reemplazar por la versión "
+                                      "de esta computadora (los audios que ya tienen se conservan):\n\n• " + lista)
             seguir = dlg.run() == Gtk.ResponseType.OK
             dlg.destroy()
             if not seguir:
                 return
         self.detalle.set_expanded(True)
         self.ocupado(True, "Subiendo…")
+        self.detener.clear()
+        self.btn_detener.set_sensitive(True)
         api = mc.Api(mc.api_de_config(), token)
         comunidad = self.cmb_comunidad.get_active_id() or ""
         videos = self.chk_videos.get_active()
@@ -360,6 +404,9 @@ class Ventana(Gtk.ApplicationWindow):
         def tarea():
             hechas, fallas = [], []
             for i, c in enumerate(marcadas):
+                if self.detener.is_set():
+                    GLib.idle_add(self.anotar, f"Detenido: quedan {len(marcadas) - i} por subir. Tocá «Subir las marcadas» para seguir.")
+                    break
                 GLib.idle_add(self.avanzar, i, len(marcadas), c["titulo"])
                 GLib.idle_add(self.anotar, f"\n«{c['titulo']}»")
                 try:
@@ -390,6 +437,7 @@ class Ventana(Gtk.ApplicationWindow):
 
     def terminar(self, hechas, fallas):
         self.ocupado(False)
+        self.btn_detener.set_sensitive(False)
         self.progreso.set_fraction(1)
         self.progreso.set_text(f"Listo: {len(hechas)} subida(s)" + (f", {len(fallas)} con problemas" if fallas else ""))
         tipo = Gtk.MessageType.WARNING if fallas else Gtk.MessageType.INFO
