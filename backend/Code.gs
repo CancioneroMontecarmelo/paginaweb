@@ -1144,7 +1144,7 @@ function desvincularAudio_(d) {
 // en ninguna canción y lo vincula (biblioteca.json y <audio> en el .md). El archivo se queda en su carpeta y el
 // nombre de esa carpeta (p. ej. «Entrada») pasa a ser la primera etiqueta de la canción. Trabaja por tandas: el
 // panel vuelve a llamar con el cursor hasta recorrer todo.
-var EXT_AUDIO_RE_ = /\.(webm|weba|m4a|mp3|ogg|oga|opus|wav|aac|flac)$/i;
+var EXT_AUDIO_RE_ = /\.(webm|weba|m4a|m4b|mp3|mpga|mp2|ogg|oga|opus|wav|aac|flac|amr|wma|aif|aiff|caf)$/i;
 var VOCES_ALIAS_ = {
   soprano: 'soprano', sopranos: 'soprano', contralto: 'contralto', contraltos: 'contralto', alto: 'contralto', altos: 'contralto',
   tenor: 'tenor', tenores: 'tenor', bajo: 'bajo', bajos: 'bajo', mezzo: 'mezzosoprano', mezzosoprano: 'mezzosoprano',
@@ -1152,8 +1152,9 @@ var VOCES_ALIAS_ = {
 };
 var PALABRAS_VACIAS_ = { de: 1, del: 1, la: 1, el: 1, lo: 1, los: 1, las: 1, y: 1, a: 1, al: 1, en: 1, un: 1, una: 1, oh: 1 };
 var PARECIDO_MINIMO_ = 0.75;
-var SUELTOS_SEG_ = 150;
-var SUELTOS_MAX_ = 60;
+var SUELTOS_SEG_ = 120;
+var SUELTOS_MAX_ = 80;
+var SUELTOS_PAGINA_ = 100;
 
 // Como slug_, sin cortar ni valor por defecto
 function claveTitulo_(s) {
@@ -1276,35 +1277,51 @@ function carpetasTecnicas_() {
   return { ids: ids, cancioneros: cancioneros };
 }
 
-function dentroDe_(carpeta, ancestroId) {
-  var f = carpeta;
-  for (var i = 0; ancestroId && i < 8; i++) {
-    var padres = f.getParents();
-    if (!padres.hasNext()) return false;
-    f = padres.next();
-    if (f.getId() === ancestroId) return true;
+// { nombre, padres } de una carpeta (Drive v3: también las compartidas y las de unidades compartidas)
+function infoCarpeta_(id, cache) {
+  if (!cache.info[id]) {
+    try {
+      var f = Drive.Files.get(id, { fields: 'id,name,parents', supportsAllDrives: true });
+      cache.info[id] = { nombre: f.name || '', padres: f.parents || [] };
+    } catch (_) {
+      cache.info[id] = { nombre: '', padres: [] };
+    }
+  }
+  return cache.info[id];
+}
+
+function dentroDe_(id, ancestroId, cache) {
+  for (var i = 0; ancestroId && id && i < 8; i++) {
+    id = infoCarpeta_(id, cache).padres[0];
+    if (id === ancestroId) return true;
   }
   return false;
 }
 
 // { nombre, etiqueta } de la carpeta del archivo; etiqueta vacía si es una carpeta técnica
-function carpetaDeAudio_(archivo, tecnicas, cache) {
-  var padres = archivo.getParents();
-  if (!padres.hasNext()) return { nombre: '', etiqueta: '' };
-  var carpeta = padres.next(), id = carpeta.getId();
-  if (!cache[id]) {
-    var nombre = carpeta.getName();
-    var tecnica = tecnicas.ids[id] || dentroDe_(carpeta, tecnicas.cancioneros);
-    cache[id] = { nombre: nombre, etiqueta: tecnica ? '' : nombre.replace(/[,\n\r]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) };
+function carpetaDeAudio_(padres, tecnicas, cache) {
+  var id = (padres || [])[0];
+  if (!id) return { nombre: '', etiqueta: '' };
+  if (!cache.carpetas[id]) {
+    var nombre = infoCarpeta_(id, cache).nombre;
+    var tecnica = tecnicas.ids[id] || dentroDe_(id, tecnicas.cancioneros, cache);
+    cache.carpetas[id] = { nombre: nombre, etiqueta: tecnica ? '' : nombre.replace(/[,\n\r]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) };
   }
-  return cache[id];
+  return cache.carpetas[id];
+}
+
+var EXT_VIDEO_RE_ = /\.(mp4|m4v|mov|avi|mkv|3gp|3gpp|wmv|mpeg|mpg)$/i;
+var DRIVE_CAMPOS_ = 'nextPageToken, files(id, name, mimeType, size, parents)';
+var DRIVE_CONSULTA_ = "trashed = false and mimeType != 'application/vnd.google-apps.folder'";
+
+function extension_(nombre) {
+  var m = String(nombre || '').match(/\.([a-z0-9]{1,5})$/i);
+  return m ? m[1].toLowerCase() : '(sin extensión)';
 }
 
 function vincularAudiosSueltos_(d) {
   var u = soloAdminGeneral_(d.token);
   var inicio = Date.now();
-  var it = d.cursor ? DriveApp.continueFileIterator(String(d.cursor)) : DriveApp.searchFiles(
-    "trashed = false and (mimeType contains 'audio/' or mimeType = 'video/webm' or mimeType = 'application/octet-stream')");
   var bib = leerBiblioteca_();
   var indice = indiceTitulos_(bib.canciones);
   var usados = {};
@@ -1313,29 +1330,48 @@ function vincularAudiosSueltos_(d) {
       if (a.fileId) (usados[a.fileId] = usados[a.fileId] || []).push(c.id);
     });
   });
-  var tecnicas = carpetasTecnicas_(), cache = {};
-  var propuestas = [], sinCancion = [], etiquetasDeVinculados = [], revisados = 0;
-  while (propuestas.length < SUELTOS_MAX_ && Date.now() - inicio < SUELTOS_SEG_ * 1000 && it.hasNext()) {
-    var f = it.next(), nombre = f.getName();
-    if (!EXT_AUDIO_RE_.test(nombre) && !/^audio\//i.test(f.getMimeType())) continue;
-    revisados++;
-    var carpeta = carpetaDeAudio_(f, tecnicas, cache), id = f.getId();
-    if (usados[id]) {
-      if (carpeta.etiqueta) usados[id].forEach(function (cid) { etiquetasDeVinculados.push({ cancionId: cid, etiqueta: carpeta.etiqueta }); });
-      continue;
-    }
-    var m = emparejarAudio_(nombre, indice);
-    var item = { fileId: id, nombre: nombre, carpeta: carpeta.nombre, etiqueta: carpeta.etiqueta, tamano: f.getSize(), voz: m.voz, puntaje: m.puntaje };
-    if (!m.ids.length) {
-      if (m.empate) item.empate = m.empate;
-      sinCancion.push(item);
-      continue;
-    }
-    item.canciones = m.ids;
-    propuestas.push(item);
+  var tecnicas = carpetasTecnicas_(), cache = { info: {}, carpetas: {} };
+  var propuestas = [], sinCancion = [], etiquetasDeVinculados = [], revisados = 0, archivos = 0, otros = {}, videos = [], porCarpeta = {};
+  // Drive v3 en páginas: Mi unidad, lo compartido conmigo y las unidades compartidas. Cada archivo trae sus
+  // carpetas (parents), así que no hace falta pedirlas una por una.
+  var cursor = String(d.cursor || ''), primera = true;
+  while ((primera || cursor) && propuestas.length < SUELTOS_MAX_ && Date.now() - inicio < SUELTOS_SEG_ * 1000) {
+    primera = false;
+    var pagina = Drive.Files.list({
+      q: DRIVE_CONSULTA_, pageSize: SUELTOS_PAGINA_, fields: DRIVE_CAMPOS_,
+      corpora: 'allDrives', includeItemsFromAllDrives: true, supportsAllDrives: true,
+      pageToken: cursor || undefined
+    });
+    cursor = pagina.nextPageToken || '';
+    (pagina.files || []).forEach(function (f) {
+      archivos++;
+      var nombre = f.name || '';
+      if (!EXT_AUDIO_RE_.test(nombre) && !/^audio\//i.test(f.mimeType || '')) {
+        var ext = /^application\/vnd\.google-apps/.test(f.mimeType || '') ? 'documento de Google' : extension_(nombre);
+        otros[ext] = (otros[ext] || 0) + 1;
+        if (EXT_VIDEO_RE_.test(nombre) && videos.length < 50) videos.push(nombre);
+        return;
+      }
+      revisados++;
+      var carpeta = carpetaDeAudio_(f.parents, tecnicas, cache), id = f.id;
+      var donde = carpeta.nombre || '(sin carpeta)';
+      porCarpeta[donde] = (porCarpeta[donde] || 0) + 1;
+      if (usados[id]) {
+        if (carpeta.etiqueta) usados[id].forEach(function (cid) { etiquetasDeVinculados.push({ cancionId: cid, etiqueta: carpeta.etiqueta }); });
+        return;
+      }
+      var m = emparejarAudio_(nombre, indice);
+      var item = { fileId: id, nombre: nombre, carpeta: carpeta.nombre, etiqueta: carpeta.etiqueta, tamano: Number(f.size || 0), voz: m.voz, puntaje: m.puntaje };
+      if (!m.ids.length) {
+        if (m.empate) item.empate = m.empate;
+        sinCancion.push(item);
+        return;
+      }
+      item.canciones = m.ids;
+      propuestas.push(item);
+    });
   }
-  var cursor = it.hasNext() ? it.getContinuationToken() : '';
-  var r = { revisados: revisados, cursor: cursor, vinculados: [], repetidos: [], sinCancion: sinCancion, canciones: [] };
+  var r = { revisados: revisados, archivos: archivos, otros: otros, videos: videos, porCarpeta: porCarpeta, cursor: cursor, vinculados: [], repetidos: [], sinCancion: sinCancion, canciones: [] };
   if (d.soloBuscar) {
     r.vinculados = propuestas;
     return r;

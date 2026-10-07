@@ -28,11 +28,16 @@ export function iniciarVinculoAudios({ caja, llamarApi, token }) {
     const porCarpeta = {};
     t.vinculados.forEach((v) => { if (v.etiqueta) porCarpeta[v.etiqueta] = (porCarpeta[v.etiqueta] || 0) + 1; });
     const carpetas = Object.entries(porCarpeta).sort((a, b) => b[1] - a[1]);
+    const ordenado = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}: ${n}`).join(" · ");
     box.replaceChildren(
-      el("p", "", `Revisados: ${t.revisados} audios del Drive · vinculados: ${t.vinculados.length} en ${[...t.canciones.values()].filter((c) => c.audios).length} canciones · ` +
-        `sin canción: ${t.sinCancion.length}` + (t.repetidos.length ? ` · copias de un audio que la canción ya tenía: ${t.repetidos.length}` : "")),
-      ...(carpetas.length ? [el("p", "", "Por carpeta (etiqueta): " + carpetas.map(([k, n]) => `${k}: ${n}`).join(" · "))] : []),
+      el("p", "", `Archivos del Drive revisados: ${t.archivos} · audios: ${t.revisados} · vinculados ahora: ${t.vinculados.length} en ` +
+        `${[...t.canciones.values()].filter((c) => c.audios).length} canciones · sin canción: ${t.sinCancion.length}` +
+        (t.repetidos.length ? ` · copias de un audio que la canción ya tenía: ${t.repetidos.length}` : "")),
+      ...(Object.keys(t.audiosPorCarpeta).length ? [el("p", "", "Audios encontrados por carpeta: " + ordenado(t.audiosPorCarpeta))] : []),
+      ...(carpetas.length ? [el("p", "", "Vinculados ahora por carpeta (etiqueta): " + carpetas.map(([k, n]) => `${k}: ${n}`).join(" · "))] : []),
+      ...(Object.keys(t.otros).length ? [el("p", "aviso", "Otros archivos, que no son audio: " + ordenado(t.otros))] : []),
       ...[
+        lista("Videos (no se vinculan; si son grabaciones de canto, avisá)", t.videos, (li, v) => li.append(v)),
         lista("Vinculados", t.vinculados, (li, v) => {
           li.append(`«${v.nombre}» → ${v.canciones.join(", ")}`);
           const extra = [v.voz && VOCES[v.voz], v.etiqueta && "etiqueta " + v.etiqueta, v.puntaje < 1 && `parecido ${Math.round(v.puntaje * 100)} %`].filter(Boolean);
@@ -55,14 +60,19 @@ export function iniciarVinculoAudios({ caja, llamarApi, token }) {
     st.detener = false;
     $("#sueltos-iniciar").hidden = true;
     $("#sueltos-detener").hidden = false;
-    const t = { revisados: 0, vinculados: [], sinCancion: [], repetidos: [], canciones: new Map() };
+    const t = { revisados: 0, archivos: 0, vinculados: [], sinCancion: [], repetidos: [], canciones: new Map(), otros: {}, audiosPorCarpeta: {}, videos: [] };
+    const sumar = (destino, origen) => Object.entries(origen || {}).forEach(([k, n]) => { destino[k] = (destino[k] || 0) + n; });
     let cursor = "", tanda = 0, error = null;
     do {
       tanda++;
-      estado(`Tanda ${tanda}: revisando el Drive… (${t.revisados} audios revisados, ${t.vinculados.length} vinculados)`);
+      estado(`Tanda ${tanda}: revisando el Drive… (${t.archivos} archivos, ${t.revisados} audios, ${t.vinculados.length} vinculados)`);
       try {
         const r = await llamarApi("vincularAudiosSueltos", { token: token(), cursor });
         t.revisados += r.revisados;
+        t.archivos += r.archivos || 0;
+        sumar(t.otros, r.otros);
+        sumar(t.audiosPorCarpeta, r.porCarpeta);
+        t.videos.push(...(r.videos || []).slice(0, Math.max(0, 200 - t.videos.length)));
         t.vinculados.push(...r.vinculados);
         t.sinCancion.push(...r.sinCancion);
         t.repetidos.push(...r.repetidos);
