@@ -5,7 +5,7 @@
  *
  *   youtubeId(url)                        id de 11 caracteres o null
  *   crearReproductorYT(contenedor, { alCambiar, alTerminar, alError })
- *     → { activo, paused, currentTime, duration, cargar(url, tocar), play(), pause(), destruir() }
+ *     → { activo, paused, currentTime, duration, cargar(url, tocar, desde), play(), pause(), destruir() }
  *     con la misma forma que un <audio> para que la barra lo maneje igual.
  */
 
@@ -46,7 +46,7 @@ const textoError = (codigo) => codigo === 101 || codigo === 150
   : "YouTube no pudo reproducir este video aquí.";
 
 export function crearReproductorYT(contenedor, { alCambiar, alTerminar, alError } = {}) {
-  let player = null, listo = false, url = "", id = null, estado = -1, reloj = 0, turno = 0, esperaToque = 0, tocarAlListo = false;
+  let player = null, listo = false, url = "", id = null, estado = -1, reloj = 0, turno = 0, esperaToque = 0, tocarAlListo = false, desdeAlListo = 0;
   const cambiar = () => alCambiar?.();
 
   const marco = document.createElement("div");
@@ -102,14 +102,16 @@ export function crearReproductorYT(contenedor, { alCambiar, alTerminar, alError 
     },
     get duration() { return (listo && player?.getDuration?.()) || 0; },
 
-    async cargar(nuevaUrl, tocar = true) {
+    async cargar(nuevaUrl, tocar = true, desde = 0) {
       const nuevoId = youtubeId(nuevaUrl);
       if (!nuevoId) return;
       const t = ++turno;
       url = nuevaUrl;
       tocarAlListo = tocar;
+      desdeAlListo = Math.max(0, Math.floor(desde || 0));
       avisar("");
       if (player && listo && nuevoId === id) {
+        if (desdeAlListo) player.seekTo(desdeAlListo, true);
         if (tocar) { player.playVideo(); vigilarArranque(); }
         return;
       }
@@ -117,7 +119,8 @@ export function crearReproductorYT(contenedor, { alCambiar, alTerminar, alError 
       estado = -1;
       cambiar();
       if (player && listo) {
-        if (tocar) { player.loadVideoById(id); vigilarArranque(); } else player.cueVideoById(id);
+        const video = { videoId: id, startSeconds: desdeAlListo };
+        if (tocar) { player.loadVideoById(video); vigilarArranque(); } else player.cueVideoById(video);
         return;
       }
       try {
@@ -133,12 +136,13 @@ export function crearReproductorYT(contenedor, { alCambiar, alTerminar, alError 
         videoId: id,
         width: "100%",
         height: "100%",
-        playerVars: { playsinline: 1, rel: 0, modestbranding: 1, autoplay: tocar ? 1 : 0, origin: location.origin },
+        playerVars: { playsinline: 1, rel: 0, modestbranding: 1, autoplay: tocar ? 1 : 0, start: desdeAlListo, origin: location.origin },
         events: {
           onReady: () => {
             listo = true;
             if (player.getVideoData?.().video_id !== id) {
-              if (tocarAlListo) player.loadVideoById(id); else player.cueVideoById(id);
+              const video = { videoId: id, startSeconds: desdeAlListo };
+              if (tocarAlListo) player.loadVideoById(video); else player.cueVideoById(video);
             } else if (tocarAlListo) player.playVideo();
             cambiar();
           },

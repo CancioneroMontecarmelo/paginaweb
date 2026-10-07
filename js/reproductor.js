@@ -294,7 +294,7 @@ function accionLista(e) {
   if (!l) return;
   if (d.lTocar) {
     if (!l.items.length) return;
-    st.cola = { nombre: l.nombre, tipo: "lista", items: l.items.map((x) => ({ ...x })) };
+    colaPropia({ nombre: l.nombre, tipo: "lista", items: l.items.map((x) => ({ ...x })) });
     reproducir(i);
     mostrarVista("sonando");
     return;
@@ -391,8 +391,69 @@ async function abrirMisa(id) {
   }
   if (!m || !cuantas(m)) return avisar("Ese cancionero no existe o todavía no tiene canciones.");
   st.cola = colaDeMisa(m);
+  colaHash = location.hash;
   mostrarVista("sonando");
   reproducir(0);
+}
+
+// ============ COLA GUARDADA ============
+// Al refrescar o volver a abrir, sigue en la misma cola y canción; la cola cambia solo al elegir otra cosa
+
+const SONANDO = "mc-rp-sonando";
+let colaHash = "", retomarEn = 0, ultimoGuardado = 0, turnoSonando = -1;
+
+// Una cola elegida dentro de la página deja de depender del enlace con que se abrió
+function colaPropia(cola) {
+  if (/^#(l|misa)=/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
+  colaHash = "";
+  st.cola = cola;
+}
+
+function guardarSonando(desde) {
+  if (!st.cola || st.indice < 0) return;
+  ultimoGuardado = Date.now();
+  const m = motor();
+  // Mientras llega el audio de una canción nueva, el <audio> todavía tiene el segundo de la anterior
+  const actual = m === audio && turnoSonando !== turno ? 0 : m.currentTime;
+  guardar(SONANDO, JSON.stringify({
+    cola: st.cola, indice: st.indice,
+    segundo: Math.floor(desde ?? (retomarEn || actual || 0)),
+    audio: st.elegido.get(actualId()) ?? null,
+    orden: modos.aleatorio && ordenDe === st.cola ? orden : null,
+    hash: colaHash, cuando: Date.now()
+  }));
+}
+
+function sonandoGuardado() {
+  try {
+    const s = JSON.parse(guardado(SONANDO, "null"));
+    if (!s?.cola?.items?.length || !(s.indice >= 0 && s.indice < s.cola.items.length)) return null;
+    if (Date.now() - (s.cuando || 0) > 7 * 86400e3) return null;
+    if (st.porId.size && !st.porId.has(s.cola.items[s.indice].cancionId)) return null;
+    return s;
+  } catch (_) {
+    return null;
+  }
+}
+
+function recuperarSonando(s) {
+  st.cola = s.cola;
+  colaHash = s.hash || "";
+  if (Number.isInteger(s.audio)) st.elegido.set(s.cola.items[s.indice].cancionId, s.audio);
+  if (modos.aleatorio && s.orden?.length === s.cola.items.length) {
+    orden = s.orden;
+    ordenDe = st.cola;
+  }
+  mostrarVista("sonando");
+  reproducir(s.indice, false, s.segundo || 0);
+  avisar(`Seguís en «${s.cola.nombre}»: tocá ▶ para continuar.`);
+}
+
+// Al abrir: un enlace distinto arma su cola; si no, sigue con la guardada
+function arrancar() {
+  const h = location.hash, s = h.startsWith("#vivo=") ? null : sonandoGuardado();
+  if (s && (!h || h === s.hash)) recuperarSonando(s);
+  else leerHash();
 }
 
 // ============ REPRODUCCIÓN ============
@@ -405,7 +466,8 @@ const reproductorYT = () => yt || (yt = crearReproductorYT($("#rp-video"), {
   alCambiar: () => {
     pintarBarra();
     if (!yt.activo) return;
-    if (!yt.paused) saltos = 0;
+    if (!yt.paused) saltos = retomarEn = 0;
+    else if (yt.currentTime) guardarSonando();
     estadoDeMedios(yt.paused);
   },
   // Un video que termina se detiene, salvo con aleatorio o repetir
@@ -452,10 +514,17 @@ const nombreAudio = (a) => {
   return nombre && !voz.toLowerCase().startsWith(nombre.toLowerCase()) ? `${voz} — ${nombre}` : voz;
 };
 
-function cargarAudio(a, tocar) {
+function cargarAudio(a, tocar, desde = 0) {
   const t = ++turno;
+  retomarEn = desde;
   audio.onerror = null;
   audio.pause();
+  if (desde && a && !esVideo(a)) {
+    audio.addEventListener("loadedmetadata", () => {
+      if (t !== turno || audio.src === SILENCIO) return;
+      audio.currentTime = Math.min(desde, audio.duration || desde);
+    }, { once: true });
+  }
   if (!a || esVideo(a)) {
     audio.removeAttribute("src");
     audio.load();
@@ -467,7 +536,7 @@ function cargarAudio(a, tocar) {
   }
   if (esVideo(a)) {
     $("#rp-video").hidden = $("#rp-video-nota").hidden = false;
-    reproductorYT().cargar(a.url, tocar);
+    reproductorYT().cargar(a.url, tocar, desde);
     pintarBarra();
     return;
   }
@@ -498,10 +567,11 @@ function pintarDonde(extra) {
   $("#rp-donde").textContent = extra || `${c.nombre} · ${st.indice + 1} de ${c.items.length}`;
 }
 
-async function reproducir(i, tocar = true) {
+async function reproducir(i, tocar = true, desde = 0) {
   const c = st.cola;
   if (!c || i < 0 || i >= c.items.length) return;
   st.indice = i;
+  guardarSonando(desde);
   const item = c.items[i];
   const entrada = st.porId.get(item.cancionId) || { id: item.cancionId, titulo: "", audios: [] };
   st.mezclador?.cerrar();
@@ -518,7 +588,7 @@ async function reproducir(i, tocar = true) {
   $("#rp-voz-caja").hidden = lista.length < 2;
   $("#rp-voz").innerHTML = lista.map((a, k) => `<option value="${k}"${k === elegido ? " selected" : ""}>${esc(nombreAudio(a))}</option>`).join("");
   $("#rp-sin-audio").hidden = lista.length > 0;
-  cargarAudio(lista[elegido], tocar);
+  cargarAudio(lista[elegido], tocar, desde);
   pintarBarra();
   pintarExtras(entrada);
   pintarCanciones();
@@ -699,6 +769,7 @@ function pintarBarra() {
   $("#rp-progreso").disabled = !dur;
   $("#rp-actual").textContent = reloj(m.currentTime);
   $("#rp-total").textContent = reloj(dur);
+  if (!m.paused && audio.src !== SILENCIO && Date.now() - ultimoGuardado > 5000) guardarSonando();
 }
 
 function sesionDeMedios(entrada, item) {
@@ -889,6 +960,7 @@ function leerHash() {
       $("#rp-compartida-nombre").textContent = l.nombre + " (" + l.items.length + (l.items.length === 1 ? " canción)" : " canciones)");
       $("#rp-compartida").hidden = false;
       st.cola = { nombre: l.nombre, tipo: "compartida", items: l.items };
+      colaHash = location.hash;
       mostrarVista("sonando");
       reproducir(0);
     } catch (_) {
@@ -917,7 +989,7 @@ function conectar() {
     if (!tocar) return;
     const lista = resultados();
     const q = $("#rp-buscar").value.trim();
-    st.cola = { nombre: q ? `Búsqueda «${q}»` : "Biblioteca", tipo: "biblioteca", items: lista.map((c) => ({ cancionId: c.id, desplazamiento: 0 })) };
+    colaPropia({ nombre: q ? `Búsqueda «${q}»` : "Biblioteca", tipo: "biblioteca", items: lista.map((c) => ({ cancionId: c.id, desplazamiento: 0 })) });
     reproducir(lista.findIndex((c) => c.id === tocar.dataset.tocar));
     mostrarVista("sonando");
   });
@@ -1019,11 +1091,24 @@ function conectar() {
   $("#rp-siguiente").addEventListener("click", siguiente);
   $("#rp-anterior").addEventListener("click", anterior);
   $("#rp-barra-titulo").addEventListener("click", () => mostrarVista("sonando"));
-  $("#rp-progreso").addEventListener("input", (e) => { motor().currentTime = +e.target.value; });
+  $("#rp-progreso").addEventListener("input", (e) => {
+    motor().currentTime = +e.target.value;
+    if (retomarEn) retomarEn = +e.target.value;
+  });
   for (const ev of ["play", "pause", "timeupdate", "loadedmetadata", "durationchange", "emptied"]) audio.addEventListener(ev, pintarBarra);
   audio.addEventListener("play", () => estadoDeMedios(false));
-  audio.addEventListener("playing", () => { saltos = 0; });
-  audio.addEventListener("pause", () => estadoDeMedios(true));
+  // La pausa que hace cargarAudio al cambiar de canción no se guarda: el segundo sería el de la anterior
+  audio.addEventListener("playing", () => {
+    saltos = 0;
+    if (audio.src !== SILENCIO) {
+      turnoSonando = turno;
+      retomarEn = 0;
+    }
+  });
+  audio.addEventListener("pause", () => {
+    estadoDeMedios(true);
+    if (turnoSonando === turno && audio.src !== SILENCIO) guardarSonando();
+  });
   audio.addEventListener("ended", () => {
     if (audio.src !== SILENCIO) alTerminarPista();
   });
@@ -1063,12 +1148,22 @@ function conectar() {
 
   document.addEventListener("visibilitychange", () => {
     pedirPantalla();
-    if (!document.hidden) pintarBarra();
+    if (document.hidden) guardarSonando();
+    else pintarBarra();
     if (!st.vivo || st.vivo.terminado) return;
     if (document.hidden) clearTimeout(st.vivo.reloj);
     else consultarVivo();
   });
   window.addEventListener("hashchange", leerHash);
+  // Volver a tocar el cancionero que ya está en la dirección no dispara hashchange
+  $("#rp-misas").addEventListener("click", (e) => {
+    const a = e.target.closest('a[href^="#misa="]');
+    if (a && a.getAttribute("href") === location.hash) {
+      e.preventDefault();
+      leerHash();
+    }
+  });
+  window.addEventListener("pagehide", () => guardarSonando());
   activarPosturas($("#rp-letra"));
   activarPosturas($("#rp-vivo-letra"));
   conectarMedios();
@@ -1115,7 +1210,7 @@ async function iniciar() {
   aplicarAjustes();
   conectar();
   await cargarBiblioteca();
-  leerHash();
+  arrancar();
 }
 
 iniciar();

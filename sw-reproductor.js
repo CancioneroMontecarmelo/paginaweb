@@ -2,7 +2,7 @@
 // App del reproductor: con internet siempre se carga la versión más nueva (y se guarda una copia);
 // sin internet, o si la red tarda, se usa la copia guardada. Ni el servidor (Apps Script), ni YouTube, ni los audios pasan por acá.
 
-const CACHE = 'mc-reproductor-1';
+const CACHE = 'mc-reproductor-2';
 const NET_TIMEOUT = 3000;
 const SHELL = [
   'reproductor.html', 'reproductor.webmanifest',

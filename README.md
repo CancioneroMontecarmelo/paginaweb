@@ -426,6 +426,9 @@ del editor que usa Misas; todo son lecturas públicas del Apps Script.
   posturas al tocar un acorde, **Partitura** y **Aprender las voces**. Si la canción tiene varios audios,
   un selector de voz. **+ Lista** agrega la canción que suena a una lista. Abajo, una barra mínima:
   aleatorio, anterior, reproducir/pausa, siguiente, repetir, **+** (agregar a una lista) y avance.
+- Al refrescar o volver a abrir, sigue en la misma cola y canción, en pausa y en el mismo segundo
+  (`localStorage` `mc-rp-sonando`, por 7 días; con aviso «Seguís en…»). La cola cambia solo al elegir otra
+  canción, lista o cancionero, o al abrir un enlace `#l=` / `#misa=` distinto; escribir en el buscador no la cambia.
 - **Agregar a una lista**: el diálogo sugiere primero **Lista de {nombre}** (el nombre de la sesión, o el
   que se pide una sola vez y queda en el equipo, `mc-mi-nombre`); si todavía no existe, la crea al tocarla.
   **+ Nueva lista** propone ese mismo nombre.
