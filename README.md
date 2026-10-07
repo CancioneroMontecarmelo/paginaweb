@@ -408,7 +408,7 @@ scripts/video-a-webm.py ensayo.mov --sin-subir --salida ~/Música/m4a      # sol
 ## Reproductor (`reproductor.html`)
 
 Escuchar las canciones de la Biblioteca con su letra, en el celular o en la computadora, sin iniciar
-sesión. Oscuro por defecto (☀︎ lo pasa a modo día). Lo hace `js/reproductor.js` con los mismos scripts
+sesión. Oscuro por defecto (**Colores** cambia el tema). Lo hace `js/reproductor.js` con los mismos scripts
 del editor que usa Misas; todo son lecturas públicas del Apps Script.
 
 - **Canciones**: el buscador de la Biblioteca (título, frase de la letra, autor o etiqueta) y **Solo con
@@ -424,7 +424,18 @@ del editor que usa Misas; todo son lecturas públicas del Apps Script.
     **♪ Reproducir** del cancionero abre esa dirección (incluso con cambios todavía sin guardar).
 - **Reproduciendo**: el momento, la letra con acordes (o **Solo letra**), **A− / A+**, los créditos, las
   posturas al tocar un acorde, **Partitura** y **Aprender las voces**. Si la canción tiene varios audios,
-  un selector de voz. Abajo, una barra mínima: anterior, reproducir/pausa, siguiente y avance.
+  un selector de voz. **+ Lista** agrega la canción que suena a una lista. Abajo, una barra mínima:
+  aleatorio, anterior, reproducir/pausa, siguiente, repetir, **+** (agregar a una lista) y avance.
+- **Agregar a una lista**: el diálogo sugiere primero **Lista de {nombre}** (el nombre de la sesión, o el
+  que se pide una sola vez y queda en el equipo, `mc-mi-nombre`); si todavía no existe, la crea al tocarla.
+  **+ Nueva lista** propone ese mismo nombre.
+- **Aleatorio** (⇄) recorre la cola en un orden mezclado que empieza por la canción que suena.
+  **Repetir** (↻) cambia entre no, **toda la lista** (al terminar vuelve a empezar; en aleatorio, con otra
+  mezcla) y **esta canción** (↻1, vuelve a sonar). Quedan guardados en el equipo (`mc-rp-aleatorio`, `mc-rp-repetir`).
+- Si un video o un audio no se puede reproducir (YouTube no lo permite, el Drive o el enlace fallan),
+  avisa **No disponible: pasando a la siguiente** y sigue; se detiene si ya probó toda la cola sin éxito.
+- **Colores**: seis temas (Noche, Día, Carmelo, Mariano, Litúrgico y Penitencial) y un **color de acento**
+  propio para botones y acordes, con **Restablecer**. Quedan en el equipo (`mc-rp-tema`, `mc-rp-acento`).
 - Los audios del Drive llegan siempre por `accion=audio` (Drive responde 403 al enlace directo pedido
   desde otra página). Al tocar, el `<audio>` suena primero una décima de silencio (`js/silencio.js`) para
   que en iPhone pueda sonar cuando llega el archivo. Guarda en memoria los últimos 12 y precarga la
@@ -434,12 +445,25 @@ del editor que usa Misas; todo son lecturas públicas del Apps Script.
   de YouTube (`youtube:` en la cabecera del `.md` o un `<audio>` con la dirección del video) lo suma a sus
   audios como **Video de YouTube**, y suena con el reproductor oficial de YouTube insertado arriba de la
   letra (`js/youtube-embed.js`, IFrame API), manejado con la misma barra: reproducir/pausa y avance. El
-  audio del Drive va primero; el video queda en el selector. Al terminar un video se detiene (no pasa
-  solo a la siguiente). YouTube pide que el video se vea (mínimo 200×200 px); si el dueño no permite
-  insertarlo, aparece **Abrir en YouTube**. En el celular con la pantalla bloqueada el video se pausa.
+  audio del Drive va primero; el video queda en el selector. Al terminar un video se detiene, salvo
+  con aleatorio o repetir activados. YouTube pide que el video se vea (mínimo 200×200 px); si el dueño no permite
+  insertarlo, aparece **Abrir en YouTube** y pasa a la siguiente. En el celular, YouTube pausa el video al
+  salir de la página o bloquear la pantalla (es una regla de YouTube); los audios del Drive siguen sonando.
   En Misas, esos audios tienen **▶ Ver y escuchar**, que abre el video debajo de los audios (uno a la vez).
-- En el celular: controles en la pantalla bloqueada y en los auriculares (Media Session) y la pantalla no
-  se apaga mientras se lee la letra (Wake Lock, donde exista).
+- En el celular: controles en la pantalla bloqueada y en los auriculares (Media Session, también con
+  video) y la pantalla no se apaga mientras se lee la letra (Wake Lock, donde exista). La música sigue
+  sonando al cambiar de pestaña o de app; al volver, la barra se pone al día.
+
+### App del reproductor (instalable)
+
+- El reproductor se instala en el celular como una app (PWA) que muestra solo el reproductor: sin el menú
+  del sitio, y con **Monte Carmelo** arriba como enlace a la página de la parroquia (se abre en el navegador).
+- Android y computadora: botón **Instalar app** junto a las pestañas (aparece cuando el navegador lo
+  permite). iPhone: el botón explica **Compartir → Agregar a inicio** en Safari.
+- Archivos: `reproductor.webmanifest` (abre `reproductor.html?app=1`, alcance solo el reproductor),
+  `sw-reproductor.js` (con internet carga siempre lo más nuevo y guarda una copia para abrir sin conexión;
+  no guarda el Apps Script, YouTube ni los audios) e `icons/reproductor-*.png` (la parroquia con ▶).
+- Al cambiar los archivos del reproductor, subir el número de `CACHE` en `sw-reproductor.js`.
 
 ### En vivo (para el coro)
 

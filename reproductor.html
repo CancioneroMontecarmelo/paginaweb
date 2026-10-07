@@ -6,6 +6,13 @@
   <meta name="description" content="Escuchá las canciones de la Biblioteca de la Parroquia Monte Carmelo con su letra y acordes, en listas o siguiendo un cancionero de misa.">
   <meta name="theme-color" content="#14110d">
   <title>Reproductor · Monte Carmelo</title>
+  <link rel="manifest" href="./reproductor.webmanifest">
+  <link rel="icon" href="./icons/reproductor-192.png">
+  <link rel="apple-touch-icon" href="./icons/reproductor-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Monte Carmelo">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
@@ -15,9 +22,19 @@
   <link rel="stylesheet" href="./css/voces.css">
   <link rel="stylesheet" href="./css/reproductor.css">
 </head>
-<body class="pagina-reproductor rp-noche">
+<body class="pagina-reproductor rp-oscuro" data-rp-tema="noche">
+  <script>
+    // Tema y modo app antes de pintar, para que no parpadee
+    try {
+      var t = localStorage.getItem("mc-rp-tema"), b = document.body;
+      if (t) { b.dataset.rpTema = t; b.classList.toggle("rp-oscuro", t !== "dia" && t !== "liturgico"); }
+      var a = localStorage.getItem("mc-rp-acento");
+      if (a) { b.style.setProperty("--rp-acento", a); b.style.setProperty("--rp-acorde", a); }
+      if (/[?&]app=1/.test(location.search) || matchMedia("(display-mode: standalone)").matches || navigator.standalone) b.classList.add("rp-app");
+    } catch (e) {}
+  </script>
   <nav class="nav-sitio scrolled" aria-label="Principal">
-    <a class="nav-marca" href="./inicio.html">Monte Carmelo</a>
+    <a class="nav-marca" id="rp-marca" href="./inicio.html" title="Ir a la página de la parroquia">Monte Carmelo</a>
     <button type="button" class="nav-toggle" aria-label="Menú">Menú</button>
     <ul class="nav-links">
       <li><a href="./inicio.html">Inicio</a></li>
@@ -35,6 +52,7 @@
       <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="listas">Listas</button>
       <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="sonando">Reproduciendo</button>
       <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="vivo">En vivo</button>
+      <button type="button" class="rp-btn rp-instalar" id="rp-instalar" hidden>Instalar app</button>
     </div>
 
     <div class="rp-compartida" id="rp-compartida" hidden>
@@ -81,10 +99,11 @@
             <p class="rp-donde" id="rp-donde"></p>
           </div>
           <div class="rp-ajustes">
+            <button type="button" class="rp-btn" id="rp-agregar-actual" title="Agregar esta canción a una lista">+ Lista</button>
             <button type="button" class="rp-btn" id="rp-acordes" aria-pressed="true" title="Mostrar u ocultar los acordes">Letra y acordes</button>
             <button type="button" class="rp-btn" id="rp-menos" title="Letra más chica">A−</button>
             <button type="button" class="rp-btn" id="rp-mas" title="Letra más grande">A+</button>
-            <button type="button" class="rp-btn" id="rp-tema" title="Modo día o noche">☀︎</button>
+            <button type="button" class="rp-btn" id="rp-colores" title="Cambiar los colores del reproductor">Colores</button>
           </div>
         </div>
         <div class="rp-extras">
@@ -94,6 +113,7 @@
           <div id="rp-extras"></div>
         </div>
         <div class="rp-video" id="rp-video" hidden></div>
+        <p class="rp-aviso rp-video-nota" id="rp-video-nota" hidden>En el celular, YouTube se pausa al salir de la página o apagar la pantalla; los audios del Drive siguen sonando.</p>
         <p class="rp-sin-audio" id="rp-sin-audio" hidden>Esta canción no tiene audio: cantala con la letra y pasá a la siguiente cuando quieras.</p>
         <article class="song-render rp-letra" id="rp-letra"></article>
       </div>
@@ -131,9 +151,12 @@
   <footer class="rp-barra" id="rp-barra" hidden>
     <button type="button" class="rp-barra-titulo" id="rp-barra-titulo" title="Ver la letra"></button>
     <div class="rp-controles">
+      <button type="button" class="rp-ctl rp-modo" id="rp-aleatorio" aria-pressed="false" aria-label="Aleatorio" title="Aleatorio">⇄</button>
       <button type="button" class="rp-ctl" id="rp-anterior" aria-label="Anterior">⏮</button>
       <button type="button" class="rp-ctl rp-play" id="rp-play" aria-label="Reproducir">▶</button>
       <button type="button" class="rp-ctl" id="rp-siguiente" aria-label="Siguiente">⏭</button>
+      <button type="button" class="rp-ctl rp-modo" id="rp-repetir" aria-pressed="false" aria-label="Repetir: no" title="Repetir: no">↻</button>
+      <button type="button" class="rp-ctl rp-modo" id="rp-barra-agregar" aria-label="Agregar a una lista" title="Agregar a una lista">+</button>
     </div>
     <div class="rp-avance">
       <span id="rp-actual">0:00</span>
@@ -154,6 +177,36 @@
         <span class="espacio"></span>
         <button type="submit" class="rp-btn">Cerrar</button>
       </div>
+    </form>
+  </dialog>
+
+  <!-- Colores -->
+  <dialog class="rp-dlg" id="rp-dlg-colores">
+    <form method="dialog">
+      <h2>Colores del reproductor</h2>
+      <div class="rp-temas" id="rp-temas" role="radiogroup" aria-label="Tema"></div>
+      <label class="rp-acento-propio">Color de acento (botones y acordes)
+        <input type="color" id="rp-acento-color">
+      </label>
+      <div class="rp-dlg-acciones">
+        <button type="button" class="rp-btn" id="rp-acento-restablecer">Restablecer</button>
+        <span class="espacio"></span>
+        <button type="submit" class="rp-btn rp-btn-fuerte">Listo</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Instalar en iPhone -->
+  <dialog class="rp-dlg" id="rp-dlg-instalar">
+    <form method="dialog">
+      <h2>Instalar el reproductor</h2>
+      <ol class="rp-pasos">
+        <li>Abrí esta página en <b>Safari</b>.</li>
+        <li>Tocá <b>Compartir</b> (el cuadrado con la flecha hacia arriba).</li>
+        <li>Elegí <b>Agregar a inicio</b> y después <b>Agregar</b>.</li>
+      </ol>
+      <p class="rp-aviso">Queda como una app con el ícono de la parroquia, que abre solo el reproductor.</p>
+      <div class="rp-dlg-acciones"><span class="espacio"></span><button type="submit" class="rp-btn">Entendido</button></div>
     </form>
   </dialog>
 

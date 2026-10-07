@@ -14,7 +14,8 @@
   min-height: 100vh;
 }
 
-.pagina-reproductor.rp-dia {
+/* Temas (diálogo Colores). Los oscuros llevan además la clase rp-oscuro */
+.pagina-reproductor[data-rp-tema="dia"] {
   --rp-fondo: #faf3e4;
   --rp-panel: #fffef9;
   --rp-linea: rgba(154, 79, 46, 0.18);
@@ -23,19 +24,63 @@
   --rp-acento: #9a4f2e;
   --rp-acorde: #b3261e;
 }
+.pagina-reproductor[data-rp-tema="carmelo"] {
+  --rp-fondo: #241811;
+  --rp-panel: #31221a;
+  --rp-linea: rgba(240, 226, 196, 0.14);
+  --rp-texto: #f3e8d2;
+  --rp-suave: #bba88a;
+  --rp-acento: #d9b26a;
+  --rp-acorde: #f0c987;
+}
+.pagina-reproductor[data-rp-tema="mariano"] {
+  --rp-fondo: #0e1a2e;
+  --rp-panel: #16243c;
+  --rp-linea: rgba(214, 228, 248, 0.14);
+  --rp-texto: #e6eefa;
+  --rp-suave: #9fb0c8;
+  --rp-acento: #8fb8e8;
+  --rp-acorde: #b5d3f5;
+}
+.pagina-reproductor[data-rp-tema="liturgico"] {
+  --rp-fondo: #f3f1e7;
+  --rp-panel: #fcfbf5;
+  --rp-linea: rgba(47, 107, 58, 0.2);
+  --rp-texto: #1f2a1f;
+  --rp-suave: #4e5a4c;
+  --rp-acento: #2f6b3a;
+  --rp-acorde: #8a5a00;
+}
+.pagina-reproductor[data-rp-tema="penitencial"] {
+  --rp-fondo: #1a1322;
+  --rp-panel: #251b30;
+  --rp-linea: rgba(232, 220, 244, 0.13);
+  --rp-texto: #ece4f4;
+  --rp-suave: #a99bb8;
+  --rp-acento: #b58ad6;
+  --rp-acorde: #d6b0f0;
+}
 
-.rp-noche .nav-sitio {
-  background: rgba(20, 17, 13, 0.94);
+.pagina-reproductor .nav-sitio {
+  background: color-mix(in srgb, var(--rp-fondo) 94%, transparent);
   border-bottom-color: var(--rp-linea);
 }
-.rp-noche .nav-marca { color: var(--rp-acento); }
-.rp-noche .nav-links a { color: var(--rp-texto); }
-.rp-noche .nav-links a[aria-current="page"],
-.rp-noche .nav-links a:hover { color: var(--rp-acento); border-bottom-color: var(--rp-acento); }
-.rp-noche .nav-toggle { color: var(--rp-acento); border-color: var(--rp-acento); }
+.pagina-reproductor .nav-marca { color: var(--rp-acento); font-size: 1.5rem; max-width: 65vw; }
+.pagina-reproductor .nav-marca:hover { color: var(--rp-texto); }
+.rp-app .nav-marca { max-width: none; }
+.pagina-reproductor .nav-links a { color: var(--rp-texto); }
+.pagina-reproductor .nav-links a[aria-current="page"],
+.pagina-reproductor .nav-links a:hover { color: var(--rp-acento); border-bottom-color: var(--rp-acento); }
+.pagina-reproductor .nav-toggle { color: var(--rp-acento); border-color: var(--rp-acento); }
 @media (max-width: 720px) {
-  .rp-noche .nav-links { background: var(--rp-panel); }
+  .pagina-reproductor .nav-links { background: var(--rp-panel); }
+  .pagina-reproductor .nav-marca { font-size: 1.3rem; }
 }
+
+/* Como app instalada solo se ve el reproductor: sin el menú del sitio */
+.rp-app .nav-links,
+.rp-app .nav-toggle,
+.rp-app .rp-instalar { display: none !important; }
 
 .rp {
   max-width: 52rem;
@@ -351,7 +396,7 @@
 }
 .rp-letra .strum-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; white-space: normal; margin: 6px 0; font-family: var(--fuente-cuerpo); }
 .rp-letra .strum-name { font-size: 0.85em; font-weight: bold; color: var(--rp-suave); }
-.rp-noche .rp-letra .strum-svg { filter: invert(0.9) hue-rotate(180deg); }
+.rp-oscuro .rp-letra .strum-svg { filter: invert(0.9) hue-rotate(180deg); }
 
 /* Solo letra: sin líneas de acordes ni rasgueos */
 .solo-letra .chord-line,
@@ -439,6 +484,8 @@
 
 .rp-ctl:disabled { opacity: 0.3; cursor: default; }
 .rp-play { width: 3.4rem; height: 3.4rem; background: var(--rp-acento); color: var(--rp-fondo); font-size: 1.35rem; }
+.rp-modo { color: var(--rp-suave); font-size: 1.05rem; }
+.rp-modo[aria-pressed="true"] { color: var(--rp-acento); background: color-mix(in srgb, var(--rp-acento) 16%, transparent); }
 
 .rp-avance {
   display: flex;
@@ -453,9 +500,14 @@
 
 @media (max-width: 720px) {
   .rp-barra {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
   }
-  .rp-avance { grid-column: 1 / -1; grid-row: 2; }
+  .rp-controles { justify-content: center; gap: 0.3rem; }
+  .rp-ctl { width: 2.5rem; height: 2.5rem; }
+  .rp-play { width: 3.2rem; height: 3.2rem; }
+  .con-barra .rp { padding-bottom: 12rem; }
+  .rp-toast { bottom: 11rem; }
   .rp-pestana { font-size: 0.82rem; }
   .rp-ajustes .rp-btn { padding: 0.45rem 0.65rem; }
 }
@@ -474,6 +526,37 @@
 .rp-dlg .rp-elegir { list-style: none; margin: 0.4rem 0 0.8rem; padding: 0; max-height: 50vh; overflow: auto; }
 .rp-dlg .rp-elegir li { border-bottom: 1px solid var(--rp-linea); }
 .rp-dlg-acciones { display: flex; gap: 0.5rem; }
+.rp-dlg .rp-elegir .rp-sugerida { background: color-mix(in srgb, var(--rp-acento) 12%, transparent); border-radius: 0.5rem; }
+.rp-dlg .rp-elegir .rp-sugerida b { color: var(--rp-acento); }
+
+.rp-temas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 0.6rem 0 1rem; }
+.rp-tema-op {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.3rem;
+  border: 2px solid var(--rp-linea);
+  border-radius: 0.7rem;
+  background: none;
+  color: var(--rp-texto);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.rp-tema-op[aria-checked="true"] { border-color: var(--rp-acento); }
+.rp-muestra {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: linear-gradient(135deg, var(--m-fondo) 50%, var(--m-acento) 50%);
+}
+.rp-acento-propio { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
+.rp-acento-propio input { width: 3rem; height: 2.2rem; padding: 0; border: 1px solid var(--rp-linea); border-radius: 0.4rem; background: none; }
+.rp-pasos { margin: 0.5rem 0 0.8rem; padding-left: 1.3rem; line-height: 1.6; }
+.rp-instalar { margin-left: auto; align-self: center; }
+.rp-video-nota { max-width: 480px; margin: -0.5rem 0 0.9rem; font-size: 0.8rem; }
 
 .rp-toast {
   position: fixed;
@@ -491,12 +574,12 @@
 }
 
 /* Mezclador y partituras en modo noche */
-.rp-noche .mezclador { background: var(--rp-panel); border-color: var(--rp-linea); color: var(--rp-texto); }
-.rp-noche .mz-cabeza { color: var(--rp-acento); }
-.rp-noche .mz-estado, .rp-noche .mz-mivoz, .rp-noche .mz-tiempo { color: var(--rp-suave); }
-.rp-noche .mz-voz { color: color-mix(in srgb, var(--vc) 55%, #fff); }
-.rp-noche .mezclador .btn-chico { background: transparent; color: var(--rp-texto); border-color: var(--rp-linea); }
-.rp-noche .mezclador [aria-pressed="true"] { background: var(--rp-acento); border-color: var(--rp-acento); color: var(--rp-fondo); }
-.rp-noche .dlg-partitura { background: var(--rp-panel); color: var(--rp-texto); }
-.rp-noche .partitura-titulo { color: var(--rp-acento); }
-.rp-noche .dlg-partitura .btn-chico { background: transparent; color: var(--rp-texto); border-color: var(--rp-linea); }
+.rp-oscuro .mezclador { background: var(--rp-panel); border-color: var(--rp-linea); color: var(--rp-texto); }
+.rp-oscuro .mz-cabeza { color: var(--rp-acento); }
+.rp-oscuro .mz-estado, .rp-oscuro .mz-mivoz, .rp-oscuro .mz-tiempo { color: var(--rp-suave); }
+.rp-oscuro .mz-voz { color: color-mix(in srgb, var(--vc) 55%, #fff); }
+.rp-oscuro .mezclador .btn-chico { background: transparent; color: var(--rp-texto); border-color: var(--rp-linea); }
+.rp-oscuro .mezclador [aria-pressed="true"] { background: var(--rp-acento); border-color: var(--rp-acento); color: var(--rp-fondo); }
+.rp-oscuro .dlg-partitura { background: var(--rp-panel); color: var(--rp-texto); }
+.rp-oscuro .partitura-titulo { color: var(--rp-acento); }
+.rp-oscuro .dlg-partitura .btn-chico { background: transparent; color: var(--rp-texto); border-color: var(--rp-linea); }

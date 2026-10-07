@@ -19,7 +19,7 @@
  * render) más js/misas-shim.js. Todo lo del servidor son lecturas públicas.
  */
 
-import { initNavSitio } from "./auth.js";
+import { initNavSitio, sesionActual } from "./auth.js";
 import { COMUNIDADES } from "./comunidades.js";
 import { activarPosturas, cerrar as cerrarPostura } from "./posturas.js";
 import { botonesPartituras } from "./partituras.js";
@@ -258,8 +258,23 @@ function pintarListas() {
   }).join("");
 }
 
+// La lista sugerida lleva el nombre de quien escucha: el de su sesión o el que dio una vez en este equipo
+function miNombre(preguntar) {
+  let n = String(sesionActual()?.nombre || "").trim() || guardado("mc-mi-nombre", "");
+  if (!n && preguntar && !guardado("mc-mi-nombre-pedido", "")) {
+    guardar("mc-mi-nombre-pedido", "1");
+    n = String(prompt("¿Cómo te llamás? Tu lista va a llevar tu nombre.", "") || "").trim().slice(0, 40);
+    if (n) guardar("mc-mi-nombre", n);
+  }
+  return n;
+}
+const nombreSugerido = (preguntar) => {
+  const n = miNombre(preguntar);
+  return n ? "Lista de " + n : "Mi lista";
+};
+
 function nuevaLista(items = [], nombre) {
-  nombre = (nombre ?? prompt("Nombre de la lista:", "Mi lista"))?.trim();
+  nombre = (nombre ?? prompt("Nombre de la lista:", nombreSugerido(false)))?.trim();
   if (!nombre) return null;
   const usados = new Set(st.listas.map((l) => l.nombre));
   let final = nombre.slice(0, 80);
@@ -300,12 +315,17 @@ function accionLista(e) {
 // Agregar a una lista
 let agregando = "";
 function abrirAgregar(id) {
+  if (!id) return avisar("Elegí primero una canción.");
   agregando = id;
   const c = st.porId.get(id);
   $("#rp-agregar-que").textContent = "«" + (c?.titulo || "Canción") + "»";
-  $("#rp-agregar-listas").innerHTML = st.listas.map((l) =>
-    `<li><button type="button" class="rp-fila" data-a-lista="${esc(l.id)}"><b>${esc(l.nombre)}</b><small>${l.items.length} ${l.items.length === 1 ? "canción" : "canciones"}${l.items.some((x) => x.cancionId === id) ? " · ya está" : ""}</small></button></li>`
-  ).join("") || '<li class="rp-aviso">Todavía no tenés listas.</li>';
+  const sugerido = nombreSugerido(true);
+  const suya = st.listas.find((l) => l.nombre === sugerido);
+  const fila = (l, clase = "") =>
+    `<li class="${clase}"><button type="button" class="rp-fila" data-a-lista="${esc(l.id)}"><b>${esc(l.nombre)}</b><small>${l.items.length} ${l.items.length === 1 ? "canción" : "canciones"}${l.items.some((x) => x.cancionId === id) ? " · ya está" : ""}</small></button></li>`;
+  $("#rp-agregar-listas").innerHTML = (suya ? fila(suya, "rp-sugerida")
+    : `<li class="rp-sugerida"><button type="button" class="rp-fila" data-a-sugerida="${esc(sugerido)}"><b>${esc(sugerido)}</b><small>Lista nueva</small></button></li>`)
+    + st.listas.filter((l) => l !== suya).map((l) => fila(l)).join("");
   $("#rp-dlg-agregar").showModal();
 }
 function agregarA(l) {
@@ -382,9 +402,18 @@ let turno = 0;
 // El reproductor de YouTube se crea con el primer video; mientras tiene uno cargado, la barra lo maneja a él
 let yt = null;
 const reproductorYT = () => yt || (yt = crearReproductorYT($("#rp-video"), {
-  alCambiar: pintarBarra,
-  alTerminar: pintarBarra,
-  alError: (_, texto) => avisar(texto)
+  alCambiar: () => {
+    pintarBarra();
+    if (!yt.activo) return;
+    if (!yt.paused) saltos = 0;
+    estadoDeMedios(yt.paused);
+  },
+  // Un video que termina se detiene, salvo con aleatorio o repetir
+  alTerminar: () => {
+    pintarBarra();
+    if (modos.aleatorio || modos.repetir !== "no") alTerminarPista();
+  },
+  alError: (_, texto) => noDisponible(turno, texto)
 }));
 const motor = () => (yt?.activo ? yt : audio);
 const tocarMotor = () => {
@@ -395,7 +424,7 @@ const tocarMotor = () => {
 
 function quitarVideo() {
   if (yt?.activo) yt.destruir();
-  $("#rp-video").hidden = true;
+  $("#rp-video").hidden = $("#rp-video-nota").hidden = true;
 }
 
 function elegirAudio(entrada) {
@@ -437,14 +466,14 @@ function cargarAudio(a, tocar) {
     return;
   }
   if (esVideo(a)) {
-    $("#rp-video").hidden = false;
+    $("#rp-video").hidden = $("#rp-video-nota").hidden = false;
     reproductorYT().cargar(a.url, tocar);
     pintarBarra();
     return;
   }
   quitarVideo();
   if (!a.fileId) {
-    audio.onerror = () => { if (t === turno) avisar("No se pudo cargar el audio: el enlace no responde."); };
+    audio.onerror = () => noDisponible(t, "No se pudo cargar el audio: el enlace no responde.");
     audio.src = a.url;
     if (tocar) audio.play().catch(() => {});
     return;
@@ -456,11 +485,11 @@ function cargarAudio(a, tocar) {
   pintarDonde("Cargando el audio desde el Drive…");
   blobDeAudio(a.fileId).then((url) => {
     if (t !== turno) return;
+    audio.onerror = () => noDisponible(t, "Este navegador no pudo reproducir el audio.");
     audio.src = url;
     if (tocar) audio.play().catch(() => {});
-  }, (e) => {
-    if (t === turno) avisar("No se pudo cargar el audio: " + e.message);
-  }).finally(() => { if (t === turno) pintarDonde(); });
+  }, (e) => noDisponible(t, "No se pudo cargar el audio: " + e.message))
+    .finally(() => { if (t === turno) pintarDonde(); });
 }
 
 function pintarDonde(extra) {
@@ -495,7 +524,7 @@ async function reproducir(i, tocar = true) {
   pintarCanciones();
   sesionDeMedios(entrada, item);
   await pintarLetra(item, entrada);
-  precargar(i + 1);
+  precargar(vecino(1));
 }
 
 let turnoLetra = 0;
@@ -566,12 +595,95 @@ function precargar(i) {
   if (a?.fileId) blobDeAudio(a.fileId).catch(() => {});
 }
 
-const siguiente = () => st.cola && st.indice < st.cola.items.length - 1 && reproducir(st.indice + 1);
+// ============ ALEATORIO Y REPETIR ============
+
+const modos = { aleatorio: guardado("mc-rp-aleatorio", "no") === "si", repetir: guardado("mc-rp-repetir", "no") };
+let orden = null, ordenDe = null;
+
+function mezclar(n, primero) {
+  const a = [...Array(n).keys()].filter((k) => k !== primero);
+  for (let k = a.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [a[k], a[j]] = [a[j], a[k]];
+  }
+  return primero >= 0 ? [primero, ...a] : a;
+}
+
+// En aleatorio, la cola se recorre en un orden mezclado que empieza por la canción que suena
+function ordenActual() {
+  if (!modos.aleatorio || !st.cola) return null;
+  if (ordenDe !== st.cola || orden.length !== st.cola.items.length) {
+    orden = mezclar(st.cola.items.length, st.indice);
+    ordenDe = st.cola;
+  }
+  return orden;
+}
+
+// Posición vecina en la cola, o -1 si no hay; con «mover», al dar la vuelta en aleatorio se vuelve a mezclar
+function vecino(paso, mover = false) {
+  const c = st.cola;
+  if (!c) return -1;
+  const n = c.items.length, o = ordenActual();
+  const p = (o ? o.indexOf(st.indice) : st.indice) + paso;
+  if (p >= 0 && p < n) return o ? o[p] : p;
+  if (modos.repetir !== "lista") return -1;
+  if (o && p >= n) {
+    if (!mover) return 0;
+    orden = mezclar(n, -1);
+    if (n > 1 && orden[0] === st.indice) [orden[0], orden[1]] = [orden[1], orden[0]];
+    return orden[0];
+  }
+  const q = (p + n) % n;
+  return o ? o[q] : q;
+}
+
+const siguiente = () => {
+  const i = vecino(1, true);
+  return i >= 0 && (reproducir(i), true);
+};
 const anterior = () => {
   const m = motor();
   if (m.currentTime > 4) m.currentTime = 0;
-  else if (st.cola && st.indice > 0) reproducir(st.indice - 1);
+  else {
+    const i = vecino(-1, true);
+    if (i >= 0) reproducir(i);
+  }
 };
+
+function alTerminarPista() {
+  if (modos.repetir === "una") {
+    const m = motor();
+    m.currentTime = 0;
+    tocarMotor();
+    return;
+  }
+  if (!siguiente()) avisar("Terminó la lista.");
+}
+
+function pintarModos() {
+  const a = $("#rp-aleatorio"), r = $("#rp-repetir");
+  a.setAttribute("aria-pressed", modos.aleatorio);
+  a.title = modos.aleatorio ? "Aleatorio: sí" : "Aleatorio: no";
+  const texto = { no: "Repetir: no", lista: "Repetir toda la lista", una: "Repetir esta canción" }[modos.repetir];
+  r.setAttribute("aria-pressed", modos.repetir !== "no");
+  r.setAttribute("aria-label", texto);
+  r.title = texto;
+  r.textContent = modos.repetir === "una" ? "↻1" : "↻";
+}
+
+// Si un video o un audio no se puede reproducir, pasa a la siguiente; se detiene si ya probó toda la cola
+let saltos = 0;
+function noDisponible(t, motivo) {
+  if (t !== turno) return;
+  const n = st.cola?.items.length || 0;
+  if (++saltos >= n || vecino(1) < 0) {
+    saltos = 0;
+    avisar(motivo);
+    return;
+  }
+  avisar("No disponible: pasando a la siguiente.");
+  siguiente();
+}
 
 function pintarBarra() {
   const m = motor();
@@ -579,8 +691,8 @@ function pintarBarra() {
   $("#rp-play").disabled = !tiene;
   $("#rp-play").textContent = m.paused ? "▶" : "⏸";
   $("#rp-play").setAttribute("aria-label", m.paused ? "Reproducir" : "Pausa");
-  $("#rp-anterior").disabled = !st.cola || (st.indice <= 0 && !tiene);
-  $("#rp-siguiente").disabled = !st.cola || st.indice >= st.cola.items.length - 1;
+  $("#rp-anterior").disabled = !st.cola || (vecino(-1) < 0 && !tiene);
+  $("#rp-siguiente").disabled = vecino(1) < 0;
   const dur = isFinite(m.duration) ? m.duration : 0;
   $("#rp-progreso").max = dur || 1;
   $("#rp-progreso").value = m.currentTime || 0;
@@ -596,6 +708,10 @@ function sesionDeMedios(entrada, item) {
     artist: item.momento || creditsText(normalizeCredits({ letra: entrada.letraDe, musica: entrada.musicaDe })) || "Monte Carmelo",
     album: st.cola?.nombre || ""
   });
+}
+
+function estadoDeMedios(pausado) {
+  if ("mediaSession" in navigator) navigator.mediaSession.playbackState = pausado ? "paused" : "playing";
 }
 
 function conectarMedios() {
@@ -634,12 +750,36 @@ function aplicarAjustes() {
   $("#rp-acordes").textContent = soloLetra ? "Solo letra" : "Letra y acordes";
   const tam = +guardado("mc-rp-letra", "18") || 18;
   document.documentElement.style.setProperty("--rp-letra", tam + "px");
-  const noche = guardado("mc-rp-tema", "noche") === "noche";
-  document.body.classList.toggle("rp-noche", noche);
-  document.body.classList.toggle("rp-dia", !noche);
-  $("#rp-tema").textContent = noche ? "☀︎" : "☾";
-  $("#rp-tema").title = noche ? "Pasar a modo día" : "Pasar a modo noche";
-  document.querySelector('meta[name="theme-color"]').content = noche ? "#14110d" : "#faf3e4";
+  aplicarColores();
+}
+
+// ============ COLORES ============
+
+const TEMAS = [
+  { id: "noche", nombre: "Noche", fondo: "#14110d", acento: "#e0a36f", oscuro: true },
+  { id: "dia", nombre: "Día", fondo: "#faf3e4", acento: "#9a4f2e" },
+  { id: "carmelo", nombre: "Carmelo", fondo: "#241811", acento: "#d9b26a", oscuro: true },
+  { id: "mariano", nombre: "Mariano", fondo: "#0e1a2e", acento: "#8fb8e8", oscuro: true },
+  { id: "liturgico", nombre: "Litúrgico", fondo: "#f3f1e7", acento: "#2f6b3a" },
+  { id: "penitencial", nombre: "Penitencial", fondo: "#1a1322", acento: "#b58ad6", oscuro: true }
+];
+const temaActual = () => TEMAS.find((t) => t.id === guardado("mc-rp-tema", "noche")) || TEMAS[0];
+
+function aplicarColores() {
+  const t = temaActual(), acento = guardado("mc-rp-acento", "");
+  const b = document.body;
+  b.dataset.rpTema = t.id;
+  b.classList.toggle("rp-oscuro", !!t.oscuro);
+  for (const v of ["--rp-acento", "--rp-acorde"]) {
+    if (acento) b.style.setProperty(v, acento);
+    else b.style.removeProperty(v);
+  }
+  document.querySelector('meta[name="theme-color"]').content = t.fondo;
+  $("#rp-acento-color").value = acento || t.acento;
+  $("#rp-acento-restablecer").disabled = !acento;
+  $("#rp-temas").innerHTML = TEMAS.map((x) =>
+    `<button type="button" class="rp-tema-op" role="radio" aria-checked="${x === t}" data-tema="${x.id}"><span class="rp-muestra" style="--m-fondo:${x.fondo};--m-acento:${acento || x.acento}"></span>${esc(x.nombre)}</button>`
+  ).join("");
 }
 
 // ============ EN VIVO (quienes siguen) ============
@@ -799,10 +939,17 @@ function conectar() {
     pintarListas();
   });
   $("#rp-agregar-listas").addEventListener("click", (e) => {
+    const s = e.target.closest("[data-a-sugerida]");
+    if (s) {
+      const l = nuevaLista([], s.dataset.aSugerida);
+      if (l) agregarA(l);
+      return;
+    }
     const b = e.target.closest("[data-a-lista]");
     const l = b && st.listas.find((x) => x.id === b.dataset.aLista);
     if (l) agregarA(l);
   });
+  for (const id of ["#rp-agregar-actual", "#rp-barra-agregar"]) $(id).addEventListener("click", () => abrirAgregar(actualId()));
   $("#rp-agregar-nueva").addEventListener("click", () => {
     const l = nuevaLista();
     if (l) agregarA(l);
@@ -846,9 +993,20 @@ function conectar() {
   };
   $("#rp-menos").addEventListener("click", () => tam(-2));
   $("#rp-mas").addEventListener("click", () => tam(2));
-  $("#rp-tema").addEventListener("click", () => {
-    guardar("mc-rp-tema", guardado("mc-rp-tema", "noche") === "noche" ? "dia" : "noche");
-    aplicarAjustes();
+  $("#rp-colores").addEventListener("click", () => $("#rp-dlg-colores").showModal());
+  $("#rp-temas").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-tema]");
+    if (!b) return;
+    guardar("mc-rp-tema", b.dataset.tema);
+    aplicarColores();
+  });
+  $("#rp-acento-color").addEventListener("input", (e) => {
+    guardar("mc-rp-acento", e.target.value);
+    aplicarColores();
+  });
+  $("#rp-acento-restablecer").addEventListener("click", () => {
+    guardar("mc-rp-acento", "");
+    aplicarColores();
   });
 
   $("#rp-play").addEventListener("click", () => {
@@ -863,12 +1021,28 @@ function conectar() {
   $("#rp-barra-titulo").addEventListener("click", () => mostrarVista("sonando"));
   $("#rp-progreso").addEventListener("input", (e) => { motor().currentTime = +e.target.value; });
   for (const ev of ["play", "pause", "timeupdate", "loadedmetadata", "durationchange", "emptied"]) audio.addEventListener(ev, pintarBarra);
-  audio.addEventListener("play", () => { if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing"; });
-  audio.addEventListener("pause", () => { if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "paused"; });
+  audio.addEventListener("play", () => estadoDeMedios(false));
+  audio.addEventListener("playing", () => { saltos = 0; });
+  audio.addEventListener("pause", () => estadoDeMedios(true));
   audio.addEventListener("ended", () => {
-    if (audio.src === SILENCIO) return;
-    if (!siguiente()) avisar("Terminó la lista.");
+    if (audio.src !== SILENCIO) alTerminarPista();
   });
+  $("#rp-aleatorio").addEventListener("click", () => {
+    modos.aleatorio = !modos.aleatorio;
+    guardar("mc-rp-aleatorio", modos.aleatorio ? "si" : "no");
+    ordenDe = null;
+    pintarModos();
+    pintarBarra();
+    avisar(modos.aleatorio ? "Aleatorio activado." : "Aleatorio desactivado.");
+  });
+  $("#rp-repetir").addEventListener("click", () => {
+    modos.repetir = { no: "lista", lista: "una", una: "no" }[modos.repetir] || "no";
+    guardar("mc-rp-repetir", modos.repetir);
+    pintarModos();
+    pintarBarra();
+    avisar($("#rp-repetir").title + ".");
+  });
+  pintarModos();
 
   $("#rp-vivo-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -889,6 +1063,7 @@ function conectar() {
 
   document.addEventListener("visibilitychange", () => {
     pedirPantalla();
+    if (!document.hidden) pintarBarra();
     if (!st.vivo || st.vivo.terminado) return;
     if (document.hidden) clearTimeout(st.vivo.reloj);
     else consultarVivo();
@@ -899,8 +1074,43 @@ function conectar() {
   conectarMedios();
 }
 
+// ============ APP INSTALABLE ============
+
+function prepararApp() {
+  const app = document.body.classList.contains("rp-app");
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-reproductor.js", { scope: "./reproductor.html" }).catch(() => {});
+  if (app) {
+    // En la app la página de la parroquia se abre en el navegador, sin salir del reproductor
+    $("#rp-marca").target = "_blank";
+    $("#rp-marca").rel = "noopener";
+    return;
+  }
+  const b = $("#rp-instalar");
+  let pedido = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    pedido = e;
+    b.hidden = false;
+  });
+  window.addEventListener("appinstalled", () => {
+    pedido = null;
+    b.hidden = true;
+    avisar("Listo: el reproductor quedó instalado.");
+  });
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (ios) b.hidden = false;
+  b.addEventListener("click", async () => {
+    if (!pedido) return $("#rp-dlg-instalar").showModal();
+    pedido.prompt();
+    await pedido.userChoice.catch(() => {});
+    pedido = null;
+    b.hidden = true;
+  });
+}
+
 async function iniciar() {
   initNavSitio();
+  prepararApp();
   st.listas = leerListas();
   aplicarAjustes();
   conectar();
