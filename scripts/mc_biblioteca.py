@@ -645,6 +645,8 @@ def procesar_carpetas(api, carpeta_local=None, avance=aviso, detener=None, quita
         r = api.post("indexarCarpetas", **({"cursor": cursor} if cursor else {}))
         if r.get("aviso"):
             raise Error(r["aviso"])
+        if not r.get("carpetas"):
+            raise Error("El servidor no devolvió las carpetas (falla pasajera de Apps Script): probá de nuevo en un rato.")
         for k in ("md", "vinculados", "cambiados", "nuevas", "actualizadas"):
             res[k] += r.get(k) or 0
         res["carpetas"] = r.get("carpetas") or 0
