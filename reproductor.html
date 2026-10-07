@@ -46,7 +46,7 @@
     <section class="rp-vista" id="vista-canciones" role="tabpanel">
       <div class="rp-buscar">
         <input type="search" id="rp-buscar" placeholder="Buscar por título, frase de la letra, autor o momento" autocomplete="off" aria-label="Buscar canciones">
-        <label class="rp-check"><input type="checkbox" id="rp-con-audio"> Solo con audio</label>
+        <label class="rp-check"><input type="checkbox" id="rp-con-audio"> Solo con audio o video</label>
       </div>
       <p class="rp-aviso" id="rp-estado-bib">Cargando la Biblioteca…</p>
       <ul class="rp-lista" id="rp-canciones"></ul>
@@ -93,6 +93,7 @@
           </label>
           <div id="rp-extras"></div>
         </div>
+        <div class="rp-video" id="rp-video" hidden></div>
         <p class="rp-sin-audio" id="rp-sin-audio" hidden>Esta canción no tiene audio: cantala con la letra y pasá a la siguiente cuando quieras.</p>
         <article class="song-render rp-letra" id="rp-letra"></article>
       </div>
@@ -102,7 +103,7 @@
     <section class="rp-vista" id="vista-vivo" role="tabpanel" hidden>
       <form class="rp-vivo-entrar" id="rp-vivo-form">
         <h2>Seguir en vivo</h2>
-        <p class="rp-aviso">Escribí el código de 4 cifras que muestra quien dirige el canto: tu pantalla va a ir mostrando la canción que se canta, en su tono.</p>
+        <p class="rp-aviso">Escribe el código de 4 cifras que muestra quien dirige el canto: tu pantalla va a ir mostrando la canción que se canta, en su tono.</p>
         <div class="rp-vivo-codigo">
           <input type="text" id="rp-vivo-codigo" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="0000" autocomplete="off" aria-label="Código">
           <button type="submit" class="rp-btn rp-btn-fuerte">Seguir</button>

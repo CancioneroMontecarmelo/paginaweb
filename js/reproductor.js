@@ -10,7 +10,9 @@
  *    partituras y «Aprender las voces». Un solo <audio>, que los audios del Drive reciben por accion=audio
  *    del Apps Script (Drive rechaza con 403 el enlace directo pedido desde otra página). Precarga la
  *    siguiente, Media Session (pantalla bloqueada y auriculares)
- *    y Wake Lock (la pantalla no se apaga mientras se lee).
+ *    y Wake Lock (la pantalla no se apaga mientras se lee). Los enlaces de YouTube suenan con el reproductor
+ *    de YouTube insertado arriba de la letra (js/youtube-embed.js), manejado con la misma barra; el audio del
+ *    Drive va primero y, al terminar un video, no pasa sola a la siguiente.
  *  - En vivo (#vivo=<código>): sigue la canción que elige quien dirige desde Misas, consultando cada 4 s.
  *
  * Usa los scripts clásicos del editor cargados antes (acordes, markdown, etiquetas, buscar, instrumentos,
@@ -23,6 +25,7 @@ import { activarPosturas, cerrar as cerrarPostura } from "./posturas.js";
 import { botonesPartituras } from "./partituras.js";
 import { crearMezclador, pistasDeVoces } from "./voces.js";
 import { SILENCIO, desbloquear } from "./silencio.js";
+import { crearReproductorYT, esYoutube } from "./youtube-embed.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => escapeHtml(s == null ? "" : s);
@@ -142,7 +145,8 @@ function mostrarVista(v) {
 
 // ============ CANCIONES ============
 
-const audiosReproducibles = (c) => (c?.audios || []).filter((a) => a.fileId || (a.url && !/youtu\.?be|vimeo\.com/i.test(a.url)));
+const esVideo = (a) => !a.fileId && esYoutube(a.url);
+const audiosReproducibles = (c) => (c?.audios || []).filter((a) => a.fileId || (a.url && (esYoutube(a.url) || !/youtu\.?be|vimeo\.com/i.test(a.url))));
 const resultados = () => {
   let lista = buscarCanciones(st.biblioteca, $("#rp-buscar").value);
   if ($("#rp-con-audio").checked) lista = lista.filter((c) => audiosReproducibles(c).length);
@@ -158,7 +162,8 @@ function pintarCanciones() {
   const actual = actualId();
   $("#rp-canciones").innerHTML = lista.slice(0, 300).map((c) => {
     const cred = creditsText(normalizeCredits({ letra: c.letraDe, musica: c.musicaDe }));
-    const sub = [audiosReproducibles(c).length ? "♪ con audio" : "sin audio", cred].filter(Boolean).join(" · ");
+    const rep = audiosReproducibles(c);
+    const sub = [rep.some((a) => !esVideo(a)) ? "♪ con audio" : rep.length ? "▶ con video" : "sin audio", cred].filter(Boolean).join(" · ");
     return `<li class="${c.id === actual ? "sonando" : ""}">
       <button type="button" class="rp-fila" data-tocar="${esc(c.id)}"><b>${esc(c.titulo)}</b><small>${esc(sub)}</small></button>
       <button type="button" class="rp-mas" data-agregar="${esc(c.id)}" aria-label="Agregar «${esc(c.titulo)}» a una lista" title="Agregar a una lista">+</button>
@@ -374,21 +379,46 @@ async function abrirMisa(id) {
 
 let turno = 0;
 
+// El reproductor de YouTube se crea con el primer video; mientras tiene uno cargado, la barra lo maneja a él
+let yt = null;
+const reproductorYT = () => yt || (yt = crearReproductorYT($("#rp-video"), {
+  alCambiar: pintarBarra,
+  alTerminar: pintarBarra,
+  alError: (_, texto) => avisar(texto)
+}));
+const motor = () => (yt?.activo ? yt : audio);
+const tocarMotor = () => {
+  const m = motor();
+  if (m === audio) audio.play().catch(() => {});
+  else m.play();
+};
+
+function quitarVideo() {
+  if (yt?.activo) yt.destruir();
+  $("#rp-video").hidden = true;
+}
+
 function elegirAudio(entrada) {
   const lista = audiosReproducibles(entrada);
   if (!lista.length) return { lista, i: -1 };
   let i = st.elegido.get(entrada.id);
   if (!(i >= 0 && i < lista.length)) {
     const mia = guardado("mc-mi-voz", "");
-    i = lista.findIndex((a) => mia && a.voz === mia);
-    if (i < 0) i = lista.findIndex((a) => !a.voz || a.voz === "todas" || a.voz === "unica");
-    if (i < 0) i = 0;
+    // A igualdad, el audio del Drive antes que el video de YouTube
+    const buscar = (f) => {
+      const k = lista.findIndex((a) => f(a) && !esVideo(a));
+      return k >= 0 ? k : lista.findIndex(f);
+    };
+    i = buscar((a) => mia && a.voz === mia);
+    if (i < 0) i = buscar((a) => !a.voz || a.voz === "todas" || a.voz === "unica");
+    if (i < 0) i = buscar(() => true);
   }
   return { lista, i };
 }
 
 const nombreAudio = (a) => {
   const voz = a.voz && a.voz !== "todas" ? VOICES[a.voz]?.label || a.voz : "Todas las voces";
+  if (esVideo(a)) return "Video de YouTube" + (a.voz && a.voz !== "todas" && a.voz !== "unica" ? " — " + voz : "");
   const nombre = String(a.nombre || "").trim();
   return nombre && !voz.toLowerCase().startsWith(nombre.toLowerCase()) ? `${voz} — ${nombre}` : voz;
 };
@@ -397,12 +427,22 @@ function cargarAudio(a, tocar) {
   const t = ++turno;
   audio.onerror = null;
   audio.pause();
-  if (!a) {
+  if (!a || esVideo(a)) {
     audio.removeAttribute("src");
     audio.load();
+  }
+  if (!a) {
+    quitarVideo();
     pintarBarra();
     return;
   }
+  if (esVideo(a)) {
+    $("#rp-video").hidden = false;
+    reproductorYT().cargar(a.url, tocar);
+    pintarBarra();
+    return;
+  }
+  quitarVideo();
   if (!a.fileId) {
     audio.onerror = () => { if (t === turno) avisar("No se pudo cargar el audio: el enlace no responde."); };
     audio.src = a.url;
@@ -501,7 +541,7 @@ function pintarExtras(entrada) {
     b.className = "rp-btn btn-voces";
     b.textContent = "🎚 Aprender las voces";
     b.addEventListener("click", () => {
-      audio.pause();
+      motor().pause();
       b.hidden = true;
       const m = crearMezclador({ contenedor: box, pistas, leerAudio: bytesDeAudio,
         alCerrar: () => { b.hidden = false; if (st.mezclador === m) st.mezclador = null; } });
@@ -528,22 +568,24 @@ function precargar(i) {
 
 const siguiente = () => st.cola && st.indice < st.cola.items.length - 1 && reproducir(st.indice + 1);
 const anterior = () => {
-  if (audio.currentTime > 4) audio.currentTime = 0;
+  const m = motor();
+  if (m.currentTime > 4) m.currentTime = 0;
   else if (st.cola && st.indice > 0) reproducir(st.indice - 1);
 };
 
 function pintarBarra() {
-  const tiene = !!audio.getAttribute("src");
+  const m = motor();
+  const tiene = m !== audio || !!audio.getAttribute("src");
   $("#rp-play").disabled = !tiene;
-  $("#rp-play").textContent = audio.paused ? "▶" : "⏸";
-  $("#rp-play").setAttribute("aria-label", audio.paused ? "Reproducir" : "Pausa");
+  $("#rp-play").textContent = m.paused ? "▶" : "⏸";
+  $("#rp-play").setAttribute("aria-label", m.paused ? "Reproducir" : "Pausa");
   $("#rp-anterior").disabled = !st.cola || (st.indice <= 0 && !tiene);
   $("#rp-siguiente").disabled = !st.cola || st.indice >= st.cola.items.length - 1;
-  const dur = isFinite(audio.duration) ? audio.duration : 0;
+  const dur = isFinite(m.duration) ? m.duration : 0;
   $("#rp-progreso").max = dur || 1;
-  $("#rp-progreso").value = audio.currentTime || 0;
+  $("#rp-progreso").value = m.currentTime || 0;
   $("#rp-progreso").disabled = !dur;
-  $("#rp-actual").textContent = reloj(audio.currentTime);
+  $("#rp-actual").textContent = reloj(m.currentTime);
   $("#rp-total").textContent = reloj(dur);
 }
 
@@ -559,8 +601,8 @@ function sesionDeMedios(entrada, item) {
 function conectarMedios() {
   if (!("mediaSession" in navigator)) return;
   const h = {
-    play: () => audio.play(), pause: () => audio.pause(), previoustrack: anterior, nexttrack: siguiente,
-    seekto: (d) => { audio.currentTime = d.seekTime; }
+    play: tocarMotor, pause: () => motor().pause(), previoustrack: anterior, nexttrack: siguiente,
+    seekto: (d) => { motor().currentTime = d.seekTime; }
   };
   for (const [k, fn] of Object.entries(h)) {
     try { navigator.mediaSession.setActionHandler(k, fn); } catch (_) { /* acción no soportada */ }
@@ -786,9 +828,13 @@ function conectar() {
     const entrada = st.porId.get(actualId());
     if (!entrada) return;
     st.elegido.set(entrada.id, +e.target.value);
-    const t = audio.currentTime, sonaba = !audio.paused;
+    const antes = motor();
+    const t = antes.currentTime, sonaba = !antes.paused;
     cargarAudio(audiosReproducibles(entrada)[+e.target.value], sonaba);
-    audio.addEventListener("loadedmetadata", () => { audio.currentTime = Math.min(t, audio.duration || t); }, { once: true });
+    // Las voces de una misma grabación siguen en el mismo punto; el video es otra grabación
+    if (antes === audio && motor() === audio) {
+      audio.addEventListener("loadedmetadata", () => { audio.currentTime = Math.min(t, audio.duration || t); }, { once: true });
+    }
   });
   $("#rp-acordes").addEventListener("click", () => {
     guardar("mc-rp-acordes", guardado("mc-rp-acordes", "si") === "no" ? "si" : "no");
@@ -806,15 +852,16 @@ function conectar() {
   });
 
   $("#rp-play").addEventListener("click", () => {
-    if (audio.paused) {
+    const m = motor();
+    if (m.paused) {
       st.mezclador?.cerrar();
-      audio.play().catch(() => {});
-    } else audio.pause();
+      tocarMotor();
+    } else m.pause();
   });
   $("#rp-siguiente").addEventListener("click", siguiente);
   $("#rp-anterior").addEventListener("click", anterior);
   $("#rp-barra-titulo").addEventListener("click", () => mostrarVista("sonando"));
-  $("#rp-progreso").addEventListener("input", (e) => { audio.currentTime = +e.target.value; });
+  $("#rp-progreso").addEventListener("input", (e) => { motor().currentTime = +e.target.value; });
   for (const ev of ["play", "pause", "timeupdate", "loadedmetadata", "durationchange", "emptied"]) audio.addEventListener(ev, pintarBarra);
   audio.addEventListener("play", () => { if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing"; });
   audio.addEventListener("pause", () => { if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "paused"; });

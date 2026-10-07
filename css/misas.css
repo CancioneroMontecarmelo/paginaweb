@@ -702,6 +702,18 @@
   justify-self: start;
 }
 
+.audio-video {
+  max-width: 34rem;
+  margin-top: 0.6rem;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.audio-video .yt-aviso { color: var(--texto-suave); }
+
+.audio-video-enlace { justify-self: start; }
+
 /* ============ CANCIÓN (copiado de editor/css/canciotras.css) ============ */
 .song-render {
   font-family: 'Courier New', monospace;

@@ -90,6 +90,7 @@ clasp update-deployment <ID de la implementación> -d "descripción"
 | `noticias/` | Blog estático por comunidad (JSON) |
 | `misas.html` | Pantalla Misas: cancioneros de misa de todas las comunidades, Biblioteca de canciones, coros y ensayos |
 | `reproductor.html` + `js/reproductor.js` | Reproductor: canciones con su letra, listas, cancioneros de misa y En vivo para el coro |
+| `js/youtube-embed.js` | Reproductor de YouTube insertado (IFrame API) para los enlaces de video (Misas y reproductor) |
 | `js/posturas.js`, `js/partituras.js`, `js/voces.js` | Posturas al tocar un acorde, partituras y el mezclador «Aprender las voces» (Misas y reproductor) |
 | `inicio.html` + `js/inicio.js` | Inicio: actividades, calendario litúrgico, próximo domingo, libro de visitas y Colaborar |
 | `js/liturgia.js` | Calendario litúrgico y cantos sugeridos (común a Misas e Inicio) |
@@ -343,8 +344,8 @@ de la parroquia (Drive de cancionerolitugico@gmail.com):
   hay que cambiar uno en el editor). Las nuevas y cambiadas vienen marcadas; **Seleccionar todas** y
   **Desmarcar todas** cambian la selección. Las que ya están en la Biblioteca no se muestran (el resumen
   las cuenta) y cada canción sale de la lista apenas termina de subirse.
-- Al subir, los audios de la computadora se convierten a AAC (.m4a) y se suben; los videos (YouTube…) también,
-  si se deja marcada la opción (si no, quedan como enlace); los enlaces a mp3 quedan como enlace. Un audio
+- Al subir, los audios de la computadora se convierten a AAC (.m4a) y se suben; los videos (YouTube…) y los
+  enlaces a mp3 quedan como enlace (los de YouTube suenan en el sitio con el video insertado). Un audio
   que ya estaba en la canción no se vuelve a subir. Usa la misma clave que `video-a-webm.py`
   (**Pegar la clave…**, con la guía para conseguirla en Identificarse).
 - Reconoce también los audios enlazados como `[Escuchar](<Abandónate.webm>)` o `audio: "Abandónate.webm"`
@@ -362,6 +363,12 @@ de la parroquia (Drive de cancionerolitugico@gmail.com):
   hasta 4 niveles de subcarpetas. **Detener** para después de la canción en curso; al volver a abrir,
   la lista muestra solo lo que falta. En la Biblioteca, cada canción guarda su carpeta (`carpeta`), y los
   audios de esas carpetas cuentan como de la Biblioteca (reproductor y conversión a .m4a).
+- **Procesar las carpetas del Drive** (solo el administrador general): en `Biblioteca/Momentos litúrgicos` y
+  `Biblioteca/Tiempos litúrgicos` vincula cada `.md` con el audio de su carpeta, le agrega la carpeta como
+  etiqueta y pasa los `.webm` a .m4a. En la cabecera, `fuente_url` (la página de donde se copió) se
+  reemplaza por `fecha_subida` (la fecha en que el `.md` se subió al Drive). Las canciones que solo tienen
+  YouTube no se bajan: usan el video insertado. Antes busca los audios que versiones anteriores bajaban de YouTube (`quitarAudiosDeYoutube`
+  en el Apps Script) y, si se confirma, los manda a la papelera del Drive y esas canciones quedan con su video.
 - Los cancioneros (`.m3u8`) se siguen subiendo desde el editor (Archivo → Guardar cancionero en el Drive).
 
 **Instalar en el menú** (una vez, sin sudo): `scripts/instalar-escritorio.sh`. Queda en **Sonido y video**
@@ -405,7 +412,7 @@ sesión. Oscuro por defecto (☀︎ lo pasa a modo día). Lo hace `js/reproducto
 del editor que usa Misas; todo son lecturas públicas del Apps Script.
 
 - **Canciones**: el buscador de la Biblioteca (título, frase de la letra, autor o etiqueta) y **Solo con
-  audio**. Tocar una canción la hace sonar; la cola es la lista que se está viendo. **+** la agrega a una
+  audio o video**. Tocar una canción la hace sonar; la cola es la lista que se está viendo. **+** la agrega a una
   lista.
 - **Listas**:
   - **Mis listas**, guardadas en el equipo (`localStorage` `mc-listas`): crear, renombrar, ordenar con
@@ -423,6 +430,14 @@ del editor que usa Misas; todo son lecturas públicas del Apps Script.
   que en iPhone pueda sonar cuando llega el archivo. Guarda en memoria los últimos 12 y precarga la
   canción siguiente; las canciones sin audio no se saltan solas, para poder cantarlas. Si un audio sigue
   en WebM y el equipo no lo reproduce, lo dice.
+- **Videos de YouTube** (modelo «Smart Embed», como Chordify): no se bajan. La canción que tiene un enlace
+  de YouTube (`youtube:` en la cabecera del `.md` o un `<audio>` con la dirección del video) lo suma a sus
+  audios como **Video de YouTube**, y suena con el reproductor oficial de YouTube insertado arriba de la
+  letra (`js/youtube-embed.js`, IFrame API), manejado con la misma barra: reproducir/pausa y avance. El
+  audio del Drive va primero; el video queda en el selector. Al terminar un video se detiene (no pasa
+  solo a la siguiente). YouTube pide que el video se vea (mínimo 200×200 px); si el dueño no permite
+  insertarlo, aparece **Abrir en YouTube**. En el celular con la pantalla bloqueada el video se pausa.
+  En Misas, esos audios tienen **▶ Ver y escuchar**, que abre el video debajo de los audios (uno a la vez).
 - En el celular: controles en la pantalla bloqueada y en los auriculares (Media Session) y la pantalla no
   se apaga mientras se lee la letra (Wake Lock, donde exista).
 

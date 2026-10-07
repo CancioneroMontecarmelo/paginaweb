@@ -115,6 +115,8 @@ var ACCIONES = {
   leerAudioAConvertir: leerAudioAConvertir_,
   reemplazarAudio: reemplazarAudio_,
   vincularAudiosSueltos: vincularAudiosSueltos_,
+  indexarCarpetas: indexarCarpetas_,
+  quitarAudiosDeYoutube: quitarAudiosDeYoutube_,
   subirCancion: subirCancion_,
   vincularAudio: vincularAudio_,
   desvincularAudio: desvincularAudio_,
@@ -751,6 +753,19 @@ function audioDeEnlace_(nombre, voz, url, audiosBib) {
   return { nombre: nombre || url, voz: voz, url: url };
 }
 
+// El video de la cabecera («youtube: …») también es un audio de la canción: Misas y el Reproductor lo hacen
+// sonar con el reproductor de YouTube insertado en la página, sin bajarlo
+var YOUTUBE_RE_ = /^https?:\/\/([^\/]+\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i;
+function videoDeCabecera_(texto) {
+  var url = String(metaMd_(texto).youtube || '').trim();
+  return YOUTUBE_RE_.test(url) ? url : '';
+}
+function conVideoDeCabecera_(audios, texto) {
+  var url = videoDeCabecera_(texto);
+  if (!url || audios.some(function (a) { return a.url === url; })) return audios;
+  return audios.concat([{ nombre: 'Video de YouTube', voz: '', url: url }]).slice(0, 20);
+}
+
 // Etiqueta <audio> con el mismo formato que escribe el editor (editor/js/markdown.js)
 function etiquetaAudio_(a) {
   var src = a.fileId ? urlAudioDrive_(a.fileId) : a.url;
@@ -759,10 +774,9 @@ function etiquetaAudio_(a) {
 }
 
 // Título, tono, etiquetas y audios de una canción .md del editor
-function cabeceraMd_(texto, nombreArchivo) {
-  var t = String(texto || '').replace(/\r\n?/g, '\n');
+function metaMd_(texto) {
   var meta = {};
-  var m = t.match(/^---\n([\s\S]*?)\n---/);
+  var m = String(texto || '').replace(/\r\n?/g, '\n').match(/^---\n([\s\S]*?)\n---/);
   if (m) m[1].split('\n').forEach(function (l) {
     var i = l.indexOf(':');
     if (i < 1) return;
@@ -770,6 +784,12 @@ function cabeceraMd_(texto, nombreArchivo) {
     if (/^".*"$/.test(v)) { try { v = JSON.parse(v); } catch (_) { v = v.slice(1, -1); } }
     meta[l.slice(0, i).trim().toLowerCase()] = v;
   });
+  return meta;
+}
+
+function cabeceraMd_(texto, nombreArchivo) {
+  var t = String(texto || '').replace(/\r\n?/g, '\n');
+  var meta = metaMd_(t);
   var h = t.match(/^#\s+(.+)$/m);
   var titulo = String(meta.titulo || meta.title || (h && h[1]) || String(nombreArchivo || '').replace(/\.md$/i, '') || 'Sin título').trim();
   var etiquetas = String(meta.etiquetas || meta.tags || '').split(',')
@@ -877,7 +897,7 @@ function registrarEnBiblioteca_(items, comunidad, u) {
       var e = {
         id: id, titulo: it.cab.titulo, tono: it.cab.tono, etiquetas: it.cab.etiquetas, mdId: f.getId(),
         soloAudio: soloAudioMd_(it.texto), inicio: letraInicio_(it.texto),
-        audios: it.audios.length ? it.audios : (previa ? previa.audios : []),
+        audios: conVideoDeCabecera_(it.audios.length ? it.audios : (previa ? previa.audios || [] : []), it.texto),
         comunidad: (previa && previa.comunidad) || comunidad || '',
         autor: (previa && previa.autor) || u.email, actualizado: ahora_()
       };
@@ -1498,6 +1518,320 @@ function vincularAudiosSueltos_(d) {
   r.vinculados = hecho.vinculados;
   r.repetidos = hecho.repetidos;
   r.canciones = hecho.canciones;
+  return r;
+}
+
+// ==================== CARPETAS LITÚRGICAS DE LA BIBLIOTECA ====================
+// Biblioteca/Momentos litúrgicos y Biblioteca/Tiempos litúrgicos se suben a mano, con cada .md junto a su audio
+// («[Escuchar](<Abandónate.webm>)»). indexarCarpetas_ (por tandas, con cursor) vincula cada .md con su audio
+// (<audio> de Drive en el lugar del enlace), le agrega como etiqueta su carpeta sin borrar las que tenía y hace
+// que la canción de biblioteca.json use ese .md y ese audio. Biblioteca/canciones y Biblioteca/audios quedan de
+// respaldo. Devuelve los .webm para convertir a .m4a, que convierte la app de escritorio
+// (scripts/subir-canciones.py). Los .md con YouTube y sin audio no se completan: suenan con el video insertado.
+var CARPETAS_LITURGICAS_ = ['momentos-liturgicos', 'tiempos-liturgicos'];
+var CARPETAS_SEG_ = 200;
+var CARPETA_MIME_ = 'application/vnd.google-apps.folder';
+var ENLACE_AUDIO_RE_ = /^[ \t]*(?:[-*][ \t]+)?\[[^\]\n]*\]\((?:<([^>\n]+)>|([^)\s]+))\)[ \t]*$/gm;
+var AUDIO_REPRODUCIBLE_RE_ = /\.(m4a|mp3)$/i;
+
+function listarDrive_(q) {
+  var salida = [], token = '';
+  do {
+    var p = Drive.Files.list({ q: q, pageSize: 1000, fields: 'nextPageToken, files(id, name, mimeType, size, createdTime)', pageToken: token || undefined });
+    salida = salida.concat(p.files || []);
+    token = p.nextPageToken || '';
+  } while (token);
+  return salida;
+}
+
+// [[id, ruta]] de las carpetas litúrgicas y todas sus subcarpetas, en orden: primero Momentos, después Tiempos
+function carpetasLiturgicas_() {
+  var bib = carpetaRuta_(raiz_(), ['Biblioteca']);
+  var raices = listarDrive_("'" + bib.getId() + "' in parents and mimeType = '" + CARPETA_MIME_ + "' and trashed = false")
+    .filter(function (f) { return CARPETAS_LITURGICAS_.indexOf(claveTitulo_(f.name)) >= 0; })
+    .sort(function (a, b) { return CARPETAS_LITURGICAS_.indexOf(claveTitulo_(a.name)) - CARPETAS_LITURGICAS_.indexOf(claveTitulo_(b.name)); });
+  var salida = [];
+  var recorrer = function (id, ruta, nivel) {
+    salida.push([id, ruta]);
+    if (nivel >= 5) return;
+    listarDrive_("'" + id + "' in parents and mimeType = '" + CARPETA_MIME_ + "' and trashed = false")
+      .sort(function (a, b) { return a.name.localeCompare(b.name); })
+      .forEach(function (f) { recorrer(f.id, ruta + '/' + f.name, nivel + 1); });
+  };
+  raices.forEach(function (f) { recorrer(f.id, f.name, 0); });
+  return salida;
+}
+
+// «Momentos litúrgicos/Comunión» → [Comunión]; «Tiempos litúrgicos/Navidad/Comunión» → [Comunión, Navidad]
+function etiquetasDeRuta_(ruta) {
+  var partes = String(ruta).split('/').slice(1);
+  if (!partes.length) return [];
+  return [partes[partes.length - 1]].concat(partes.slice(0, -1).reverse()).map(function (p) {
+    return p.replace(/[,\n\r]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+  });
+}
+
+function clavesArchivo_(nombre) {
+  var n = String(nombre || '').normalize('NFC').toLowerCase();
+  return { nombre: n, base: n.replace(/\.[a-z0-9]{2,5}$/, '') };
+}
+
+// Agrega, quita (linea null) o reemplaza «clave: …» en la cabecera ---
+function lineaCabecera_(texto, clave, linea) {
+  var m = texto.match(/^---\n([\s\S]*?)\n---/);
+  if (!m) return linea ? '---\n' + linea + '\n---\n\n' + texto : texto;
+  var re = new RegExp('^' + clave + ':.*$', 'm'), cab = m[1];
+  if (re.test(cab)) cab = linea ? cab.replace(re, function () { return linea; }) : cab.replace(new RegExp('^' + clave + ':.*\\n?', 'm'), '').replace(/\n$/, '');
+  else if (linea) cab += '\n' + linea;
+  return '---\n' + cab + '\n---' + texto.slice(m[0].length);
+}
+
+// La etiqueta <audio> va debajo de «## Audio»; si no hay esa sección, se crea antes de la primera «## …»
+// («## Letra y acordes»); los .md del editor, sin secciones, la llevan al final
+function insertarAudioMd_(texto, etiqueta) {
+  var m = texto.match(/^##\s+Audio[^\n]*\n/m);
+  if (m) {
+    var i = m.index + m[0].length;
+    return (texto.slice(0, i) + '\n' + etiqueta + '\n' + texto.slice(i).replace(/^\n*/, '\n')).replace(/\n{3,}/g, '\n\n');
+  }
+  var s = texto.match(/^##\s/m);
+  if (s) return texto.slice(0, s.index) + '## Audio\n\n' + etiqueta + '\n\n' + texto.slice(s.index);
+  return texto.replace(/\s*$/, '\n\n') + etiqueta + '\n';
+}
+
+// Vincula el .md con los audios de su carpeta. Devuelve { texto, audios, nuevos, url } (nuevos: para compartir)
+function vincularMdCarpeta_(texto, porNombre) {
+  var meta = metaMd_(texto), audios = [], vistos = {}, nuevos = [];
+  var buscar = function (src) {
+    var k;
+    try { k = clavesArchivo_(decodeURIComponent(src).split('/').pop()); } catch (_) { k = clavesArchivo_(String(src).split('/').pop()); }
+    return porNombre.nombre[k.nombre] || porNombre.base[k.base] || null;
+  };
+  var agregar = function (f) {
+    if (vistos[f.id]) return;
+    vistos[f.id] = true;
+    audios.push({ nombre: f.name.replace(/\.[a-z0-9]{2,5}$/i, '').slice(0, 150), voz: '', fileId: f.id });
+  };
+  texto = texto.replace(ENLACE_AUDIO_RE_, function (linea, a, b) {
+    var src = a || b;
+    if (/^https?:/i.test(src) || !EXT_AUDIO_RE_.test(src)) return linea;
+    var f = buscar(src);
+    if (!f) return linea;
+    if (vistos[f.id]) return '';
+    agregar(f);
+    nuevos.push(f.id);
+    return etiquetaAudio_(audios[audios.length - 1]);
+  });
+  if (meta.audio && !/^https?:/i.test(meta.audio)) {
+    var f = buscar(meta.audio);
+    if (f && !vistos[f.id] && texto.indexOf(f.id) < 0) {
+      agregar(f);
+      nuevos.push(f.id);
+      texto = insertarAudioMd_(texto, etiquetaAudio_(audios[audios.length - 1]));
+    }
+    texto = lineaCabecera_(texto, 'audio', null);
+  }
+  // Los <audio> que ya tenía el .md (las voces que se vincularon desde Misas, enlaces…)
+  cabeceraMd_(texto, '').audios.forEach(function (a) {
+    var id = idDeDrive_(a.src);
+    if (id && !vistos[id]) { vistos[id] = true; audios.push({ nombre: a.nombre || 'Audio', voz: a.voz && a.voz !== 'todas' ? a.voz : '', fileId: id }); }
+    else if (!id && /^https?:/i.test(a.src) && !vistos[a.src]) { vistos[a.src] = true; audios.push({ nombre: a.nombre || a.src, voz: a.voz || '', url: a.src }); }
+  });
+  return { texto: texto, audios: conVideoDeCabecera_(audios, texto), nuevos: nuevos, youtube: videoDeCabecera_(texto) };
+}
+
+// La cabecera no lleva la página de donde se copió la canción («fuente_url»), solo la fecha en que el .md se
+// subió al Drive («fecha_subida», en el lugar de fuente_url)
+function conFechaSubida_(texto, creado) {
+  var meta = metaMd_(texto);
+  var linea = creado && !meta.fecha_subida
+    ? 'fecha_subida: "' + Utilities.formatDate(new Date(creado), Session.getScriptTimeZone(), 'yyyy-MM-dd') + '"' : null;
+  if (meta.fuente_url !== undefined) return lineaCabecera_(texto, 'fuente_url', linea);
+  return linea ? lineaCabecera_(texto, 'fecha_subida', linea) : texto;
+}
+
+function indexarCarpetas_(d) {
+  var u = soloAdminGeneral_(d.token);
+  var inicio = Date.now();
+  var cursor = d.cursor ? JSON.parse(d.cursor) : { c: carpetasLiturgicas_(), i: 0, n: 0 };
+  var r = { carpetas: cursor.c.length, md: 0, vinculados: 0, cambiados: 0, aConvertir: [], conVideo: 0, sinAudio: [], cursor: '' };
+  if (!cursor.c.length) {
+    r.aviso = 'No están las carpetas «Momentos litúrgicos» ni «Tiempos litúrgicos» dentro de MonteCarmelo/Biblioteca.';
+    return r;
+  }
+  var items = [], compartir = [];
+  while (cursor.i < cursor.c.length) {
+    var id = cursor.c[cursor.i][0], ruta = cursor.c[cursor.i][1];
+    var archivos = listarDrive_("'" + id + "' in parents and trashed = false and mimeType != '" + CARPETA_MIME_ + "'");
+    var porNombre = { nombre: {}, base: {} };
+    archivos.forEach(function (f) {
+      if (!EXT_AUDIO_RE_.test(f.name || '')) return;
+      var k = clavesArchivo_(f.name);
+      porNombre.nombre[k.nombre] = f;
+      // Si hay dos con el mismo nombre (el .webm y el .m4a), gana el que suena en todos los equipos
+      if (!porNombre.base[k.base] || AUDIO_REPRODUCIBLE_RE_.test(f.name)) porNombre.base[k.base] = f;
+    });
+    var mds = archivos.filter(function (f) { return /\.md$/i.test(f.name || ''); })
+      .sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var etiquetas = etiquetasDeRuta_(ruta), corte = false;
+    for (var j = cursor.n; j < mds.length; j++) {
+      if (Date.now() - inicio > CARPETAS_SEG_ * 1000) { cursor.n = j; corte = true; break; }
+      var archivo = DriveApp.getFileById(mds[j].id);
+      var original = archivo.getBlob().getDataAsString('UTF-8').replace(/\r\n?/g, '\n');
+      var v = vincularMdCarpeta_(original, porNombre);
+      var texto = v.texto, meta = metaMd_(texto);
+      var cab = cabeceraMd_(texto, mds[j].name);
+      var todas = etiquetasConPrincipales_(cab.etiquetas, etiquetas);
+      if (todas.join(', ') !== cab.etiquetas.join(', ')) texto = textoConEtiquetas_(texto, todas);
+      if (!meta.tono && meta.tonalidad) texto = lineaCabecera_(texto, 'tono', 'tono: ' + JSON.stringify(String(meta.tonalidad)));
+      texto = conFechaSubida_(texto, mds[j].createdTime);
+      texto = texto.replace(/\n{3,}/g, '\n\n');
+      if (texto !== original) { archivo.setContent(texto); r.cambiados++; }
+      r.md++;
+      r.vinculados += v.nuevos.length;
+      compartir = compartir.concat(v.nuevos);
+      cab = cabeceraMd_(texto, mds[j].name);
+      items.push({ mdId: mds[j].id, ruta: ruta, etiquetas: etiquetas, cab: cab, texto: texto, audios: v.audios });
+      var conDrive = v.audios.filter(function (a) { return a.fileId; });
+      conDrive.forEach(function (a) {
+        var f = archivos.filter(function (x) { return x.id === a.fileId; })[0];
+        if (f && !AUDIO_REPRODUCIBLE_RE_.test(f.name)) r.aConvertir.push({ fileId: f.id, nombre: f.name, ruta: ruta, tamano: Number(f.size || 0) });
+      });
+      if (!conDrive.length) {
+        if (v.youtube) r.conVideo++;
+        else r.sinAudio.push({ mdId: mds[j].id, nombre: mds[j].name, titulo: cab.titulo, ruta: ruta });
+      }
+    }
+    if (corte) break;
+    cursor.i++;
+    cursor.n = 0;
+  }
+  if (cursor.i < cursor.c.length) r.cursor = JSON.stringify(cursor);
+  compartir.forEach(function (fid) {
+    try { DriveApp.getFileById(fid).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (_) { /* no es de la cuenta */ }
+  });
+  var hecho = items.length ? registrarCarpetas_(items, u) : { nuevas: 0, actualizadas: 0, otrosAudios: [] };
+  r.nuevas = hecho.nuevas;
+  r.actualizadas = hecho.actualizadas;
+  r.otrosAudios = hecho.otrosAudios;
+  return r;
+}
+
+// biblioteca.json: cada canción usa el .md de su carpeta (el que tiene audio; primero Momentos litúrgicos) y
+// suma las etiquetas de todas las carpetas donde está
+function registrarCarpetas_(items, u) {
+  return conCandado_(function () {
+    var bib = leerBiblioteca_(), porId = {}, nuevas = 0, actualizadas = 0, otrosAudios = [];
+    bib.canciones.forEach(function (c) { porId[c.id] = c; });
+    items.forEach(function (it) {
+      var id = 'c-' + slug_(it.cab.titulo), e = porId[id];
+      var conAudio = it.audios.some(function (a) { return a.fileId; });
+      var antes = JSON.stringify(e || null);
+      if (!e) {
+        e = porId[id] = { id: id, titulo: it.cab.titulo, etiquetas: [], audios: [], comunidad: u.comunidad || '', autor: u.email };
+        bib.canciones.push(e);
+        nuevas++;
+      }
+      var propia = e.mdId === it.mdId;
+      var usarEsta = propia || !e.carpeta || (conAudio && !(e.audios || []).some(function (a) { return a.fileId; }));
+      if (usarEsta) {
+        if (!propia) {
+          var dejados = (e.audios || []).filter(function (a) {
+            return a.fileId && !it.audios.some(function (b) { return b.fileId === a.fileId; });
+          });
+          if (dejados.length) otrosAudios.push({ titulo: e.titulo, audios: dejados.map(function (a) { return a.nombre; }) });
+        }
+        var enlaces = (e.audios || []).filter(function (a) {
+          return !a.fileId && a.url && !it.audios.some(function (b) { return b.url === a.url; });
+        });
+        e.mdId = it.mdId;
+        e.carpeta = it.ruta;
+        e.titulo = it.cab.titulo;
+        if (it.cab.tono) e.tono = it.cab.tono;
+        e.audios = it.audios.concat(enlaces).slice(0, 20);
+        e.soloAudio = soloAudioMd_(it.texto);
+        e.inicio = letraInicio_(it.texto);
+        if (it.cab.letraDe) e.letraDe = it.cab.letraDe;
+        if (it.cab.musicaDe) e.musicaDe = it.cab.musicaDe;
+        e.etiquetas = etiquetasConPrincipales_(it.cab.etiquetas.concat(e.etiquetas || []), it.etiquetas);
+      } else {
+        e.etiquetas = etiquetasConPrincipales_(it.etiquetas, e.etiquetas || []);
+      }
+      if (JSON.stringify(e) !== antes) {
+        e.actualizado = ahora_();
+        if (antes !== 'null') actualizadas++;
+      }
+    });
+    if (nuevas || actualizadas) {
+      bib.canciones.sort(function (a, b) { return a.titulo.localeCompare(b.titulo); });
+      bib.actualizado = ahora_();
+      escribirJson_(raiz_(), 'biblioteca.json', bib);
+      idsVinculados_ = null;
+    }
+    return { nuevas: nuevas, actualizadas: actualizadas, otrosAudios: otrosAudios };
+  });
+}
+
+// Los audios que la app de escritorio bajaba de YouTube para los .md de las carpetas (en la auditoría como
+// «audio_carpeta») se reemplazan por el video insertado: van a la papelera del Drive (se recuperan durante 30
+// días), se quita su <audio> del .md y la canción de biblioteca.json queda con el video. Son los .m4a con el
+// nombre del .md, creados desde la primera bajada (los .webm convertidos conservan su fecha), cuyo .md tiene
+// «youtube:». Con d.simular solo devuelve la lista. Por tandas: si vuelve un cursor, se llama otra vez con él.
+function quitarAudiosDeYoutube_(d) {
+  soloAdminGeneral_(d.token);
+  var simular = d.simular === true || String(d.simular || '') === '1';
+  var inicio = Date.now();
+  var titulos = {}, desde = '';
+  leerJson_(sistema_(), 'auditoria.json', []).forEach(function (ev) {
+    if (ev.tipo !== 'audio_carpeta') return;
+    titulos[claveTitulo_(String(ev.titulo || '').replace(/\.md$/i, ''))] = true;
+    if (ev.cuando && (!desde || ev.cuando < desde)) desde = ev.cuando;
+  });
+  var r = { audios: [], quitados: 0, cursor: '' };
+  if (!desde) return r;
+  var limite = new Date(new Date(desde).getTime() - 10 * 60000).toISOString();
+  var carpetas = d.cursor ? JSON.parse(d.cursor) : carpetasLiturgicas_();
+  var cambios = [];
+  while (carpetas.length && Date.now() - inicio < CARPETAS_SEG_ * 1000) {
+    var c = carpetas.shift();
+    var archivos = listarDrive_("'" + c[0] + "' in parents and trashed = false and mimeType != '" + CARPETA_MIME_ + "'");
+    var m4a = {};
+    archivos.forEach(function (f) {
+      if (/\.m4a$/i.test(f.name || '') && String(f.createdTime || '') >= limite) m4a[claveTitulo_(f.name.replace(/\.m4a$/i, ''))] = f;
+    });
+    archivos.forEach(function (f) {
+      if (!/\.md$/i.test(f.name || '')) return;
+      var clave = claveTitulo_(f.name.replace(/\.md$/i, '')), audio = m4a[clave];
+      if (!audio) return;
+      var md = DriveApp.getFileById(f.id);
+      var texto = md.getBlob().getDataAsString('UTF-8').replace(/\r\n?/g, '\n');
+      if (!videoDeCabecera_(texto) || texto.indexOf(audio.id) < 0) return;
+      if (!titulos[clave] && !titulos[claveTitulo_(cabeceraMd_(texto, f.name).titulo)]) return;
+      r.audios.push({ ruta: c[1], md: f.name, audio: audio.name, fileId: audio.id });
+      if (simular) return;
+      texto = textoConAudios_(texto, [], [{ fileId: audio.id, nombre: audio.name.replace(/\.[a-z0-9]{2,5}$/i, '') }]);
+      md.setContent(texto);
+      try { DriveApp.getFileById(audio.id).setTrashed(true); } catch (_) { /* ya no estaba */ }
+      cambios.push({ mdId: f.id, fileId: audio.id, texto: texto });
+    });
+  }
+  if (cambios.length) {
+    conCandado_(function () {
+      var bib = leerBiblioteca_(), quitar = {}, porMd = {};
+      cambios.forEach(function (x) { quitar[x.fileId] = true; porMd[x.mdId] = x.texto; });
+      bib.canciones.forEach(function (e) {
+        var antes = JSON.stringify(e.audios || []);
+        e.audios = (e.audios || []).filter(function (a) { return !quitar[a.fileId]; });
+        if (porMd[e.mdId]) e.audios = conVideoDeCabecera_(e.audios, porMd[e.mdId]);
+        if (JSON.stringify(e.audios) !== antes) e.actualizado = ahora_();
+      });
+      bib.actualizado = ahora_();
+      escribirJson_(raiz_(), 'biblioteca.json', bib);
+      idsVinculados_ = null;
+    });
+  }
+  r.quitados = cambios.length;
+  if (carpetas.length) r.cursor = JSON.stringify(carpetas);
   return r;
 }
 

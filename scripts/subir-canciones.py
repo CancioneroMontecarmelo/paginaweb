@@ -27,11 +27,11 @@ import mc_biblioteca as mc  # noqa: E402
 NOMBRE = "Subir canciones a la Biblioteca"
 PREFS = mc.CONFIG.parent / "subir-canciones.json"
 ICONO = mc.RAIZ / "editor" / "icons" / "icono-192.png"
-COLORES = {"nueva": "#1a7f37", "solo-audio": "#0969da", "cambiada": "#b35900", "suelta": "#8250df", "sin-audio": "#0969da",
+COLORES = {"nueva": "#1a7f37", "solo-audio": "#0969da", "cambiada": "#b35900", "sin-audio": "#0969da",
            "igual": "#6e7781", "repetida": "#cf222e", "sin-conexion": "#6e7781"}
-ORDEN = {"nueva": 0, "solo-audio": 1, "cambiada": 2, "suelta": 3, "sin-audio": 4, "repetida": 5, "sin-conexion": 6, "igual": 7}
+ORDEN = {"nueva": 0, "solo-audio": 1, "cambiada": 2, "sin-audio": 3, "repetida": 4, "sin-conexion": 5, "igual": 6}
 RESUMEN = {"nueva": ("nueva", "nuevas"), "solo-audio": ("solo con audio", "solo con audio"), "cambiada": ("cambiada", "cambiadas"),
-           "suelta": ("suelta en el Drive", "sueltas en el Drive"), "sin-audio": ("sin su audio", "sin su audio"),
+           "sin-audio": ("sin su audio", "sin su audio"),
            "repetida": ("con título repetido", "con título repetido"), "sin-conexion": ("sin comparar", "sin comparar"),
            "igual": ("ya está", "ya están")}
 # Columnas de la lista
@@ -97,9 +97,9 @@ class Ventana(Gtk.ApplicationWindow):
             "<span foreground='#b35900'><b>cambiadas</b></span> ya vienen marcadas; las que ya están en la Biblioteca no aparecen.   "
             "<b>3.</b> Tocá <b>Subir las marcadas</b>: quedan en la Biblioteca de la parroquia "
             "(Drive de cancionerolitugico@gmail.com) con sus audios en AAC (.m4a), que suenan en iPhone, Mac, Android y PC. "
-            "Con <b>Guardar en carpetas</b>, cada canción y su audio quedan juntos en Biblioteca, en las mismas carpetas que aquí, "
-            "y la carpeta es su etiqueta principal; las que ya se subieron sueltas aparecen como "
-            "<span foreground='#8250df'><b>sueltas</b></span> y se ordenan sin repetirlas.")
+            "<b>Procesar las carpetas del Drive</b> completa «Momentos litúrgicos» y «Tiempos litúrgicos» de la Biblioteca: "
+            "vincula cada canción con su audio, le pone la etiqueta de su carpeta y pasa los audios a .m4a. Las que solo "
+            "tienen YouTube suenan en el sitio con el video insertado.")
         caja.pack_start(guia, False, False, 0)
 
         fila = Gtk.Box(spacing=8)
@@ -111,6 +111,12 @@ class Ventana(Gtk.ApplicationWindow):
         self.btn_revisar = Gtk.Button(label="↻ Revisar de nuevo")
         self.btn_revisar.connect("clicked", lambda *_: self.revisar())
         fila.pack_start(self.btn_revisar, False, False, 0)
+        self.btn_procesar = Gtk.Button(label="Procesar las carpetas del Drive")
+        self.btn_procesar.set_tooltip_text("Biblioteca/Momentos litúrgicos y Biblioteca/Tiempos litúrgicos: vincula cada .md con su "
+                                           "audio, agrega la etiqueta de su carpeta, convierte los .webm a .m4a (desde las copias "
+                                           "de la carpeta elegida aquí). Las que solo tienen YouTube usan el video insertado.")
+        self.btn_procesar.connect("clicked", lambda *_: self.procesar_carpetas())
+        fila.pack_start(self.btn_procesar, False, False, 0)
         caja.pack_start(fila, False, False, 0)
 
         fila = Gtk.Box(spacing=8)
@@ -154,16 +160,6 @@ class Ventana(Gtk.ApplicationWindow):
         caja.pack_start(desliz, True, True, 0)
 
         fila = Gtk.Box(spacing=12)
-        self.chk_carpetas = Gtk.CheckButton(label="Guardar en carpetas, igual que en esta computadora",
-                                            active=leer_prefs().get("carpetas", True))
-        self.chk_carpetas.set_tooltip_text("Cada canción queda con su audio en Biblioteca/<carpeta>/… del Drive y la carpeta es "
-                                           "su etiqueta principal. Si la misma canción está en varias carpetas, en las otras "
-                                           "queda un acceso directo.")
-        self.chk_carpetas.connect("toggled", self.al_cambiar_carpetas)
-        fila.pack_start(self.chk_carpetas, False, False, 0)
-        self.chk_videos = Gtk.CheckButton(label="Convertir los videos (YouTube…) a audio .m4a y subirlos", active=True)
-        self.chk_videos.set_tooltip_text("Si no, quedan como enlace al video. En .m4a suenan en el sitio y en cualquier celular sin depender de YouTube.")
-        fila.pack_start(self.chk_videos, False, False, 0)
         fila.pack_start(Gtk.Label(label="Comunidad de las nuevas:"), False, False, 0)
         self.cmb_comunidad = Gtk.ComboBoxText()
         self.cmb_comunidad.append("", "La de mi cuenta")
@@ -256,21 +252,14 @@ class Ventana(Gtk.ApplicationWindow):
         guardar_carpeta(self.carpeta)
         self.revisar()
 
-    def al_cambiar_carpetas(self, boton):
-        guardar_prefs(carpetas=boton.get_active())
-        self.revisar()
-
     def revisar(self):
         if self.trabajando:
             return
         self.ocupado(True, "Buscando canciones y comparando con la Biblioteca…")
         carpeta = self.carpeta
-        en_carpetas = self.chk_carpetas.get_active()
 
         def tarea():
             canciones, ilegibles = mc.escanear(carpeta)
-            if en_carpetas:
-                canciones = mc.agrupar_por_carpetas(carpeta, canciones)
             biblioteca, error = None, ""
             try:
                 biblioteca = {c["id"]: c for c in mc.Api(mc.api_de_config(), "").get(accion="biblioteca").get("canciones") or []}
@@ -296,8 +285,6 @@ class Ventana(Gtk.ApplicationWindow):
             else:
                 codigo, estado, consejo, marcar = mc.estado_cancion(c, biblioteca.get(c["id"]), repetida)
             c["codigo"] = codigo
-            if c.get("accesos") and codigo != "igual":
-                consejo += " También está en «" + "», «".join(c["accesos"]) + "»: allí queda un acceso directo."
             if self.elegidos:
                 marcar = c["ruta"].resolve() in self.elegidos and codigo not in ("repetida", "sin-conexion")
             cuenta[codigo] = cuenta.get(codigo, 0) + 1
@@ -308,9 +295,7 @@ class Ventana(Gtk.ApplicationWindow):
         if not canciones:
             texto = f"No hay canciones .md del editor en «{carpeta}». Elegí la carpeta donde el editor guarda tus canciones."
         else:
-            copias = sum(len(c.get("copias") or []) for c in canciones)
-            texto = f"<b>{len(canciones)} canciones</b> en {GLib.markup_escape_text(carpeta.name or str(carpeta))}" + \
-                (f" (y {copias} copias en otras carpetas)" if copias else "") + ": " + \
+            texto = f"<b>{len(canciones)} canciones</b> en {GLib.markup_escape_text(carpeta.name or str(carpeta))}: " + \
                 ", ".join(f"{n} {RESUMEN[cod][n > 1]}" for cod, n in sorted(cuenta.items(), key=lambda x: ORDEN[x[0]]))
             if cuenta.get("igual") == len(canciones):
                 texto += ". Ya están todas en la Biblioteca: no queda nada por subir"
@@ -360,7 +345,7 @@ class Ventana(Gtk.ApplicationWindow):
         self.trabajando = si
         self.btn_revisar.set_sensitive(not si)
         self.selector.set_sensitive(not si)
-        self.chk_carpetas.set_sensitive(not si)
+        self.btn_procesar.set_sensitive(not si)
         self.progreso.set_text(texto)
         self.progreso.set_fraction(0)
         if si:
@@ -398,7 +383,6 @@ class Ventana(Gtk.ApplicationWindow):
         self.btn_detener.set_sensitive(True)
         api = mc.Api(mc.api_de_config(), token)
         comunidad = self.cmb_comunidad.get_active_id() or ""
-        videos = self.chk_videos.get_active()
         biblioteca = dict(self.biblioteca or {})
 
         def tarea():
@@ -410,8 +394,8 @@ class Ventana(Gtk.ApplicationWindow):
                 GLib.idle_add(self.avanzar, i, len(marcadas), c["titulo"])
                 GLib.idle_add(self.anotar, f"\n«{c['titulo']}»")
                 try:
-                    e = mc.subir_cancion_local(api, c, biblioteca.get(c["id"]), comunidad, videos,
-                                               lambda t: GLib.idle_add(self.anotar, t))
+                    e = mc.subir_cancion_local(api, c, biblioteca.get(c["id"]), comunidad,
+                                               avance=lambda t: GLib.idle_add(self.anotar, t))
                     biblioteca[e["id"]] = e
                     hechas.append(e["titulo"])
                     GLib.idle_add(self.anotar, f"  ✓ En la Biblioteca, con {len(e.get('audios') or [])} audio(s).")
@@ -422,6 +406,122 @@ class Ventana(Gtk.ApplicationWindow):
             GLib.idle_add(self.terminar, hechas, fallas)
 
         threading.Thread(target=tarea, daemon=True).start()
+
+    # ------------------------------------------------------------ carpetas litúrgicas del Drive
+
+    def procesar_carpetas(self):
+        if self.trabajando:
+            return
+        token = mc.clave_guardada() or self.pedir_clave()
+        if not token:
+            return
+        dlg = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.QUESTION,
+                                buttons=Gtk.ButtonsType.OK_CANCEL, text="¿Procesar las carpetas del Drive?")
+        dlg.format_secondary_text(
+            "En MonteCarmelo/Biblioteca/Momentos litúrgicos y Tiempos litúrgicos:\n\n"
+            "1. Cada canción (.md) queda vinculada con el audio de su carpeta y con la carpeta como etiqueta (las que ya "
+            "tenía se conservan). En Misas y en el Reproductor se usa esa versión. En su cabecera, «fuente_url» se "
+            "reemplaza por «fecha_subida» (la fecha en que el .md se subió al Drive).\n"
+            f"2. Los audios .webm se convierten a .m4a, que suena en iPhone, usando las copias de «{self.carpeta}».\n"
+            "Las canciones que solo tienen YouTube no se bajan: en Misas y en el Reproductor suenan con el video insertado.\n\n"
+            "Puede tardar horas: podés tocar Detener y seguir otro día, se retoma donde quedó.")
+        seguir = dlg.run() == Gtk.ResponseType.OK
+        dlg.destroy()
+        if not seguir:
+            return
+        self.detalle.set_expanded(True)
+        self.ocupado(True, "Procesando las carpetas del Drive…")
+        self.detener.clear()
+        self.btn_detener.set_sensitive(True)
+        api = mc.Api(mc.api_de_config(), token)
+        carpeta = self.carpeta
+
+        def avance(texto):
+            GLib.idle_add(self.anotar, texto)
+            GLib.idle_add(self.progreso.set_text, texto.strip()[:120])
+            GLib.idle_add(self.progreso.pulse)
+
+        def buscar_bajados():
+            try:
+                bajados, _ = mc.audios_de_youtube(api, simular=True, detener=self.detener)
+            except Exception as e:  # el servidor o la red: se informa y se puede reintentar
+                GLib.idle_add(self.terminar_carpetas, None, str(e))
+                return
+            GLib.idle_add(self.confirmar_bajados, api, carpeta, avance, bajados)
+
+        avance("Buscando audios que se habían bajado de YouTube…")
+        threading.Thread(target=buscar_bajados, daemon=True).start()
+
+    def confirmar_bajados(self, api, carpeta, avance, bajados):
+        """Los audios bajados antes de YouTube se quitan (papelera del Drive) solo si se confirma."""
+        quitar = False
+        if bajados:
+            self.anotar("\nAudios bajados de YouTube:\n" + "\n".join(f"  {b['ruta']}/{b['audio']}" for b in bajados))
+            dlg = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.QUESTION,
+                                    buttons=Gtk.ButtonsType.NONE, text=f"¿Quitar {len(bajados)} audios bajados de YouTube?")
+            dlg.format_secondary_text(
+                "Antes se bajaba el audio de YouTube de las canciones que no tenían otro. Ahora esas canciones suenan con el "
+                "video insertado, así que esos audios sobran:\n\n"
+                + "\n".join(f"• {b['ruta']}/{b['audio']}" for b in bajados[:12])
+                + (f"\n… y {len(bajados) - 12} más (en el detalle)" if len(bajados) > 12 else "")
+                + "\n\nVan a la papelera del Drive (se pueden recuperar durante 30 días) y cada canción queda con su video.")
+            dlg.add_buttons("Dejarlos", Gtk.ResponseType.CANCEL, "Quitarlos y usar el video", Gtk.ResponseType.OK)
+            quitar = dlg.run() == Gtk.ResponseType.OK
+            dlg.destroy()
+
+        def tarea():
+            try:
+                res, error = mc.procesar_carpetas(api, carpeta, avance, self.detener, quitar_youtube=quitar), ""
+            except Exception as e:  # el servidor o la red: se informa y se puede reintentar
+                res, error = None, str(e)
+            GLib.idle_add(self.terminar_carpetas, res, error)
+
+        threading.Thread(target=tarea, daemon=True).start()
+        return False
+
+    def terminar_carpetas(self, res, error):
+        self.ocupado(False)
+        self.btn_detener.set_sensitive(False)
+        if error:
+            self.progreso.set_text("No se pudo terminar")
+            self.anotar("✗ " + error)
+            dlg = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.WARNING,
+                                    buttons=Gtk.ButtonsType.CLOSE, text="No se pudieron procesar las carpetas")
+            dlg.format_secondary_text(error + "\n\nPodés volver a intentarlo: lo que ya quedó hecho no se repite.")
+            dlg.run()
+            dlg.destroy()
+            return False
+        self.progreso.set_fraction(1)
+        self.progreso.set_text("Detenido" if res["detenido"] else "Carpetas del Drive listas")
+        partes = [f"{res['md']} canciones revisadas en {res['carpetas']} carpetas: {res['vinculados']} audios vinculados, "
+                  f"{res['cambiados']} .md actualizados, {res['nuevas']} canciones nuevas en la Biblioteca.",
+                  f"{res['convertidos']} audios convertidos a .m4a. {res['con_video']} canciones sin audio propio suenan con su "
+                  "video de YouTube insertado."]
+        if res["quitados_youtube"]:
+            partes.append(f"{res['quitados_youtube']} audios bajados de YouTube quitados (están en la papelera del Drive).")
+        if res["sin_audio"]:
+            partes.append(f"{len(res['sin_audio'])} canciones no tienen audio ni YouTube (quedan solo con la letra).")
+            self.anotar("\nSin audio ni YouTube:\n" + "\n".join(f"  {s['ruta']}/{s['nombre']}" for s in res["sin_audio"]))
+        if res["otros_audios"]:
+            partes.append(f"{len(res['otros_audios'])} canciones tenían otros audios que ahora quedan solo de respaldo "
+                          "(Biblioteca/audios): están en el detalle, por si alguno era una grabación del coro.")
+            self.anotar("\nAudios que quedan de respaldo:\n" + "\n".join(
+                f"  {o['titulo']}: {', '.join(o['audios'])}" for o in res["otros_audios"]))
+        if res["fallas"]:
+            partes.append(f"Con problemas ({len(res['fallas'])}):\n" + "\n".join("• " + f for f in res["fallas"][:15])
+                          + (f"\n… y {len(res['fallas']) - 15} más (en el detalle)" if len(res["fallas"]) > 15 else ""))
+            self.anotar("\nCon problemas:\n" + "\n".join("  " + f for f in res["fallas"]))
+        if res["detenido"]:
+            partes.append("Se detuvo antes de terminar: tocá «Procesar las carpetas del Drive» para seguir.")
+        dlg = Gtk.MessageDialog(transient_for=self, modal=True,
+                                message_type=Gtk.MessageType.WARNING if res["fallas"] else Gtk.MessageType.INFO,
+                                buttons=Gtk.ButtonsType.NONE, text="Carpetas del Drive procesadas" if not res["detenido"] else "Proceso detenido")
+        dlg.format_secondary_text("\n\n".join(partes))
+        dlg.add_buttons("Ver en el sitio", 1, "Cerrar", Gtk.ResponseType.CLOSE)
+        if dlg.run() == 1:
+            webbrowser.open(mc.SITIO_URL + "misas.html")
+        dlg.destroy()
+        return False
 
     def quitar_fila(self, ruta):
         for fila in self.lista:

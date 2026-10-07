@@ -20,6 +20,7 @@ import { activarPosturas } from "./posturas.js";
 import { botonesPartituras } from "./partituras.js";
 import { crearMezclador, pistasDeVoces } from "./voces.js";
 import { desbloquear } from "./silencio.js";
+import { crearReproductorYT, esYoutube } from "./youtube-embed.js";
 import {
   MOMENTOS_MISA, TIEMPOS, claveMomento, esDelMomento, momentoPorLetra, ordenMomento, hoyIso, proximoDomingo, fechaLarga,
   tituloLiturgico, tiempoPorFecha, momentosDeMisa, sugerirCantos as sugerirDeLaBiblioteca,
@@ -869,6 +870,7 @@ async function pintarLienzo() {
   const v = st.vista;
   const box = $("#cancion");
   if (mezclador && mezclador.cancionId !== v?.cancionId) mezclador.cerrar();
+  if (videoMisas && videoMisas.cancionId !== v?.cancionId) cerrarVideo();
   programarVivo();
   if (!v) {
     st.tonoOriginal = null;
@@ -962,6 +964,7 @@ function botonVoces(entrada, box) {
   b.title = "Escuchar " + pistas.map((p) => VOICES[p.voz]?.label || p.voz).join(", ") + " juntas, con volumen, silencio y solo por voz";
   b.addEventListener("click", () => {
     b.hidden = true;
+    videoMisas?.rep.pause();
     const m = crearMezclador({ contenedor: box, pistas, leerAudio: bytesDeAudio,
       alCerrar: () => { box.querySelector(".btn-voces")?.removeAttribute("hidden"); if (mezclador === m) mezclador = null; } });
     mezclador = Object.assign(m, { cancionId: entrada.id, el: box.querySelector(".mezclador") });
@@ -970,13 +973,46 @@ function botonVoces(entrada, box) {
   return b;
 }
 
+// Un solo video de YouTube a la vez, insertado debajo de los audios (fuera de #audios: al cambiar el tono la
+// lista se vuelve a pintar y mover el iframe lo haría empezar de nuevo)
+let videoMisas = null; // { cancionId, url, el, rep }
+
+function cerrarVideo() {
+  if (!videoMisas) return;
+  videoMisas.rep.destruir();
+  videoMisas.el.remove();
+  videoMisas = null;
+}
+
+function verVideo(cancionId, url) {
+  cerrarVideo();
+  mezclador?.cerrar();
+  const el = document.createElement("div");
+  el.className = "audio-video";
+  const marco = document.createElement("div");
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.target = "_blank";
+  enlace.rel = "noopener";
+  enlace.className = "audio-video-enlace";
+  enlace.textContent = "Abrir en YouTube";
+  el.append(marco, enlace);
+  $("#audios").after(el);
+  const rep = crearReproductorYT(marco);
+  videoMisas = { cancionId, url, el, rep };
+  rep.cargar(url, true);
+  el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
 function pintarAudios(entrada) {
   const box = $("#audios");
-  const lista = entrada.audios || [];
+  // Primero los audios del Drive, después los enlaces y videos
+  const lista = [...(entrada.audios || [])].sort((a, b) => (a.fileId ? 0 : 1) - (b.fileId ? 0 : 1));
   const puedeAgregar = !$("#btn-subir").hidden && (!entrada.comunidad || puedeEditar(entrada.comunidad));
-  // Cambiar el tono vuelve a pintar la misma canción: el mezclador sigue sonando
+  // Cambiar el tono vuelve a pintar la misma canción: el mezclador y el video siguen sonando
   const sigue = mezclador?.cancionId === entrada.id && pistasDeVoces(entrada.audios).length >= 2 ? mezclador : null;
   if (!sigue) mezclador?.cerrar();
+  if (videoMisas && (videoMisas.cancionId !== entrada.id || !lista.some((a) => a.url === videoMisas.url))) cerrarVideo();
   box.hidden = !lista.length && !puedeAgregar && !entrada.partituras?.length;
   const voces = botonVoces(entrada, box);
   if (sigue) voces.hidden = true;
@@ -993,6 +1029,16 @@ function pintarAudios(entrada) {
       b.className = "btn-chico btn-escuchar";
       b.textContent = "▶ Escuchar";
       b.addEventListener("click", () => audioDeRespaldo(b, a.fileId));
+      div.append(b);
+    } else if (esYoutube(a.url)) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn-chico btn-escuchar";
+      b.textContent = videoMisas?.url === a.url ? "■ Cerrar el video" : "▶ Ver y escuchar";
+      b.addEventListener("click", () => {
+        if (videoMisas?.url === a.url) cerrarVideo(); else verVideo(entrada.id, a.url);
+        pintarAudios(entrada);
+      });
       div.append(b);
     } else if (a.url && /youtu\.?be|vimeo\.com/i.test(a.url)) {
       const link = document.createElement("a");
