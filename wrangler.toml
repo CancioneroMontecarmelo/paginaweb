@@ -8,9 +8,9 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 GOOGLE_CLIENT_ID = "446127505219-pei616euh78muqr6ak500br0ac41t2mk.apps.googleusercontent.com"
 CORREO_PARROQUIA = "cancionerolitugico@gmail.com"
-# Dirección pública del sitio (con / al final): va en los enlaces de audio de los .md y en las invitaciones.
-# Vacía = la del pedido (sirve para probar en local).
-SITIO_URL = ""
+# Dirección pública del sitio (con / al final): va en los enlaces de audio de los .md y en las invitaciones
+# (también en las vistas previas, que usan la misma base). Vacía = la del pedido: .dev.vars la deja vacía en local.
+SITIO_URL = "https://montecarmelo.pages.dev/"
 
 [[d1_databases]]
 binding = "DB"
