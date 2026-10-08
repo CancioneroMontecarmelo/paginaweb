@@ -12,7 +12,7 @@ Antes:
   3. Una clave de administrador general: login.html → «Copiar clave para el script».
 
 Uso:
-  python3 scripts/migrar-a-cloudflare.py --sitio https://montecarmelo.pages.dev/
+  python3 scripts/migrar-a-cloudflare.py --sitio https://montecarmelo-kxg.pages.dev/
   python3 scripts/migrar-a-cloudflare.py --sitio http://127.0.0.1:8788/ --local     (prueba con wrangler pages dev)
 
 Para la mudanza definitiva: en el editor de Apps Script ejecutar congelarCambios(), correr este script otra vez
@@ -405,7 +405,7 @@ def obtener_clave(dada):
 
 def main():
     ap = argparse.ArgumentParser(description="Copia el Drive de la parroquia al sitio en Cloudflare.")
-    ap.add_argument("--sitio", required=True, help="dirección del sitio nuevo, p. ej. https://montecarmelo.pages.dev/")
+    ap.add_argument("--sitio", required=True, help="dirección del sitio nuevo, p. ej. https://montecarmelo-kxg.pages.dev/")
     ap.add_argument("--api-vieja", default=APPS_SCRIPT, help="dirección del Apps Script")
     ap.add_argument("--clave", help="clave de administrador general (si no, la guardada)")
     ap.add_argument("--local", action="store_true", help="cargar en la base y el R2 locales de wrangler pages dev")

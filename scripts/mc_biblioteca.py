@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-SITIO_URL = "https://montecarmelo.pages.dev/"  # SITIO en js/config.js
+SITIO_URL = "https://montecarmelo-kxg.pages.dev/"  # SITIO en js/config.js
 API_POR_DEFECTO = SITIO_URL + "api"
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "montecarmelo" / "sesion.json"
 MAX_BYTES = 30 * 1024 * 1024  # MAX_ARCHIVO_BYTES en servidor/util.js

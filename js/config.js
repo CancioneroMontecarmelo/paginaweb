@@ -3,7 +3,7 @@
 // googleClientId: «ID de cliente» OAuth para el botón «Entrar con Google» (el mismo que GOOGLE_CLIENT_ID en
 // wrangler.toml).
 (function () {
-  var SITIO = 'https://montecarmelo.pages.dev/';
+  var SITIO = 'https://montecarmelo-kxg.pages.dev/';
   var VIEJO = { host: 'cancioneromontecarmelo.github.io', base: '/paginaweb/' };
   var MIGRAR = '#mc-migrar=';
 

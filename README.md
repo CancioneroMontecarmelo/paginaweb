@@ -5,7 +5,7 @@ Misas, el reproductor y los cancioneros litúrgicos hechos con el editor **Canci
 El servidor de la parroquia es `/api` en el mismo sitio (Pages Functions, código en `servidor/`): los datos
 viven en una base **D1** y los archivos (audios, partituras, cancioneros publicados) en **R2**.
 
-- Página publicada: <https://montecarmelo.pages.dev/>
+- Página publicada: <https://montecarmelo-kxg.pages.dev/>
 - La dirección vieja (<https://cancioneromontecarmelo.github.io/paginaweb/>) lleva sola a la misma página
   del sitio nuevo, con lo que el navegador tenía guardado (sesión, listas, preferencias).
 - Cada `git push` a `main` vuelve a publicar el sitio en 1–2 minutos.
@@ -31,9 +31,9 @@ Los usuarios viven en la tabla `usuarios` de D1 (privada).
 ### ID de cliente de Google (una sola vez)
 
 En <https://console.cloud.google.com/auth/clients> (proyecto de la cuenta de la parroquia), el cliente
-«Aplicación web» tiene que tener en **Orígenes autorizados de JavaScript**: `https://montecarmelo.pages.dev`,
+«Aplicación web» tiene que tener en **Orígenes autorizados de JavaScript**: `https://montecarmelo-kxg.pages.dev`,
 `http://localhost:8788` y `http://127.0.0.1:8788` (y la dirección de una vista previa, como
-`https://cloudflare.montecarmelo.pages.dev`, si se quiere entrar con Google en ella). El ID
+`https://cloudflare.montecarmelo-kxg.pages.dev`, si se quiere entrar con Google en ella). El ID
 (`….apps.googleusercontent.com`) va en `GOOGLE_CLIENT_ID` (`wrangler.toml`) y en `googleClientId`
 (`js/config.js`). En «Público», la app tiene que estar **publicada** (en producción) para que entre
 cualquier cuenta de Google.
@@ -85,11 +85,11 @@ Con la cuenta **cancionerolitugico@gmail.com**, desde la raíz del sitio:
 6. En el proyecto: **Configuración → Variables y secretos → Agregar → Secreto** `SECRETO` (para producción
    y vista previa). Su valor sale del Apps Script: en el editor de Apps Script ejecutá
    `verSecretoParaCloudflare` y copiá lo que muestra el registro.
-7. Si Cloudflare da otro nombre que `montecarmelo.pages.dev` (porque ya estaba usado), cambiá la dirección
-   en `SITIO_URL` (`wrangler.toml`), `SITIO` (`js/config.js`) y `SITIO_URL` (`scripts/mc_biblioteca.py`).
+7. Cloudflare dio `montecarmelo-kxg.pages.dev` (`montecarmelo` ya estaba usado). Si alguna vez cambia, la
+   dirección está en `SITIO_URL` (`wrangler.toml`), `SITIO` (`js/config.js`) y `SITIO_URL` (`scripts/mc_biblioteca.py`).
 8. Sumá la dirección a los orígenes del cliente de Google (ver arriba).
 
-Cada rama distinta de `main` se publica como **vista previa** en `https://<rama>.montecarmelo.pages.dev`,
+Cada rama distinta de `main` se publica como **vista previa** en `https://<rama>.montecarmelo-kxg.pages.dev`,
 con la misma base y los mismos archivos que el sitio publicado.
 
 ### Plan gratuito
@@ -106,10 +106,10 @@ medianoche (hora UTC) y el resto del sitio sigue andando; en ese caso conviene e
 `scripts/migrar-a-cloudflare.py` copia todo lo del Apps Script y el Drive: usuarios, registro, visitas,
 libro, coros, ensayos, Biblioteca (canciones, audios y partituras), cancioneros publicados, misas con sus
 lecturas propias y actividades. Los archivos conservan su id del Drive, y los enlaces del Drive y del Apps
-Script dentro de los `.md`, `.html` y `.m3u8` pasan a `https://montecarmelo.pages.dev/api/…`. Se puede
+Script dentro de los `.md`, `.html` y `.m3u8` pasan a `https://montecarmelo-kxg.pages.dev/api/…`. Se puede
 cortar y volver a correr: lo ya bajado o subido no se repite (queda en `migracion/`, que no va a git).
 
-1. **Ensayo**: con el sitio viejo funcionando, `scripts/migrar-a-cloudflare.py --sitio https://montecarmelo.pages.dev/`
+1. **Ensayo**: con el sitio viejo funcionando, `scripts/migrar-a-cloudflare.py --sitio https://montecarmelo-kxg.pages.dev/`
    (o primero `--local` contra `npm run local`). Pide la clave de administrador general del sitio viejo
    (Identificarse → «Copiar clave para el script»). Revisá el sitio nuevo (o la vista previa de la rama).
 2. **Pegar `backend/Code.gs` en el Apps Script** y publicar una versión nueva (tiene `exportarTodo`,
@@ -308,7 +308,7 @@ quedan como elegidas.
 - **Grabar con el micrófono**: la toma se escucha antes de subirla y también queda en .m4a.
 - Cada audio queda **vinculado al `.md`** de su canción: se agrega a la canción y se escribe en el `.md`
   la misma etiqueta que usa el editor,
-  `<audio controls src="https://montecarmelo.pages.dev/api/audio/<id>" title="…" data-voz="…"></audio>`.
+  `<audio controls src="https://montecarmelo-kxg.pages.dev/api/audio/<id>" title="…" data-voz="…"></audio>`.
   Al quitar un audio se borra la etiqueta, y si ninguna otra canción lo usa se borra el archivo.
 - **Arrastrar y soltar**: en la computadora se sueltan los archivos en el diálogo (o en cualquier parte
   de la pantalla Misas, que lo abre). En el celular se toca la zona y se eligen desde Archivos, Drive o
