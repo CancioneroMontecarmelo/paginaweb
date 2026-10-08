@@ -1,0 +1,14 @@
+{
+  "name": "montecarmelo",
+  "private": true,
+  "description": "Sitio de la Parroquia Nuestra Señora del Monte Carmelo (Cloudflare Pages + Functions + D1 + R2)",
+  "scripts": {
+    "armar": "bash scripts/armar-sitio.sh",
+    "local": "bash scripts/armar-sitio.sh && wrangler pages dev dist --port 8788",
+    "base:local": "wrangler d1 migrations apply montecarmelo --local",
+    "base:remota": "wrangler d1 migrations apply montecarmelo --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^4.86.0"
+  }
+}

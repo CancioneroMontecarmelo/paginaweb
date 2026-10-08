@@ -1,1 +1,6 @@
 __pycache__/
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+migracion/

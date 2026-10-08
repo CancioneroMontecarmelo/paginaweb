@@ -1,0 +1,23 @@
+# Cloudflare Pages: sitio estático (dist/, lo arma scripts/armar-sitio.sh) + API en functions/ (servidor/).
+# database_id: lo da `npx wrangler d1 create montecarmelo` (ver README, «Cloudflare»).
+name = "montecarmelo"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+GOOGLE_CLIENT_ID = "446127505219-pei616euh78muqr6ak500br0ac41t2mk.apps.googleusercontent.com"
+CORREO_PARROQUIA = "cancionerolitugico@gmail.com"
+# Dirección pública del sitio (con / al final): va en los enlaces de audio de los .md y en las invitaciones.
+# Vacía = la del pedido (sirve para probar en local).
+SITIO_URL = ""
+
+[[d1_databases]]
+binding = "DB"
+database_name = "montecarmelo"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "ARCHIVOS"
+bucket_name = "montecarmelo-archivos"
