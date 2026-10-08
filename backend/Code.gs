@@ -85,6 +85,9 @@ function doPost(e) {
   try {
     var fn = ACCIONES[datos.accion];
     if (!fn) throw new Error('Acción desconocida: ' + datos.accion);
+    if (!SIN_CAMBIOS_[datos.accion] && PropertiesService.getScriptProperties().getProperty('SOLO_LECTURA')) {
+      throw new Error('El sitio se está mudando a su nueva dirección: por un rato no se pueden guardar cambios. Probá de nuevo más tarde.');
+    }
     var r = fn(datos) || {};
     r.ok = true;
     if (usuarioPedido_ && !r.token) r.token = crearToken_(usuarioPedido_);
@@ -136,7 +139,16 @@ var ACCIONES = {
   borrarActividad: borrarActividad_,
   firmarLibro: firmarLibro_,
   ocultarVisita: ocultarVisita_,
-  listarVisitantes: listarVisitantes_
+  listarVisitantes: listarVisitantes_,
+  exportarTodo: exportarTodo_,
+  exportarArchivo: exportarArchivo_
+};
+
+// Acciones que siguen andando con la propiedad SOLO_LECTURA puesta (mientras se copia todo a Cloudflare)
+var SIN_CAMBIOS_ = {
+  entrarGoogle: 1, entrarVisitante: 1, sesion: 1, listarUsuarios: 1, auditoria: 1, abrir: 1, archivo: 1, listar: 1,
+  audiosAConvertir: 1, leerAudioAConvertir: 1, leerEnsayos: 1, listarCoros: 1, listarVisitantes: 1,
+  exportarTodo: 1, exportarArchivo: 1
 };
 
 function json_(obj) {
@@ -2585,6 +2597,151 @@ function listarVisitantes_(d) {
       .sort(function (a, b) { return String(b.ultima).localeCompare(String(a.ultima)); }),
     libro: leerLibro_().mensajes.slice(0, 300)
   };
+}
+
+// ==================== MUDANZA A CLOUDFLARE (temporal) ====================
+// scripts/migrar-a-cloudflare.py llama a exportarTodo con el cursor que recibe hasta que vuelve sin cursor, y
+// baja con exportarArchivo lo que no puede bajar directo del Drive. Se puede borrar después de la mudanza.
+
+var EXPORTAR_SEG_ = 240;
+
+function exportarTodo_(d) {
+  soloAdminGeneral_(d.token);
+  var cursor = d.cursor || { etapa: 'datos', i: 0 };
+  var limite = Date.now() + EXPORTAR_SEG_ * 1000;
+  var r = { etapa: cursor.etapa };
+  var bib = leerBiblioteca_().canciones;
+
+  if (cursor.etapa === 'datos') {
+    var sis = sistema_(), raiz = raiz_();
+    r.datos = {
+      usuarios: leerJson_(sis, 'usuarios.json', []),
+      auditoria: leerJson_(sis, 'auditoria.json', []),
+      visitantes: leerJson_(sis, 'visitantes.json', []),
+      libro: leerJson_(sis, 'libro.json', null),
+      coros: leerJson_(sis, 'coros.json', []),
+      ensayos: leerJson_(sis, 'ensayos.json', {}),
+      indice: leerIndice_(),
+      biblioteca: leerBiblioteca_(),
+      misas: leerJson_(raiz, 'misas.json', null),
+      actividades: leerJson_(raiz, 'actividades.json', null)
+    };
+    r.cursor = { etapa: 'md', i: 0 };
+    return r;
+  }
+
+  if (cursor.etapa === 'md') {
+    r.md = {};
+    var i = cursor.i || 0;
+    for (; i < bib.length && Date.now() < limite; i++) {
+      var c = bib[i];
+      if (!c.mdId) continue;
+      try { r.md[c.id] = DriveApp.getFileById(c.mdId).getBlob().getDataAsString('UTF-8'); } catch (err) { r.md[c.id] = null; }
+    }
+    r.cursor = i < bib.length ? { etapa: 'md', i: i } : { etapa: 'audios', i: 0 };
+    return r;
+  }
+
+  if (cursor.etapa === 'audios' || cursor.etapa === 'partituras') {
+    var campo = cursor.etapa;
+    var vistos = {}, ids = [];
+    bib.forEach(function (c) {
+      (c[campo] || []).forEach(function (a) {
+        if (a.fileId && !vistos[a.fileId]) { vistos[a.fileId] = true; ids.push(a.fileId); }
+      });
+    });
+    ids.sort();
+    var bibId = carpetaRuta_(raiz_(), ['Biblioteca']).getId(), rutas = {};
+    r.archivos = [];
+    var j = cursor.i || 0;
+    for (; j < ids.length && Date.now() < limite; j++) {
+      var f;
+      try { f = DriveApp.getFileById(ids[j]); } catch (_) { r.archivos.push({ id: ids[j], falta: true }); continue; }
+      if (f.isTrashed()) { r.archivos.push({ id: ids[j], falta: true }); continue; }
+      r.archivos.push({
+        id: ids[j], nombre: f.getName(), tamano: f.getSize(), mime: f.getMimeType(),
+        creado: f.getDateCreated().toISOString(), carpeta: rutaEnBiblioteca_(f, bibId, rutas)
+      });
+    }
+    var siguiente = campo === 'audios' ? { etapa: 'partituras', i: 0 } : { etapa: 'cancioneros', i: 0 };
+    r.cursor = j < ids.length ? { etapa: campo, i: j } : siguiente;
+    return r;
+  }
+
+  if (cursor.etapa === 'cancioneros') {
+    var lista = leerIndice_().cancioneros;
+    r.cancioneros = {};
+    var k = cursor.i || 0;
+    for (; k < lista.length && Date.now() < limite; k++) {
+      try {
+        r.cancioneros[lista[k].folderId] = listarArchivos_(DriveApp.getFolderById(lista[k].folderId), '', []);
+      } catch (err) {
+        r.cancioneros[lista[k].folderId] = null;
+      }
+    }
+    r.cursor = k < lista.length ? { etapa: 'cancioneros', i: k } : { etapa: 'lecturas', i: 0 };
+    return r;
+  }
+
+  if (cursor.etapa === 'lecturas') {
+    // Solo las lecturas corregidas a mano de cada cancionero: las del día se vuelven a bajar solas
+    r.lecturas = {};
+    var it = subcarpeta_(raiz_(), 'Lecturas').getFiles();
+    while (it.hasNext()) {
+      var lf = it.next();
+      var m = /^misa-(.+)\.json$/.exec(lf.getName());
+      if (!m || lf.isTrashed()) continue;
+      try { r.lecturas[m[1]] = JSON.parse(lf.getBlob().getDataAsString('UTF-8')); } catch (_) {}
+    }
+    r.cursor = null;
+    return r;
+  }
+
+  throw new Error('Cursor de exportación desconocido');
+}
+
+// '' = Biblioteca/audios o Biblioteca/partituras; 'a/b' = carpeta subida dentro de Biblioteca; 'drive' = fuera
+function rutaEnBiblioteca_(f, bibId, cache) {
+  var padres = f.getParents();
+  if (!padres.hasNext()) return 'drive';
+  var p = padres.next(), pid = p.getId();
+  if (cache[pid] !== undefined) return cache[pid];
+  var partes = [], actual = p, ruta = 'drive';
+  for (var nivel = 0; nivel < 10 && actual; nivel++) {
+    if (actual.getId() === bibId) {
+      ruta = (partes.length === 1 && (partes[0] === 'audios' || partes[0] === 'partituras')) ? '' : partes.join('/');
+      break;
+    }
+    partes.unshift(actual.getName());
+    var sube = actual.getParents();
+    actual = sube.hasNext() ? sube.next() : null;
+  }
+  cache[pid] = ruta;
+  return ruta;
+}
+
+function exportarArchivo_(d) {
+  soloAdminGeneral_(d.token);
+  var f = DriveApp.getFileById(String(d.id || ''));
+  if (f.getSize() > 40 * 1024 * 1024) throw new Error('Archivo demasiado grande para exportarlo por acá');
+  return { base64: Utilities.base64Encode(f.getBlob().getBytes()), mime: f.getMimeType(), nombre: f.getName() };
+}
+
+/** Ejecutar a mano para ver el SECRETO que hay que copiar a Cloudflare (así las sesiones abiertas siguen
+ *  valiendo en el sitio nuevo). */
+function verSecretoParaCloudflare() {
+  console.log('SECRETO: ' + secreto_());
+}
+
+/** Ejecutar a mano para congelar (o descongelar) los cambios durante la mudanza definitiva. */
+function congelarCambios() {
+  PropertiesService.getScriptProperties().setProperty('SOLO_LECTURA', '1');
+  console.log('Cambios congelados: el sitio viejo solo deja leer.');
+}
+
+function descongelarCambios() {
+  PropertiesService.getScriptProperties().deleteProperty('SOLO_LECTURA');
+  console.log('Cambios habilitados de nuevo.');
 }
 
 /** Ejecutar a mano desde el editor de Apps Script (una vez, y otra si cambian los permisos) para autorizar
