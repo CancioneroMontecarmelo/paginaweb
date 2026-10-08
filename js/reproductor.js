@@ -7,12 +7,12 @@
  *    que se comparten con un enlace #l=… (WhatsApp o Copiar), y los cancioneros de misa (#misa=<id>) con
  *    sus momentos y tonos.
  *  - Reproduciendo: la letra con acordes en el tono del cancionero, créditos, posturas al tocar un acorde,
- *    partituras y «Aprender las voces». Un solo <audio>, que los audios del Drive reciben por accion=audio
- *    del Apps Script (Drive rechaza con 403 el enlace directo pedido desde otra página). Precarga la
- *    siguiente, Media Session (pantalla bloqueada y auriculares)
+ *    partituras y «Aprender las voces». Un solo <audio>, que recibe los audios de la Biblioteca directo de
+ *    /api/audio/<id> (empiezan a sonar mientras se bajan). Precarga la letra de la siguiente, Media Session
+ *    (pantalla bloqueada y auriculares)
  *    y Wake Lock (la pantalla no se apaga mientras se lee). Los enlaces de YouTube suenan con el reproductor
- *    de YouTube insertado arriba de la letra (js/youtube-embed.js), manejado con la misma barra; el audio del
- *    Drive va primero y, al terminar un video, no pasa sola a la siguiente.
+ *    de YouTube insertado arriba de la letra (js/youtube-embed.js), manejado con la misma barra; el audio de
+ *    la Biblioteca va primero y, al terminar un video, no pasa sola a la siguiente.
  *  - En vivo (#vivo=<código>): sigue la canción que elige quien dirige desde Misas, consultando cada 4 s.
  *
  * Usa los scripts clásicos del editor cargados antes (acordes, markdown, etiquetas, buscar, instrumentos,
@@ -24,7 +24,6 @@ import { COMUNIDADES } from "./comunidades.js";
 import { activarPosturas, cerrar as cerrarPostura } from "./posturas.js";
 import { botonesPartituras } from "./partituras.js";
 import { crearMezclador, pistasDeVoces } from "./voces.js";
-import { SILENCIO, desbloquear } from "./silencio.js";
 import { crearReproductorYT, esYoutube } from "./youtube-embed.js";
 
 const $ = (s) => document.querySelector(s);
@@ -62,7 +61,7 @@ const st = {
 
 async function leer(params) {
   const api = (window.MONTECARMELO_CONFIG || {}).apiUrl;
-  if (!api) throw new Error("El Drive de la parroquia todavía no está conectado.");
+  if (!api) throw new Error("El servidor de la parroquia todavía no está conectado.");
   let r;
   try {
     r = await (await fetch(api + "?" + new URLSearchParams(params))).json();
@@ -85,37 +84,12 @@ function textoCancion(id) {
 }
 
 const reproduceWebm = !!audio.canPlayType('audio/webm; codecs="opus"');
-let desbloqueado = false;
-const MAX_BLOBS = 12;
-const blobs = new Map();
-function blobDeAudio(fileId) {
-  if (blobs.has(fileId)) {
-    const p = blobs.get(fileId);
-    blobs.delete(fileId);
-    blobs.set(fileId, p);
-    return p;
-  }
-  const p = leer({ accion: "audio", id: fileId }).then((r) => {
-    if (/webm/i.test(r.mime || r.nombre || "") && !reproduceWebm) {
-      throw new Error("este audio todavía está en el formato anterior (WebM), que este equipo no reproduce. Cuando la Biblioteca termine de pasar a .m4a va a sonar.");
-    }
-    const bytes = Uint8Array.from(atob(r.base64), (ch) => ch.charCodeAt(0));
-    return URL.createObjectURL(new Blob([bytes], { type: r.mime || "audio/mp4" }));
-  });
-  blobs.set(fileId, p);
-  p.catch(() => blobs.delete(fileId));
-  // Los más viejos se liberan, salvo el que está sonando
-  for (const [id, viejo] of blobs) {
-    if (blobs.size <= MAX_BLOBS) break;
-    viejo.then((url) => { if (audio.src !== url) URL.revokeObjectURL(url); }, () => {});
-    blobs.delete(id);
-  }
-  return p;
-}
+const urlAudio = (fileId) => (window.MONTECARMELO_CONFIG || {}).apiUrl + "/audio/" + encodeURIComponent(fileId);
 
 const bytesDeAudio = async (fileId) => {
-  const r = await leer({ accion: "audio", id: fileId });
-  return Uint8Array.from(atob(r.base64), (ch) => ch.charCodeAt(0)).buffer;
+  const res = await fetch(urlAudio(fileId));
+  if (!res.ok) throw new Error("No se pudo cargar el audio");
+  return res.arrayBuffer();
 };
 
 // ============ AVISOS Y VISTAS ============
@@ -495,7 +469,7 @@ function elegirAudio(entrada) {
   let i = st.elegido.get(entrada.id);
   if (!(i >= 0 && i < lista.length)) {
     const mia = guardado("mc-mi-voz", "");
-    // A igualdad, el audio del Drive antes que el video de YouTube
+    // A igualdad, el audio de la Biblioteca antes que el video de YouTube
     const buscar = (f) => {
       const k = lista.findIndex((a) => f(a) && !esVideo(a));
       return k >= 0 ? k : lista.findIndex(f);
@@ -521,7 +495,7 @@ function cargarAudio(a, tocar, desde = 0) {
   audio.pause();
   if (desde && a && !esVideo(a)) {
     audio.addEventListener("loadedmetadata", () => {
-      if (t !== turno || audio.src === SILENCIO) return;
+      if (t !== turno) return;
       audio.currentTime = Math.min(desde, audio.duration || desde);
     }, { once: true });
   }
@@ -547,18 +521,10 @@ function cargarAudio(a, tocar, desde = 0) {
     if (tocar) audio.play().catch(() => {});
     return;
   }
-  if (tocar && !desbloqueado) {
-    desbloqueado = true;
-    desbloquear(audio);
-  } else audio.removeAttribute("src");
-  pintarDonde("Cargando el audio desde el Drive…");
-  blobDeAudio(a.fileId).then((url) => {
-    if (t !== turno) return;
-    audio.onerror = () => noDisponible(t, "Este navegador no pudo reproducir el audio.");
-    audio.src = url;
-    if (tocar) audio.play().catch(() => {});
-  }, (e) => noDisponible(t, "No se pudo cargar el audio: " + e.message))
-    .finally(() => { if (t === turno) pintarDonde(); });
+  audio.onerror = () => noDisponible(t, reproduceWebm ? "No se pudo cargar el audio."
+    : "No se pudo cargar el audio: puede que todavía esté en el formato anterior (WebM), que este equipo no reproduce.");
+  audio.src = urlAudio(a.fileId);
+  if (tocar) audio.play().catch(() => {});
 }
 
 function pintarDonde(extra) {
@@ -659,10 +625,6 @@ function precargar(i) {
   const it = st.cola?.items[i];
   if (!it) return;
   textoCancion(it.cancionId).catch(() => {});
-  const entrada = st.porId.get(it.cancionId);
-  const { lista, i: k } = elegirAudio(entrada || {});
-  const a = lista[k];
-  if (a?.fileId) blobDeAudio(a.fileId).catch(() => {});
 }
 
 // ============ ALEATORIO Y REPETIR ============
@@ -769,7 +731,7 @@ function pintarBarra() {
   $("#rp-progreso").disabled = !dur;
   $("#rp-actual").textContent = reloj(m.currentTime);
   $("#rp-total").textContent = reloj(dur);
-  if (!m.paused && audio.src !== SILENCIO && Date.now() - ultimoGuardado > 5000) guardarSonando();
+  if (!m.paused && Date.now() - ultimoGuardado > 5000) guardarSonando();
 }
 
 function sesionDeMedios(entrada, item) {
@@ -1100,18 +1062,14 @@ function conectar() {
   // La pausa que hace cargarAudio al cambiar de canción no se guarda: el segundo sería el de la anterior
   audio.addEventListener("playing", () => {
     saltos = 0;
-    if (audio.src !== SILENCIO) {
-      turnoSonando = turno;
-      retomarEn = 0;
-    }
+    turnoSonando = turno;
+    retomarEn = 0;
   });
   audio.addEventListener("pause", () => {
     estadoDeMedios(true);
-    if (turnoSonando === turno && audio.src !== SILENCIO) guardarSonando();
+    if (turnoSonando === turno) guardarSonando();
   });
-  audio.addEventListener("ended", () => {
-    if (audio.src !== SILENCIO) alTerminarPista();
-  });
+  audio.addEventListener("ended", alTerminarPista);
   $("#rp-aleatorio").addEventListener("click", () => {
     modos.aleatorio = !modos.aleatorio;
     guardar("mc-rp-aleatorio", modos.aleatorio ? "si" : "no");
@@ -1173,7 +1131,7 @@ function conectar() {
 
 function prepararApp() {
   const app = document.body.classList.contains("rp-app");
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-reproductor.js", { scope: "./reproductor.html" }).catch(() => {});
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-reproductor.js", { scope: "./reproductor" }).catch(() => {});
   if (app) {
     // En la app la página de la parroquia se abre en el navegador, sin salir del reproductor
     $("#rp-marca").target = "_blank";

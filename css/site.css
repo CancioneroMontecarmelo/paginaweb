@@ -865,20 +865,6 @@ a:hover {
   margin-bottom: 0.35rem;
 }
 
-.sueltos-resultado {
-  margin-top: 0.75rem;
-  font-size: 0.95rem;
-}
-
-.sueltos-grupo {
-  margin: 0.5rem 0;
-}
-
-.sueltos-grupo summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-
 /* ============ Inicio: marquesina de actividades ============ */
 
 .marquesina {

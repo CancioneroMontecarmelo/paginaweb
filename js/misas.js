@@ -2,24 +2,23 @@
  * misas.js — Pantalla Misas (misas.html), común a todas las comunidades.
  *
  *  - Panel derecho: cancioneros de misa de la comunidad y sus momentos; «Agregar nuevo» pide nombre y fecha,
- *    arma los momentos con cantos sugeridos y «Publicar» los guarda y arma su página en el Drive.
+ *    arma los momentos con cantos sugeridos y «Publicar» los guarda y arma su página en la nube.
  *  - Panel izquierdo: la Biblioteca, con dos pestañas: canciones (filtradas por la etiqueta del momento
- *    elegido, con checks) y las lecturas del día de la misa (eucaristiadiaria.cl, por el Apps Script).
+ *    elegido, con checks) y las lecturas del día de la misa (eucaristiadiaria.cl, por el servidor).
  *  - Centro: la canción con acordes (transpuesta) y sus audios.
  *  - Diálogos: cancionero nuevo, publicar, guardar (fechas, ensayos y asistencia), coro, canciones y audios.
  *
  * Usa los scripts clásicos del editor cargados antes en la página (acordes, markdown, etiquetas, render)
- * más js/misas-shim.js. Los datos viven en el Drive a través del Apps Script (backend/Code.gs).
+ * más js/misas-shim.js. Los datos viven en la nube a través de /api (servidor/ en Cloudflare).
  */
 
-import { llamarApi, sesionActual, puedeEditar, initNavSitio, comunidadesOpciones, ROLES } from "./auth.js";
+import { llamarApi, subirBinario, sesionActual, puedeEditar, initNavSitio, comunidadesOpciones, ROLES } from "./auth.js";
 import { COMUNIDADES } from "./comunidades.js";
 import { aM4a, esAudio, esM4a, grabador } from "./audio-aac.js";
 import { leerEtiquetasAudio } from "./etiquetas-audio.js";
 import { activarPosturas } from "./posturas.js";
 import { botonesPartituras } from "./partituras.js";
 import { crearMezclador, pistasDeVoces } from "./voces.js";
-import { desbloquear } from "./silencio.js";
 import { crearReproductorYT, esYoutube } from "./youtube-embed.js";
 import {
   MOMENTOS_MISA, TIEMPOS, claveMomento, esDelMomento, momentoPorLetra, ordenMomento, hoyIso, proximoDomingo, fechaLarga,
@@ -62,7 +61,7 @@ const st = {
 
 async function leer(params) {
   const api = (window.MONTECARMELO_CONFIG || {}).apiUrl;
-  if (!api) throw new Error("El Drive de la parroquia todavía no está conectado.");
+  if (!api) throw new Error("El servidor de la parroquia todavía no está conectado.");
   let r;
   try {
     r = await (await fetch(api + "?" + new URLSearchParams(params))).json();
@@ -533,7 +532,7 @@ function pintarBiblioteca() {
 
   if (!st.biblioteca.length) {
     cont.innerHTML = `<p class="aviso">${esc(st.errorBiblioteca ||
-      "La Biblioteca está vacía. Se llena sola cuando alguien guarda un cancionero desde el editor con «Guardar en Drive», o con «Subir canción».")}</p>`;
+      "La Biblioteca está vacía. Se llena sola cuando alguien guarda un cancionero desde el editor con «Guardar en la nube», o con «Subir canción».")}</p>`;
     return;
   }
   const consulta = st.busqueda.trim();
@@ -948,10 +947,12 @@ const reproduceWebm = !!document.createElement("audio").canPlayType('audio/webm;
 
 let mezclador = null;
 
-// Las voces se piden por el respaldo del Apps Script: Web Audio necesita los bytes, sin restricciones entre sitios
+const urlAudio = (fileId) => (window.MONTECARMELO_CONFIG || {}).apiUrl + "/audio/" + encodeURIComponent(fileId);
+
 async function bytesDeAudio(fileId) {
-  const r = await leer({ accion: "audio", id: fileId });
-  return Uint8Array.from(atob(r.base64), (ch) => ch.charCodeAt(0)).buffer;
+  const res = await fetch(urlAudio(fileId));
+  if (!res.ok) throw new Error("No se pudo cargar el audio");
+  return res.arrayBuffer();
 }
 
 function botonVoces(entrada, box) {
@@ -1006,7 +1007,7 @@ function verVideo(cancionId, url) {
 
 function pintarAudios(entrada) {
   const box = $("#audios");
-  // Primero los audios del Drive, después los enlaces y videos
+  // Primero los audios de la nube, después los enlaces y videos
   const lista = [...(entrada.audios || [])].sort((a, b) => (a.fileId ? 0 : 1) - (b.fileId ? 0 : 1));
   const puedeAgregar = !$("#btn-subir").hidden && (!entrada.comunidad || puedeEditar(entrada.comunidad));
   // Cambiar el tono vuelve a pintar la misma canción: el mezclador y el video siguen sonando
@@ -1024,12 +1025,7 @@ function pintarAudios(entrada) {
     et.textContent = "♪ " + (a.nombre || "Audio") + (voz ? " · " + voz : "");
     div.append(et);
     if (a.fileId) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "btn-chico btn-escuchar";
-      b.textContent = "▶ Escuchar";
-      b.addEventListener("click", () => audioDeRespaldo(b, a.fileId));
-      div.append(b);
+      div.append(audioDeBiblioteca(a.fileId));
     } else if (esYoutube(a.url)) {
       const b = document.createElement("button");
       b.type = "button";
@@ -1069,28 +1065,19 @@ function pintarAudios(entrada) {
   if (partituras) box.append(partituras);
 }
 
-// Drive rechaza el enlace directo pedido desde otra página: el audio se pide al Apps Script al tocar «Escuchar».
-// El <audio> se crea y suena dentro del toque (en iPhone tiene que ser así) y recibe el archivo al llegar.
-async function audioDeRespaldo(boton, fileId) {
+// El audio suena directo del servidor (empieza mientras se baja); preload="none": no se baja hasta tocar ▶
+function audioDeBiblioteca(fileId) {
   const au = document.createElement("audio");
   au.controls = true;
-  const aviso = document.createElement("small");
-  aviso.textContent = "Cargando el audio desde el Drive…";
-  boton.replaceWith(au);
-  au.after(aviso);
-  desbloquear(au);
-  try {
-    const r = await leer({ accion: "audio", id: fileId });
-    if (/webm/i.test(r.mime || r.nombre || "") && !reproduceWebm) {
-      throw new Error("este audio todavía está en el formato anterior (WebM), que este equipo no reproduce. Cuando la Biblioteca termine de pasar a .m4a va a sonar.");
-    }
-    const bytes = Uint8Array.from(atob(r.base64), (ch) => ch.charCodeAt(0));
-    au.src = URL.createObjectURL(new Blob([bytes], { type: r.mime || "audio/mpeg" }));
-    aviso.remove();
-    au.play().catch(() => {});
-  } catch (e) {
-    aviso.textContent = "No se pudo cargar el audio: " + e.message;
-  }
+  au.preload = "none";
+  au.src = urlAudio(fileId);
+  au.addEventListener("error", () => {
+    const aviso = document.createElement("small");
+    aviso.textContent = reproduceWebm ? "No se pudo cargar el audio."
+      : "No se pudo cargar el audio: puede que todavía esté en el formato anterior (WebM), que este equipo no reproduce.";
+    au.after(aviso);
+  }, { once: true });
+  return au;
 }
 
 // ============ TRASPONEDOR ============
@@ -1310,7 +1297,7 @@ function conectarNuevo() {
 
 // ============ PUBLICAR ============
 // Guarda el cancionero y lo abre en el editor (iframe oculto, editor/?misa=…&publicar=1), que arma la
-// carpeta con la página .html en el Drive igual que «Guardar en Drive» y avisa por postMessage.
+// carpeta con la página .html en la nube igual que «Guardar en la nube» y avisa por postMessage.
 
 let publicando = false;
 
@@ -1344,7 +1331,7 @@ async function publicarCancionero() {
     });
     await aplicarMisaGuardada(r.misa);
     pasoPublicar("Armando la página del cancionero…", 0.05);
-    const fin = await publicarEnDrive(r.misa.id);
+    const fin = await publicarPagina(r.misa.id);
     pasoPublicar("Guardando el enlace…", 0.97);
     r = await llamarApi("guardarMisa", { token: token(), misa: { ...r.misa, drive: { folderId: fin.folderId, htmlId: fin.htmlId } } });
     if (!r.misa.drive) throw new Error("El servidor no guardó el enlace de la página publicada.");
@@ -1360,7 +1347,7 @@ async function publicarCancionero() {
   }
 }
 
-function publicarEnDrive(id) {
+function publicarPagina(id) {
   return new Promise((resolve, reject) => {
     const iframe = document.createElement("iframe");
     iframe.className = "publicador";
@@ -1814,20 +1801,11 @@ const sub = { modo: "nueva", items: [], cancionId: "", grabacion: null, reloj: 0
 
 // «01 - Santo_santo (soprano).mp3» → «Santo santo (soprano)»
 const tituloDeArchivo = (n) => sinExtension(n).replace(/[_]+/g, " ").replace(/^\s*\d{1,3}\s*[-.)]\s*/, "").replace(/\s+/g, " ").trim();
-// Mismo id que da el Apps Script (slug_ en Code.gs) a la canción de ese título
+// Mismo id que da el servidor (slug en servidor/util.js) a la canción de ese título
 const idDeTitulo = (t) => "c-" + (String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
   .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "cancionero");
 // En «Canción nueva» sin ningún .md, cada audio dice a qué canción va (por su título)
 const soloAudios = () => sub.modo === "nueva" && !sub.items.some((i) => i.tipo === "md");
-
-function archivoBase64(f) {
-  return new Promise((ok, mal) => {
-    const lector = new FileReader();
-    lector.onload = () => ok(String(lector.result).split(",")[1] || "");
-    lector.onerror = () => mal(new Error("No se pudo leer " + f.name));
-    lector.readAsDataURL(f);
-  });
-}
 
 const opcionesVoz = (voz) => opciones([["", "Todas las voces"], ...VOICE_ORDER.map((k) => [k, VOICES[k].label])], voz || "");
 
@@ -1978,7 +1956,7 @@ function pintarActuales() {
     ? audios.map((a, i) => `<li class="archivo-item">
         <span class="tipo">Vinculado</span>
         <span class="archivo-nombre">${esc(a.nombre || "Audio")}${a.voz ? ` <small>· ${esc(VOICES[a.voz]?.label || a.voz)}</small>` : ""}</span>
-        <small class="estado">${a.fileId ? "En el Drive" : "Enlace"}</small>
+        <small class="estado">${a.fileId ? "En la nube" : "Enlace"}</small>
         <button type="button" class="btn-chico" data-desvincular="${i}">Quitar</button></li>`).join("")
     : '<li class="suave">Esta canción todavía no tiene audios.</li>';
 }
@@ -1998,7 +1976,7 @@ function pintarSubir() {
     ? "Con una sola canción (.md), todos los audios se le vinculan; con varias, cada audio va a la canción cuyo .md lo nombra. " +
       "También se pueden subir solo audios: cada uno queda como canción con el título que le pongas (los de igual título van juntos) " +
       "y, si el MP3 trae letra y acordes en sus etiquetas (Editag), se usan. La letra se completa después en el editor (Archivo → Abrir → Canción de la Biblioteca y después Guardar canción en la Biblioteca): queda unida a sus audios."
-    : "Elegí la canción y agregá los audios: se convierten a .m4a (suenan en todos los equipos), se guardan en el Drive de la parroquia y quedan vinculados a su .md.";
+    : "Elegí la canción y agregá los audios: se convierten a .m4a (suenan en todos los equipos), se guardan en la nube de la parroquia y quedan vinculados a su .md.";
   $("#s-enviar").textContent = nueva ? "Subir" : "Vincular audios";
   if (!nueva) {
     pintarSelectorCancion();
@@ -2095,10 +2073,9 @@ async function subirAudiosItems(audios, tituloCancion) {
       if (it.error) throw new Error(`«${it.nombre}»: ${it.error}`);
       it.estado = `Subiendo ${i + 1} de ${audios.length}…`;
       pintarEstado(it);
-      const r = await llamarApi("subirAudioBiblioteca", {
-        token: token(), nombre: it.listo.name, mime: it.listo.type || "audio/mp4",
-        base64: await archivoBase64(it.listo), cancion: tituloCancion, voz: it.voz
-      });
+      const r = await subirBinario("audio", {
+        nombre: it.listo.name, mime: it.listo.type || "audio/mp4", cancion: tituloCancion, voz: it.voz || ""
+      }, it.listo);
       it.fileId = r.fileId;
       it.estado = "Subido ✓";
       pintarEstado(it);

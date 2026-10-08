@@ -1,6 +1,6 @@
 'use strict';
 // Búsqueda de canciones de la Biblioteca por título, etiquetas, autores y letra (el campo «inicio» que arma el
-// Apps Script: la primera estrofa y las dos primeras líneas de las demás, separadas por « / »).
+// servidor: la primera estrofa y las dos primeras líneas de las demás, separadas por « / »).
 // No distingue mayúsculas ni tildes, encuentra fragmentos en medio de una línea y tolera las faltas de
 // ortografía comunes (h, b/v, c/s/z, ll/y, letras de más o de menos). La usan Misas y el editor.
 

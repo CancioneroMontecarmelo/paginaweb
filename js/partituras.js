@@ -3,22 +3,23 @@
  *
  *  - botonesPartituras(entrada, { editable, alCambiar }) devuelve la fila «Partitura · Voz» (+ «+ Partitura»
  *    para quien puede editar la canción) o null si no hay nada que mostrar.
- *  - Ver una partitura la abre en un diálogo con la vista previa de Drive (no baja el archivo ni pregunta con
- *    qué app abrirlo) y un botón «Descargar».
- *  - Subir y quitar van al Apps Script (subirPartitura / quitarPartitura), que las guarda en
- *    Biblioteca/partituras con acceso por enlace. alCambiar recibe la canción actualizada.
+ *  - Ver una partitura la abre en un diálogo, dibujada en la página (PDF con pdf.js de editor/vendor, fotos
+ *    como imagen: no pregunta con qué app abrirla), y un botón «Descargar».
+ *  - Subir (PUT /api/subir?tipo=partitura) y quitar (quitarPartitura) van al servidor de la parroquia.
+ *    alCambiar recibe la canción actualizada.
  *
  * Usa VOICES y VOICE_ORDER de editor/js/acordes.js (script clásico cargado antes: son const globales, no
  * propiedades de window).
  */
 
-import { llamarApi, sesionActual } from "./auth.js";
+import { llamarApi, subirBinario, sesionActual } from "./auth.js";
 
 const MAX_BYTES = 15 * 1024 * 1024;
 const TIPOS = /\.(pdf|png|jpe?g)$/i;
+const PDFJS = new URL("../editor/vendor/pdfjs/", import.meta.url).href;
 
-export const vistaPrevia = (id) => `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview`;
-export const descarga = (id) => `https://drive.google.com/uc?export=download&id=${encodeURIComponent(id)}`;
+const urlArchivo = (id) => (window.MONTECARMELO_CONFIG || {}).apiUrl + "/archivo/" + encodeURIComponent(id);
+export const descarga = (id) => urlArchivo(id) + "?descargar=1";
 
 const voces = () => (typeof VOICES === "object" ? VOICES : {});
 const nombreVoz = (v) => (v && v !== "todas" ? voces()[v]?.label || v : "");
@@ -65,9 +66,14 @@ function dialogoVer() {
       <a class="btn-chico partitura-bajar" target="_blank" rel="noopener">Descargar</a>
       <button type="button" class="btn-chico" data-cerrar>Cerrar</button>
     </div>
-    <iframe class="partitura-marco" title="Partitura" allow="fullscreen"></iframe>`;
+    <div class="partitura-marco" role="document"></div>`;
   dlgVer.querySelector("[data-cerrar]").addEventListener("click", () => dlgVer.close());
-  dlgVer.addEventListener("close", () => dlgVer.querySelector("iframe").removeAttribute("src"));
+  dlgVer.addEventListener("close", () => {
+    turnoVer++;
+    const marco = dlgVer.querySelector(".partitura-marco");
+    marco.querySelectorAll("img").forEach((img) => URL.revokeObjectURL(img.src));
+    marco.replaceChildren();
+  });
   document.body.append(dlgVer);
   return dlgVer;
 }
@@ -76,23 +82,80 @@ export function verPartitura(p, titulo) {
   const d = dialogoVer();
   d.querySelector(".partitura-titulo").textContent = (titulo ? titulo + " — " : "") + etiquetaPartitura(p);
   d.querySelector(".partitura-bajar").href = descarga(p.fileId);
-  d.querySelector("iframe").src = vistaPrevia(p.fileId);
   d.showModal();
+  mostrar(p, d.querySelector(".partitura-marco"));
+}
+
+let pdfjs = null;
+function cargarPdfJs() {
+  pdfjs ||= new Promise((ok, mal) => {
+    if (window.pdfjsLib) return ok(window.pdfjsLib);
+    const s = document.createElement("script");
+    s.src = PDFJS + "pdf.min.js";
+    s.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.js";
+      ok(window.pdfjsLib);
+    };
+    s.onerror = () => {
+      pdfjs = null;
+      mal(new Error("no se pudo cargar el visor de PDF"));
+    };
+    document.head.append(s);
+  });
+  return pdfjs;
+}
+
+function nota(texto) {
+  const p = document.createElement("p");
+  p.className = "partitura-nota";
+  p.textContent = texto;
+  return p;
+}
+
+let turnoVer = 0;
+async function mostrar(p, marco) {
+  const t = ++turnoVer;
+  marco.replaceChildren(nota("Cargando la partitura…"));
+  try {
+    const res = await fetch(urlArchivo(p.fileId));
+    if (!res.ok) throw new Error("ya no está en el servidor");
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (t !== turnoVer) return;
+    if (String.fromCharCode(...bytes.slice(0, 4)) !== "%PDF") {
+      const img = document.createElement("img");
+      img.className = "partitura-imagen";
+      img.alt = etiquetaPartitura(p);
+      img.src = URL.createObjectURL(new Blob([bytes], { type: p.mime || res.headers.get("Content-Type") || "image/jpeg" }));
+      marco.replaceChildren(img);
+      return;
+    }
+    const lib = await cargarPdfJs();
+    const pdf = await lib.getDocument({ data: bytes }).promise;
+    if (t !== turnoVer) return;
+    marco.replaceChildren();
+    const ancho = Math.min((marco.clientWidth || 760) - 16, 1100);
+    const dpr = window.devicePixelRatio || 1;
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const pagina = await pdf.getPage(i);
+      if (t !== turnoVer) return;
+      const vp = pagina.getViewport({ scale: (ancho / pagina.getViewport({ scale: 1 }).width) * dpr });
+      const c = document.createElement("canvas");
+      c.className = "partitura-pagina";
+      c.width = Math.round(vp.width);
+      c.height = Math.round(vp.height);
+      c.style.width = ancho + "px";
+      marco.append(c);
+      await pagina.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
+    }
+  } catch (e) {
+    if (t === turnoVer) marco.replaceChildren(nota("No se pudo mostrar la partitura: " + e.message + ". Probá con «Descargar»."));
+  }
 }
 
 // ============ SUBIR Y QUITAR ============
 
 let dlgSubir = null;
 const sub = { entrada: null, alCambiar: null, ocupado: false };
-
-function archivoBase64(f) {
-  return new Promise((ok, mal) => {
-    const lector = new FileReader();
-    lector.onload = () => ok(String(lector.result).split(",")[1] || "");
-    lector.onerror = () => mal(new Error("No se pudo leer " + f.name));
-    lector.readAsDataURL(f);
-  });
-}
 
 function dialogoSubir() {
   if (dlgSubir) return dlgSubir;
@@ -188,10 +251,9 @@ async function subir() {
   sub.ocupado = boton.disabled = true;
   estado("Subiendo «" + f.name + "»…");
   try {
-    const r = await llamarApi("subirPartitura", {
-      token: (sesionActual() || {}).token || "", cancionId: sub.entrada.id,
-      nombre: f.name, mime: f.type, voz: dlgSubir.querySelector(".partitura-voz").value, base64: await archivoBase64(f)
-    });
+    const r = await subirBinario("partitura", {
+      cancionId: sub.entrada.id, nombre: f.name, mime: f.type, voz: dlgSubir.querySelector(".partitura-voz").value
+    }, f);
     entrada.value = "";
     listo(r.cancion, "Listo: la partitura quedó en la canción.");
   } catch (err) {

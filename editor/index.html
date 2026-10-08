@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<script src="../js/config.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Editor de cancioneros — Monte Carmelo</title>
 <meta name="theme-color" content="#1a73e8">
@@ -29,7 +30,7 @@
           <button type="button" class="book-name unsaved" id="bookName" data-action="saveBook"><span class="book-icon">📒</span><span class="book-label">Cancionero sin nombre</span></button>
           <input type="text" class="doc-title" id="docTitle" aria-label="Título de la canción">
           <button type="button" class="doc-credits" data-action="creditsDialog" title="Créditos: quién escribió la letra y la música">✎ Créditos</button>
-          <button type="button" class="mc-drive" data-action="driveSave" title="Guardar el cancionero y sus audios en el Drive de la parroquia">☁ Guardar en Drive</button>
+          <button type="button" class="mc-drive" data-action="driveSave" title="Guardar el cancionero y sus audios en la nube de la parroquia">☁ Guardar en la nube</button>
           <span class="mc-sesion" id="mcSesion"></span>
         </div>
         <nav class="menubar" id="menubar" role="menubar"></nav>
@@ -182,7 +183,6 @@
 <script src="js/guardar.js"></script>
 <script src="js/colaboradores.js"></script>
 <script src="js/movil.js"></script>
-<script src="../js/config.js"></script>
 <script src="js/nube.js"></script>
 <script src="js/app.js"></script>
 </body>
