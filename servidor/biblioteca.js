@@ -399,13 +399,32 @@ export async function reemplazarAudio(c, request, p, token) {
   return { fileId: fila.id, nombre, tamano: bytes.length };
 }
 
+// Después de cargar la base (scripts/migrar-a-cloudflare.py): completa la letra de las canciones que no la
+// tenían (de a 100 por pedido) y rehace la lista pública
+async function rehacerBiblioteca(c, d) {
+  await soloAdminGeneral(c, d.token);
+  const { results } = await c.db.prepare("SELECT id, datos, md FROM canciones WHERE datos NOT LIKE '%\"inicio\":%' LIMIT 100").all();
+  if (results.length) {
+    const stmt = c.db.prepare('UPDATE canciones SET datos = ? WHERE id = ?');
+    await c.db.batch(results.map((f) => {
+      const e = parsear(f.datos, {});
+      e.inicio = letraInicio(f.md || '');
+      if (e.soloAudio === undefined) e.soloAudio = soloAudioMd(f.md || '');
+      return stmt.bind(JSON.stringify(e), f.id);
+    }));
+  }
+  const faltan = (await c.db.prepare("SELECT COUNT(*) AS n FROM canciones WHERE datos NOT LIKE '%\"inicio\":%'").first()).n;
+  if (!faltan) await regenerarBiblioteca(c);
+  return { completadas: results.length, faltan };
+}
+
 // Herramientas que trabajaban sobre las carpetas del Drive: quedaron hechas en la mudanza
 function herramientaDelDrive() {
   throw new ErrorApi('Esta herramienta era para las carpetas del Drive y ya no hace falta: la Biblioteca está ahora en el servidor de la parroquia.');
 }
 
 export const accionesBiblioteca = {
-  subirCancion, vincularAudio, desvincularAudio, quitarPartitura, audiosAConvertir, leerAudioAConvertir,
+  subirCancion, vincularAudio, desvincularAudio, quitarPartitura, audiosAConvertir, leerAudioAConvertir, rehacerBiblioteca,
   vincularAudiosSueltos: herramientaDelDrive, indexarCarpetas: herramientaDelDrive, quitarAudiosDeYoutube: herramientaDelDrive,
   subirAudioBiblioteca: () => { throw new ErrorApi('Actualizá la página (o la aplicación de escritorio): los audios ahora se suben de otra forma.'); }
 };
