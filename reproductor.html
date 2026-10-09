@@ -5,7 +5,7 @@
   <script src="./js/config.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Escuchá las canciones de la Biblioteca de la Parroquia Monte Carmelo con su letra y acordes, en listas o siguiendo un cancionero de misa.">
-  <meta name="theme-color" content="#14110d">
+  <meta name="theme-color" content="#030303">
   <title>Reproductor · Monte Carmelo</title>
   <link rel="manifest" href="./reproductor.webmanifest">
   <link rel="icon" href="./icons/reproductor-192.png">
@@ -47,25 +47,43 @@
     </ul>
   </nav>
 
-  <main class="rp">
-    <div class="rp-pestanas" role="tablist" aria-label="Secciones del reproductor">
-      <button type="button" class="rp-pestana activa" role="tab" aria-selected="true" data-vista="canciones">Canciones</button>
-      <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="listas">Listas</button>
-      <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="sonando">Reproduciendo</button>
-      <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="vivo">En vivo</button>
-      <button type="button" class="rp-btn rp-instalar" id="rp-instalar" hidden>Instalar app</button>
-    </div>
+  <!-- Menú: a la izquierda en el PC, abajo en el celular -->
+  <nav class="rp-pestanas" role="tablist" aria-label="Secciones del reproductor">
+    <button type="button" class="rp-pestana activa" role="tab" aria-selected="true" data-vista="inicio" data-ico="inicio">Inicio</button>
+    <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="canciones" data-ico="buscar">Canciones</button>
+    <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="listas" data-ico="biblioteca">Listas</button>
+    <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="sonando" data-ico="nota">Reproduciendo</button>
+    <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="vivo" data-ico="vivo">En vivo</button>
+    <button type="button" class="rp-pestana rp-instalar" data-ico="instalar" hidden>Instalar app</button>
+  </nav>
 
+  <main class="rp">
     <div class="rp-compartida" id="rp-compartida" hidden>
       <span>Lista compartida: <b id="rp-compartida-nombre"></b></span>
       <button type="button" class="rp-btn" id="rp-guardar-compartida">Guardar en mis listas</button>
     </div>
 
+    <!-- Inicio: el próximo domingo y estanterías con la música de la parroquia -->
+    <section class="rp-vista" id="vista-inicio" role="tabpanel">
+      <div class="rp-portada" id="rp-portada">
+        <small id="rp-portada-sobre">Parroquia Monte Carmelo</small>
+        <h1 id="rp-portada-titulo">Reproductor</h1>
+        <p id="rp-portada-tiempo"></p>
+        <div class="rp-portada-botones">
+          <span id="rp-portada-acciones"></span>
+          <button type="button" class="rp-btn rp-instalar rp-solo-celular" hidden>Instalar app</button>
+        </div>
+      </div>
+      <div id="rp-estantes"><p class="rp-aviso">Cargando la Biblioteca…</p></div>
+    </section>
+
     <!-- Canciones de la Biblioteca -->
-    <section class="rp-vista" id="vista-canciones" role="tabpanel">
+    <section class="rp-vista" id="vista-canciones" role="tabpanel" hidden>
       <div class="rp-buscar">
-        <input type="search" id="rp-buscar" placeholder="Buscar por título, frase de la letra, autor o momento" autocomplete="off" aria-label="Buscar canciones">
-        <label class="rp-check"><input type="checkbox" id="rp-con-audio"> Solo con audio o video</label>
+        <label class="rp-buscar-caja"><span data-ico="buscar"></span>
+          <input type="search" id="rp-buscar" placeholder="Buscar por título, frase de la letra, autor o momento" autocomplete="off" aria-label="Buscar canciones">
+        </label>
+        <label class="rp-chip"><input type="checkbox" id="rp-con-audio"> Solo con audio o video</label>
       </div>
       <p class="rp-aviso" id="rp-estado-bib">Cargando la Biblioteca…</p>
       <ul class="rp-lista" id="rp-canciones"></ul>
@@ -93,30 +111,43 @@
       <div class="rp-vacio" id="rp-nada">
         <p>Elegí una canción o una lista para empezar.</p>
       </div>
-      <div id="rp-sonando" hidden>
-        <div class="rp-cabeza">
-          <div>
-            <p class="rp-momento" id="rp-momento" hidden></p>
-            <p class="rp-donde" id="rp-donde"></p>
+      <div class="rp-sonando" id="rp-sonando" hidden>
+        <div class="rp-principal">
+          <header class="rp-hero">
+            <span class="rp-hero-cara" id="rp-hero-cara"></span>
+            <div class="rp-hero-texto">
+              <p class="rp-momento" id="rp-momento" hidden></p>
+              <h1 class="rp-titulo" id="rp-titulo"></h1>
+              <p class="rp-donde" id="rp-donde"></p>
+              <div class="rp-ajustes">
+                <button type="button" class="rp-btn" id="rp-agregar-actual" title="Agregar esta canción a una lista">+ Lista</button>
+                <button type="button" class="rp-btn" id="rp-acordes" aria-pressed="true" title="Mostrar u ocultar los acordes">Letra y acordes</button>
+                <button type="button" class="rp-btn" id="rp-menos" title="Letra más chica">A−</button>
+                <button type="button" class="rp-btn" id="rp-mas" title="Letra más grande">A+</button>
+                <button type="button" class="rp-btn" id="rp-colores" title="Cambiar los colores del reproductor">Colores</button>
+              </div>
+            </div>
+          </header>
+          <div class="rp-extras">
+            <label class="rp-voz" id="rp-voz-caja" hidden>Voz
+              <select id="rp-voz"></select>
+            </label>
+            <div id="rp-extras"></div>
           </div>
-          <div class="rp-ajustes">
-            <button type="button" class="rp-btn" id="rp-agregar-actual" title="Agregar esta canción a una lista">+ Lista</button>
-            <button type="button" class="rp-btn" id="rp-acordes" aria-pressed="true" title="Mostrar u ocultar los acordes">Letra y acordes</button>
-            <button type="button" class="rp-btn" id="rp-menos" title="Letra más chica">A−</button>
-            <button type="button" class="rp-btn" id="rp-mas" title="Letra más grande">A+</button>
-            <button type="button" class="rp-btn" id="rp-colores" title="Cambiar los colores del reproductor">Colores</button>
+          <div class="rp-video" id="rp-video" hidden></div>
+          <p class="rp-aviso rp-video-nota" id="rp-video-nota" hidden>En el celular, YouTube se pausa al salir de la página o apagar la pantalla; los audios de la Biblioteca siguen sonando.</p>
+          <p class="rp-sin-audio" id="rp-sin-audio" hidden>Esta canción no tiene audio: cantala con la letra y pasá a la siguiente cuando quieras.</p>
+          <article class="song-render rp-letra" id="rp-letra"></article>
+        </div>
+        <!-- La cola: a la derecha en el PC, como hoja que sube en el celular -->
+        <aside class="rp-cola" id="rp-cola" aria-label="A continuación">
+          <div class="rp-cola-cabeza">
+            <span class="rp-cola-texto"><small>A continuación</small><b id="rp-cola-nombre"></b></span>
+            <span class="rp-cola-modos" id="rp-cola-modos"></span>
+            <button type="button" class="rp-ctl" id="rp-cola-cerrar" aria-label="Cerrar la cola">✕</button>
           </div>
-        </div>
-        <div class="rp-extras">
-          <label class="rp-voz" id="rp-voz-caja" hidden>Voz
-            <select id="rp-voz"></select>
-          </label>
-          <div id="rp-extras"></div>
-        </div>
-        <div class="rp-video" id="rp-video" hidden></div>
-        <p class="rp-aviso rp-video-nota" id="rp-video-nota" hidden>En el celular, YouTube se pausa al salir de la página o apagar la pantalla; los audios de la Biblioteca siguen sonando.</p>
-        <p class="rp-sin-audio" id="rp-sin-audio" hidden>Esta canción no tiene audio: cantala con la letra y pasá a la siguiente cuando quieras.</p>
-        <article class="song-render rp-letra" id="rp-letra"></article>
+          <ol class="rp-cola-lista" id="rp-cola-lista"></ol>
+        </aside>
       </div>
     </section>
 
@@ -149,20 +180,27 @@
   </main>
 
   <!-- Barra de reproducción -->
+  <div class="rp-cola-velo" id="rp-cola-velo"></div>
   <footer class="rp-barra" id="rp-barra" hidden>
-    <button type="button" class="rp-barra-titulo" id="rp-barra-titulo" title="Ver la letra"></button>
+    <input type="range" class="rp-progreso" id="rp-progreso" min="0" max="1" step="0.1" value="0" aria-label="Avance">
     <div class="rp-controles">
-      <button type="button" class="rp-ctl rp-modo" id="rp-aleatorio" aria-pressed="false" aria-label="Aleatorio" title="Aleatorio">⇄</button>
-      <button type="button" class="rp-ctl" id="rp-anterior" aria-label="Anterior">⏮</button>
-      <button type="button" class="rp-ctl rp-play" id="rp-play" aria-label="Reproducir">▶</button>
-      <button type="button" class="rp-ctl" id="rp-siguiente" aria-label="Siguiente">⏭</button>
-      <button type="button" class="rp-ctl rp-modo" id="rp-repetir" aria-pressed="false" aria-label="Repetir: no" title="Repetir: no">↻</button>
-      <button type="button" class="rp-ctl rp-modo" id="rp-barra-agregar" aria-label="Agregar a una lista" title="Agregar a una lista">+</button>
+      <button type="button" class="rp-ctl" id="rp-anterior" aria-label="Anterior" data-ico="anterior"></button>
+      <button type="button" class="rp-ctl rp-play" id="rp-play" aria-label="Reproducir"></button>
+      <button type="button" class="rp-ctl" id="rp-siguiente" aria-label="Siguiente" data-ico="siguiente"></button>
+      <span class="rp-avance"><span id="rp-actual">0:00</span> / <span id="rp-total">0:00</span></span>
     </div>
-    <div class="rp-avance">
-      <span id="rp-actual">0:00</span>
-      <input type="range" id="rp-progreso" min="0" max="1" step="0.1" value="0" aria-label="Avance">
-      <span id="rp-total">0:00</span>
+    <div class="rp-barra-centro">
+      <button type="button" class="rp-barra-cara" id="rp-barra-cara" title="Ver la letra" aria-label="Ver la letra"></button>
+      <span class="rp-barra-texto">
+        <button type="button" class="rp-barra-titulo" id="rp-barra-titulo" title="Ver la letra"></button>
+        <small id="rp-barra-sub"></small>
+      </span>
+    </div>
+    <div class="rp-barra-der">
+      <button type="button" class="rp-ctl rp-modo" id="rp-barra-agregar" aria-label="Agregar a una lista" title="Agregar a una lista" data-ico="agregar"></button>
+      <button type="button" class="rp-ctl rp-modo" id="rp-repetir" aria-pressed="false" aria-label="Repetir: no" title="Repetir: no"></button>
+      <button type="button" class="rp-ctl rp-modo" id="rp-aleatorio" aria-pressed="false" aria-label="Aleatorio" title="Aleatorio" data-ico="aleatorio"></button>
+      <button type="button" class="rp-ctl rp-modo" id="rp-cola-btn" aria-label="Cola" title="A continuación (la cola)" data-ico="cola"></button>
     </div>
     <audio id="rp-audio" preload="auto"></audio>
   </footer>
@@ -221,6 +259,7 @@
   <script src="./editor/js/instrumentos.js"></script>
   <script src="./editor/js/rasgueos.js"></script>
   <script src="./editor/js/render.js"></script>
+  <script src="./editor/js/caratula.js"></script>
   <script type="module" src="./js/reproductor.js"></script>
 </body>
 </html>

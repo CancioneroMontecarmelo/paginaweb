@@ -490,6 +490,14 @@ Escuchar las canciones de la Biblioteca con su letra, en el celular o en la comp
 sesión. Oscuro por defecto (**Colores** cambia el tema). Lo hace `js/reproductor.js` con los mismos scripts
 del editor que usa Misas; todo son lecturas públicas de `/api`.
 
+Tiene el aspecto del editor («YouTube Music»): el menú a la izquierda (abajo en el celular), carátulas
+(`editor/js/caratula.js`: la imagen del audio, la miniatura del video o una con el color del momento), la
+cola a la derecha (en el celular sube desde el botón ≡♪ de la barra, con aleatorio y repetir) y la barra
+de reproducción abajo con la carátula. El acento del tema **Noche** es el color litúrgico del próximo domingo.
+
+- **Inicio**: el próximo domingo (con **Escuchar** su cancionero de misa, si ya hay uno) y estanterías:
+  cancioneros de misa, tus listas, sugeridas para el domingo, las del tiempo litúrgico y las de cada
+  momento. Tocar una tarjeta hace sonar esa estantería desde esa canción.
 - **Canciones**: el buscador de la Biblioteca (título, frase de la letra, autor o etiqueta) y **Solo con
   audio o video**. Tocar una canción la hace sonar; la cola es la lista que se está viendo. **+** la agrega a una
   lista.
