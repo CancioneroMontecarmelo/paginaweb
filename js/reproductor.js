@@ -52,7 +52,8 @@ const ICONOS = {
   aleatorio: "M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z",
   repetir: "M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z",
   repetirUna: "M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v4H13z",
-  iglesia: "M18 12.22V9l-5-2.5V5h2V3h-2V1h-2v2H9v2h2v1.5L6 9v3.22L2 14v8h8v-3c0-1.1.9-2 2-2s2 .9 2 2v3h8v-8l-4-1.78zM12 13.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"
+  iglesia: "M18 12.22V9l-5-2.5V5h2V3h-2V1h-2v2H9v2h2v1.5L6 9v3.22L2 14v8h8v-3c0-1.1.9-2 2-2s2 .9 2 2v3h8v-8l-4-1.78zM12 13.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z",
+  escenario: "M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
 };
 const icono = (n) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONOS[n]}"/></svg>`;
 const ponerIconos = () => document.querySelectorAll("[data-ico]").forEach((e) => {
@@ -507,6 +508,9 @@ function pintarMisas() {
         <div><b>${esc(m.nombre)}</b><small>${esc([fechaCorta(m.fechaUso), st.comunidad ? "" : comunidad, n + (n === 1 ? " canción" : " canciones")].filter(Boolean).join(" · "))}</small></div>
         <a class="rp-btn rp-btn-fuerte" href="#misa=${esc(encodeURIComponent(m.id))}">▶ Reproducir</a>
       </div>
+      <div class="rp-tarjeta-acciones">
+        <button type="button" class="rp-btn" data-misa-escenario="${esc(m.id)}" title="Solo la letra y los acordes a pantalla completa, para cantar en la misa">${icono("escenario")} Modo escenario</button>
+      </div>
     </li>`;
   }).join("");
 }
@@ -515,12 +519,13 @@ function colaDeMisa(m) {
   return {
     nombre: m.nombre || "Cancionero de misa", tipo: "misa",
     items: m.momentos.flatMap((x) => x.canciones.map((c) => ({
-      cancionId: c.cancionId, desplazamiento: c.desplazamiento || 0, momento: x.momento, capo: c.capo || 0, velocidad: c.velocidad || 1
+      cancionId: c.cancionId, desplazamiento: c.desplazamiento || 0, momento: x.momento, capo: c.capo || 0, velocidad: c.velocidad || 1,
+      ...(c.scroll ? { scroll: c.scroll } : {})
     })))
   };
 }
 
-async function abrirMisa(id) {
+async function abrirMisa(id, tocar = true) {
   let m = null;
   try {
     const copia = JSON.parse(localStorage.getItem("mc-reproducir") || "null");
@@ -537,7 +542,8 @@ async function abrirMisa(id) {
   st.cola = colaDeMisa(m);
   colaHash = location.hash;
   mostrarVista("sonando");
-  reproducir(0);
+  reproducir(0, tocar);
+  return true;
 }
 
 // ============ COLA GUARDADA ============
@@ -737,6 +743,7 @@ async function reproducir(i, tocar = true, desde = 0) {
   pintarCanciones();
   pintarCola();
   sesionDeMedios(entrada, item);
+  if (escena.abierto) pintarEscenario();
   await pintarLetra(item, entrada);
   precargar(vecino(1));
 }
@@ -887,32 +894,46 @@ function ordenActual() {
 }
 
 // Posición vecina en la cola, o -1 si no hay; con «mover», al dar la vuelta en aleatorio se vuelve a mezclar
-function vecino(paso, mover = false) {
+function vecino(paso, mover = false, desde = st.indice) {
   const c = st.cola;
   if (!c) return -1;
   const n = c.items.length, o = ordenActual();
-  const p = (o ? o.indexOf(st.indice) : st.indice) + paso;
+  const p = (o ? o.indexOf(desde) : desde) + paso;
   if (p >= 0 && p < n) return o ? o[p] : p;
   if (modos.repetir !== "lista") return -1;
   if (o && p >= n) {
-    if (!mover) return 0;
+    if (!mover) return o[0];
     orden = mezclar(n, -1);
-    if (n > 1 && orden[0] === st.indice) [orden[0], orden[1]] = [orden[1], orden[0]];
+    if (n > 1 && orden[0] === desde) [orden[0], orden[1]] = [orden[1], orden[0]];
     return orden[0];
   }
   const q = (p + n) % n;
   return o ? o[q] : q;
 }
 
+// Al reproducir de corrido se saltan las canciones que no tienen audio ni video (como el salmo de una
+// misa sin grabación); tocarlas a propósito en la lista igual las abre, para cantarlas con la letra
+const conAudio = (i) => audiosReproducibles(st.porId.get(st.cola?.items[i]?.cancionId)).length > 0;
+function vecinoConAudio(paso, mover = false) {
+  const n = st.cola?.items.length || 0;
+  let k = st.indice;
+  for (let vuelta = 0; vuelta < n; vuelta++) {
+    k = vecino(paso, mover, k);
+    if (k < 0 || k === st.indice) return -1;
+    if (conAudio(k)) return k;
+  }
+  return -1;
+}
+
 const siguiente = () => {
-  const i = vecino(1, true);
+  const i = vecinoConAudio(1, true);
   return i >= 0 && (reproducir(i), true);
 };
 const anterior = () => {
   const m = motor();
   if (m.currentTime > 4) m.currentTime = 0;
   else {
-    const i = vecino(-1, true);
+    const i = vecinoConAudio(-1, true);
     if (i >= 0) reproducir(i);
   }
 };
@@ -924,7 +945,7 @@ function alTerminarPista() {
     tocarMotor();
     return;
   }
-  if (!siguiente()) avisar("Terminó la lista.");
+  if (!siguiente()) avisar(vecino(1) >= 0 ? "No quedan más canciones con audio en la lista." : "Terminó la lista.");
 }
 
 function pintarModos() {
@@ -943,13 +964,23 @@ let saltos = 0;
 function noDisponible(t, motivo) {
   if (t !== turno) return;
   const n = st.cola?.items.length || 0;
-  if (++saltos >= n || vecino(1) < 0) {
+  if (++saltos >= n || vecinoConAudio(1) < 0) {
     saltos = 0;
     avisar(motivo);
     return;
   }
   avisar("No disponible: pasando a la siguiente.");
   siguiente();
+}
+
+// La barra se repinta varias veces por segundo: los vecinos se recalculan solo si cambió algo
+let vecinosCache = { clave: [] };
+function vecinosDeBarra() {
+  const clave = [st.cola, st.indice, modos.aleatorio, modos.repetir, orden, st.porId];
+  if (clave.some((x, k) => x !== vecinosCache.clave[k])) {
+    vecinosCache = { clave, anterior: vecinoConAudio(-1), siguiente: vecinoConAudio(1) };
+  }
+  return vecinosCache;
 }
 
 function pintarBarra() {
@@ -963,8 +994,9 @@ function pintarBarra() {
   }
   play.setAttribute("aria-label", m.paused ? "Reproducir" : "Pausa");
   document.body.classList.toggle("sonando", !m.paused);
-  $("#rp-anterior").disabled = !st.cola || (vecino(-1) < 0 && !tiene);
-  $("#rp-siguiente").disabled = vecino(1) < 0;
+  const v = vecinosDeBarra();
+  $("#rp-anterior").disabled = !st.cola || (v.anterior < 0 && !tiene);
+  $("#rp-siguiente").disabled = v.siguiente < 0;
   const dur = isFinite(m.duration) ? m.duration : 0;
   $("#rp-progreso").max = dur || 1;
   $("#rp-progreso").value = m.currentTime || 0;
@@ -973,6 +1005,7 @@ function pintarBarra() {
   $("#rp-actual").textContent = reloj(m.currentTime);
   $("#rp-total").textContent = reloj(dur);
   if (!m.paused && Date.now() - ultimoGuardado > 5000) guardarSonando();
+  sincronizarEscena();
 }
 
 function sesionDeMedios(entrada, item) {
@@ -1002,7 +1035,7 @@ function conectarMedios() {
 // La pantalla no se apaga mientras se lee la letra o se sigue en vivo
 let bloqueo = null;
 async function pedirPantalla() {
-  const quiere = (st.vista === "sonando" && !!st.cola) || (st.vista === "vivo" && !!st.vivo);
+  const quiere = escena.abierto || (st.vista === "sonando" && !!st.cola) || (st.vista === "vivo" && !!st.vivo);
   if (!quiere || document.hidden) {
     bloqueo?.release().catch(() => {});
     bloqueo = null;
@@ -1015,11 +1048,246 @@ async function pedirPantalla() {
   } catch (_) { /* sin permiso o sin batería */ }
 }
 
+// ============ MODO ESCENARIO ============
+// Solo la letra y los acordes a pantalla completa, con un reproductor mínimo. La letra se desplaza sola a la
+// velocidad que dejaron en el cancionero o en la canción (mientras suena el audio); si no hay, la decide quien canta.
+
+const SCROLL_SPEEDS = [1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 19, 22, 26, 31, 38, 48, 60]; // px/s, los del editor
+const escena = { abierto: false, avanza: false, porAudio: false, detenido: false, listo: false, preset: 0, nivel: 5, acc: 0, antes: 0, raf: 0, turno: 0, primera: false };
+const nivelGuardado = () => Math.max(1, Math.min(20, +guardado("mc-rp-escenario-scroll", "5") || 5));
+
+function abrirEscenario() {
+  if (!st.cola || st.indice < 0) return avisar("Elegí primero un cancionero o una canción.");
+  if (escena.abierto) return;
+  escena.abierto = escena.primera = true;
+  $("#rp-escenario").hidden = false;
+  document.body.classList.add("en-escenario");
+  document.body.classList.remove("cola-abierta");
+  history.pushState({ rpEscenario: true }, "");
+  document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
+  pedirPantalla();
+  pintarEscenario();
+}
+
+function cerrarEscenario(desdeHistorial = false) {
+  if (!escena.abierto) return;
+  escena.abierto = false;
+  escena.turno++;
+  avanzar(false);
+  $("#rp-escenario").hidden = true;
+  document.body.classList.remove("en-escenario");
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  if (!desdeHistorial && history.state?.rpEscenario) history.back();
+  pedirPantalla();
+}
+
+async function pintarEscenario() {
+  const c = st.cola, item = c?.items[st.indice];
+  if (!item) return;
+  const t = ++escena.turno;
+  const entrada = st.porId.get(item.cancionId) || { id: item.cancionId, titulo: "" };
+  avanzar(false);
+  escena.listo = escena.detenido = false;
+  escena.preset = 0;
+  $("#rp-esc-pos").textContent = `${st.indice + 1}/${c.items.length}`;
+  $("#rp-esc-momento").textContent = [item.momento, item.capo ? "Capo " + item.capo : ""].filter(Boolean).join(" · ");
+  $("#rp-esc-titulo").textContent = entrada.titulo || "";
+  const box = $("#rp-esc-letra"), cuerpo = $("#rp-esc-cuerpo");
+  box.innerHTML = `<div class="rp-vacio"><p>Cargando «${esc(entrada.titulo || "la canción")}»…</p></div>`;
+  cuerpo.scrollTop = 0;
+  sincronizarEscena();
+  let r;
+  try {
+    r = await textoCancion(item.cancionId);
+  } catch (e) {
+    if (t === escena.turno) box.innerHTML = `<div class="rp-vacio"><p>${esc(e.message)}</p></div>`;
+    return;
+  }
+  if (t !== escena.turno) return;
+  box.innerHTML = htmlCancion(r, item.desplazamiento, entrada);
+  $("#rp-esc-titulo").textContent = r.doc.title || entrada.titulo || r.cancion.titulo || "";
+  ajustarEscenario();
+  cuerpo.scrollTop = 0;
+  const preset = Math.round(+item.scroll || +r.doc.scrollSpeed || 0);
+  escena.preset = preset >= 1 && preset <= 20 ? preset : 0;
+  escena.nivel = escena.preset || nivelGuardado();
+  pintarNivel();
+  escena.listo = true;
+  if (escena.primera) {
+    escena.primera = false;
+    avisar(escena.preset ? `La letra se desplaza sola mientras suena (velocidad ${escena.preset}). Tocala para detenerla.`
+      : "Tocá la letra o ▼ para que se desplace; deslizá a los lados para cambiar de canción.");
+  }
+  sincronizarEscena();
+}
+
+// La línea más larga ocupa todo el ancho, sin pasar del tamaño elegido con A+ más un poco
+let proporcionLetra = 0;
+function ajustarEscenario() {
+  const box = $("#rp-esc-letra");
+  if (!escena.abierto || !box.clientWidth) return;
+  if (!proporcionLetra) {
+    const s = document.createElement("span");
+    s.style.cssText = "position:absolute;visibility:hidden;white-space:pre;font-size:100px;font-weight:bold";
+    s.style.fontFamily = getComputedStyle(box).fontFamily;
+    s.textContent = "M".repeat(50);
+    document.body.append(s);
+    proporcionLetra = s.getBoundingClientRect().width / 5000 || 0.6;
+    s.remove();
+  }
+  let largo = 0;
+  for (const l of box.querySelectorAll(".line:not(.blank)")) {
+    if (l.offsetParent) largo = Math.max(largo, l.textContent.replace(/\s+$/, "").length);
+  }
+  const base = +guardado("mc-rp-letra", "18") || 18;
+  const max = Math.max(base + 6, Math.round(base * 1.6));
+  const px = largo ? Math.min(max, Math.floor((box.clientWidth - 8) / (largo * proporcionLetra) * 10) / 10) : max;
+  box.style.setProperty("--song-font", Math.max(11, px) + "px");
+}
+
+function avanzar(si, porAudio = false) {
+  cancelAnimationFrame(escena.raf);
+  escena.avanza = si;
+  escena.porAudio = si && porAudio;
+  escena.acc = escena.antes = 0;
+  if (si) escena.raf = requestAnimationFrame(pasoEscena);
+  const b = $("#rp-esc-avanza");
+  b.setAttribute("aria-pressed", si);
+  b.textContent = si ? "⏸" : "▼";
+  b.setAttribute("aria-label", si ? "Detener el desplazamiento" : "Desplazar la letra");
+}
+
+function pasoEscena(ahora) {
+  if (!escena.avanza) return;
+  const c = $("#rp-esc-cuerpo");
+  if (escena.antes) {
+    escena.acc += Math.min(0.1, (ahora - escena.antes) / 1000) * SCROLL_SPEEDS[escena.nivel - 1];
+    const px = Math.floor(escena.acc);
+    if (px) {
+      c.scrollTop += px;
+      escena.acc -= px;
+    }
+  }
+  escena.antes = ahora;
+  if (c.scrollTop + c.clientHeight >= c.scrollHeight - 2) {
+    escena.detenido = true;
+    return avanzar(false);
+  }
+  escena.raf = requestAnimationFrame(pasoEscena);
+}
+
+function alternarAvance() {
+  if (escena.avanza) {
+    escena.detenido = true;
+    return avanzar(false);
+  }
+  const c = $("#rp-esc-cuerpo");
+  if (c.scrollTop + c.clientHeight >= c.scrollHeight - 2) c.scrollTop = 0;
+  escena.detenido = false;
+  avanzar(true);
+}
+
+function cambiarNivel(d) {
+  escena.nivel = Math.max(1, Math.min(20, escena.nivel + d));
+  if (!escena.preset) guardar("mc-rp-escenario-scroll", String(escena.nivel));
+  pintarNivel();
+}
+
+function pintarNivel() {
+  $("#rp-esc-nivel").textContent = escena.nivel;
+  $("#rp-esc-lento").disabled = escena.nivel <= 1;
+  $("#rp-esc-rapido").disabled = escena.nivel >= 20;
+}
+
+// ⏮ ⏭ recorren todas las canciones, también las que no tienen audio: en la misa se cantan igual
+function cambiarEnEscena(paso) {
+  const i = vecino(paso, true);
+  if (i < 0) return avisar(paso > 0 ? "Es la última canción de la lista." : "Es la primera canción de la lista.");
+  reproducir(i, !motor().paused);
+}
+
+// Se llama con cada cambio del audio (desde pintarBarra): el ▶ mínimo y el desplazamiento preprogramado lo siguen
+function sincronizarEscena() {
+  if (!escena.abierto) return;
+  const m = motor(), tiene = m !== audio || !!audio.getAttribute("src");
+  const play = $("#rp-esc-play"), ico = m.paused ? "play" : "pausa";
+  if (play.dataset.icono !== ico) {
+    play.innerHTML = icono(ico);
+    play.dataset.icono = ico;
+  }
+  play.disabled = !tiene;
+  play.setAttribute("aria-label", m.paused ? "Reproducir" : "Pausa");
+  $("#rp-esc-anterior").disabled = vecino(-1) < 0;
+  $("#rp-esc-siguiente").disabled = vecino(1) < 0;
+  if (!escena.listo || !escena.preset) return;
+  if (!m.paused && !escena.avanza && !escena.detenido) avanzar(true, true);
+  else if (m.paused && escena.avanza && escena.porAudio) avanzar(false);
+}
+
+function conectarEscenario() {
+  $("#rp-esc-abrir").addEventListener("click", abrirEscenario);
+  $("#rp-esc-barra").addEventListener("click", abrirEscenario);
+  $("#rp-esc-cerrar").addEventListener("click", () => cerrarEscenario());
+  $("#rp-esc-anterior").addEventListener("click", () => cambiarEnEscena(-1));
+  $("#rp-esc-siguiente").addEventListener("click", () => cambiarEnEscena(1));
+  $("#rp-esc-play").addEventListener("click", () => $("#rp-play").click());
+  $("#rp-esc-lento").addEventListener("click", () => cambiarNivel(-1));
+  $("#rp-esc-rapido").addEventListener("click", () => cambiarNivel(1));
+  $("#rp-esc-avanza").addEventListener("click", alternarAvance);
+  window.addEventListener("popstate", () => cerrarEscenario(true));
+  window.addEventListener("resize", ajustarEscenario);
+
+  // Tocar la letra la desplaza o la detiene; deslizar a los lados cambia de canción
+  const cuerpo = $("#rp-esc-cuerpo");
+  let toque = null;
+  cuerpo.addEventListener("touchstart", (e) => {
+    const p = e.touches[0];
+    toque = e.touches.length === 1 ? { x: p.clientX, y: p.clientY } : null;
+  }, { passive: true });
+  cuerpo.addEventListener("touchend", (e) => {
+    if (!toque) return;
+    const p = e.changedTouches[0], dx = p.clientX - toque.x, dy = p.clientY - toque.y;
+    toque = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > 1.5 * Math.abs(dy)) cambiarEnEscena(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  cuerpo.addEventListener("click", (e) => {
+    if (e.target.closest("a, button") || String(getSelection())) return;
+    alternarAvance();
+  });
+
+  // Teclado y pedales (los pedales Bluetooth mandan flechas o Avance/Retroceso de página)
+  window.addEventListener("keydown", (e) => {
+    if (!escena.abierto || e.ctrlKey || e.metaKey || e.altKey || document.querySelector("dialog[open]")) return;
+    const c = $("#rp-esc-cuerpo"), pagina = (d) => c.scrollBy({ top: d * c.clientHeight * 0.8, behavior: "smooth" });
+    const acciones = {
+      Escape: () => cerrarEscenario(),
+      " ": alternarAvance,
+      ArrowRight: () => cambiarEnEscena(1),
+      ArrowLeft: () => cambiarEnEscena(-1),
+      ArrowDown: () => pagina(1),
+      PageDown: () => pagina(1),
+      ArrowUp: () => pagina(-1),
+      PageUp: () => pagina(-1),
+      "+": () => cambiarNivel(1),
+      "=": () => cambiarNivel(1),
+      "-": () => cambiarNivel(-1),
+      k: () => $("#rp-play").click(),
+      K: () => $("#rp-play").click()
+    };
+    const f = acciones[e.key];
+    if (!f) return;
+    e.preventDefault();
+    e.stopPropagation();
+    f();
+  }, true);
+}
+
 // ============ AJUSTES DE LA LETRA ============
 
 function aplicarAjustes() {
   const soloLetra = guardado("mc-rp-acordes", "si") === "no";
   $("#rp-letra").classList.toggle("solo-letra", soloLetra);
+  $("#rp-esc-letra").classList.toggle("solo-letra", soloLetra);
   $("#rp-acordes").setAttribute("aria-pressed", !soloLetra);
   $("#rp-acordes").textContent = soloLetra ? "Solo letra" : "Letra y acordes";
   const tam = +guardado("mc-rp-letra", "18") || 18;
@@ -1386,7 +1654,14 @@ function conectar() {
   });
   window.addEventListener("hashchange", leerHash);
   // Volver a tocar el cancionero que ya está en la dirección no dispara hashchange
-  $("#rp-misas").addEventListener("click", (e) => {
+  $("#rp-misas").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-misa-escenario]");
+    if (b) {
+      const id = b.dataset.misaEscenario;
+      history.replaceState(null, "", "#misa=" + encodeURIComponent(id));
+      if (await abrirMisa(id, false)) abrirEscenario();
+      return;
+    }
     const a = e.target.closest('a[href^="#misa="]');
     if (a && a.getAttribute("href") === location.hash) {
       e.preventDefault();
@@ -1397,6 +1672,7 @@ function conectar() {
   activarPosturas($("#rp-letra"));
   activarPosturas($("#rp-vivo-letra"));
   conectarMedios();
+  conectarEscenario();
 }
 
 // ============ APP INSTALABLE ============

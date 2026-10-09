@@ -602,12 +602,56 @@
   .rp-barra { grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px; padding: 0 6px 0 8px; }
   .rp-barra-centro { order: -1; justify-content: flex-start; gap: 10px; }
   #rp-anterior, .rp-avance, #rp-barra-agregar { display: none; }
-  .rp-barra-der .rp-modo:not(#rp-cola-btn) { display: none; }
+  .rp-barra-der .rp-modo:not(#rp-cola-btn, #rp-esc-barra) { display: none; }
   .rp-play { width: 44px; height: 44px; }
   .rp-play .ico { width: 34px; height: 34px; }
   .rp-progreso { top: -6px; }
   .rp-toast { bottom: calc(var(--rp-barra-h) + var(--rp-abajo) + 12px); }
 }
+
+/* ============ MODO ESCENARIO ============ */
+/* Siempre negro con acordes amarillos, sea cual sea el tema: se lee bien en el atril y gasta poca batería */
+.rp-escenario {
+  --rp-fondo: #000; --rp-texto: #f1f1f1; --rp-suave: #9a9a9a; --rp-linea: rgba(255, 255, 255, 0.12);
+  --rp-acorde: #ffd400; --rp-hover: rgba(255, 255, 255, 0.1);
+  position: fixed; inset: 0; z-index: 150; display: flex; flex-direction: column;
+  background: #000; color: var(--rp-texto);
+}
+body.en-escenario { overflow: hidden; }
+body.en-escenario .rp-toast { bottom: calc(64px + env(safe-area-inset-bottom)); }
+.rp-esc-cabeza {
+  display: flex; align-items: center; gap: 10px; flex: none;
+  padding: calc(4px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) 4px calc(14px + env(safe-area-inset-left));
+  border-bottom: 1px solid var(--rp-linea);
+}
+.rp-esc-pos { color: var(--rp-suave); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rp-esc-texto { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.rp-esc-texto small { color: var(--rp-acento); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+.rp-esc-texto small:empty { display: none; }
+.rp-esc-texto b { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-esc-cuerpo {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  padding: 12px calc(16px + env(safe-area-inset-right)) 0 calc(16px + env(safe-area-inset-left));
+}
+.rp-esc-letra { overflow-x: hidden; padding-bottom: 45vh; } /* margen para que el final suba hasta media pantalla */
+.rp-esc-letra .song-title { display: none; }
+.rp-esc-letra .song-header:not(:has(.song-credits, .song-meta)) { display: none; }
+.rp-esc-pie {
+  display: flex; align-items: center; gap: 4px; flex: none;
+  padding: 4px calc(10px + env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+  border-top: 1px solid var(--rp-linea); opacity: 0.55; transition: opacity 0.2s;
+}
+.rp-esc-pie:hover, .rp-esc-pie:focus-within { opacity: 1; }
+.rp-esc-ctl {
+  width: 44px; height: 44px; flex: none; display: grid; place-items: center; padding: 0;
+  border: none; border-radius: 50%; background: none; color: var(--rp-texto); font: 600 22px/1 Roboto, Arial, sans-serif; cursor: pointer;
+}
+.rp-esc-ctl:hover:not(:disabled) { background: var(--rp-hover); }
+.rp-esc-ctl:disabled { opacity: 0.3; cursor: default; }
+.rp-esc-scroll { display: flex; align-items: center; gap: 2px; }
+#rp-esc-nivel { min-width: 2ch; text-align: center; font-size: 15px; font-variant-numeric: tabular-nums; }
+.rp-esc-avanza { font-size: 18px; }
+.rp-esc-avanza[aria-pressed="true"] { background: var(--rp-acento); color: #fff; }
 
 /* ============ DIÁLOGO Y AVISOS ============ */
 .rp-dlg {

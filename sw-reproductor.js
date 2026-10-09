@@ -3,7 +3,7 @@
 // sin internet, o si la red tarda, se usa la copia guardada. Ni el servidor (/api), ni YouTube, ni los audios pasan por acá.
 // Cloudflare Pages sirve las páginas sin «.html» (reproductor.html redirige a reproductor): se guarda esa dirección.
 
-const CACHE = 'mc-reproductor-4';
+const CACHE = 'mc-reproductor-5';
 const NET_TIMEOUT = 3000;
 const SHELL = [
   'reproductor', 'reproductor.webmanifest', 'js/config.js',
