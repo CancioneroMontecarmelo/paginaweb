@@ -47,4 +47,14 @@
     googleClientId: '446127505219-pei616euh78muqr6ak500br0ac41t2mk.apps.googleusercontent.com',
     correoParroquia: 'cancionerolitugico@gmail.com'
   };
+
+  // Un Smart TV (o el equipo que ya se usó como pantalla) va directo al QR y el código para conectar el teléfono.
+  // «mc-equipo»: "tv" lo recuerda; "normal" lo eligió quien no quiere el modo pantalla en este equipo.
+  var equipo = '';
+  try { equipo = localStorage.getItem('mc-equipo') || ''; } catch (_) { /* sin almacenamiento */ }
+  var esTv = /SmartTV|SMART-TV|Tizen|Web0S|webOS|NetCast|HbbTV|BRAVIA|Android TV|GoogleTV|AFT[A-Z]|VIDAA|PhilipsTV|Opera TV|AppleTV|Large Screen/i.test(navigator.userAgent);
+  var portada = /\/(index\.html|inicio(\.html)?|reproductor(\.html)?)?$/.test(location.pathname) && !location.hash;
+  if (portada && (equipo === 'tv' || (esTv && equipo !== 'normal'))) {
+    location.replace(location.pathname.replace(/[^/]*$/, '') + 'reproductor#pantalla');
+  }
 })();

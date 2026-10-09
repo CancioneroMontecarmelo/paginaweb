@@ -673,7 +673,17 @@ body.en-escenario .rp-toast { bottom: calc(64px + env(safe-area-inset-bottom)); 
 .rp-control-nivel { min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
 .rp-control-tv .rp-esc-avanza[aria-pressed="true"] { background: var(--rp-acento); color: #fff; }
 
-.rp-pant-escanear { width: 100%; justify-content: center; height: 44px; margin: 0.4rem 0 0.8rem; }
+.rp-pant-roles { display: grid; gap: 8px; margin: 0.6rem 0 1rem; }
+.rp-pant-rol {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center;
+  width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--rp-linea);
+  background: var(--rp-fondo); color: var(--rp-texto); font: inherit; text-align: left; cursor: pointer;
+}
+.rp-pant-rol .ico { grid-row: span 2; width: 28px; height: 28px; color: var(--rp-acento); }
+.rp-pant-rol b { font-size: 1rem; font-weight: 600; }
+.rp-pant-rol small { color: var(--rp-suave); font-size: 0.85rem; }
+.rp-pant-rol:hover, .rp-pant-rol:focus-visible { border-color: var(--rp-acento); }
+.rp-pant-rol.sugerido { border-color: var(--rp-acento); background: color-mix(in srgb, var(--rp-acento) 14%, var(--rp-fondo)); }
 .rp-pant-codigo { display: flex; gap: 0.5rem; }
 .rp-pant-codigo input {
   flex: 1; min-width: 0; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rp-linea);
@@ -713,8 +723,11 @@ body.rp-tv #rp-video { position: fixed; right: 2vw; bottom: 3vh; z-index: 160; w
 .rp-tv-qr { flex: none; width: min(34vw, 62vh); aspect-ratio: 1; background: #fff; border-radius: 1.2vw; padding: 0.6vw; }
 .rp-tv-qr svg { display: block; width: 100%; height: 100%; }
 .rp-tv-texto { max-width: 46vw; font-size: max(16px, 1.8vw); line-height: 1.4; }
-.rp-tv-texto small { color: #9a9a9a; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.1em; }
-.rp-tv-codigo { margin: 0.1em 0 0.4em; font-size: max(48px, 8vw); font-weight: 700; letter-spacing: 0.08em; line-height: 1; font-variant-numeric: tabular-nums; color: var(--rp-acento); }
+.rp-tv-titulo { margin: 0 0 0.4em; font-size: 2em; font-weight: 600; line-height: 1.1; }
+.rp-tv-texto p { margin: 0; }
+.rp-tv-salir { display: block; margin-top: 2em; padding: 0.3em 0; border: 0; background: none; color: #777; font: inherit; font-size: 0.65em; text-decoration: underline; cursor: pointer; }
+.rp-tv-salir:focus-visible { color: #fff; outline: 2px solid var(--rp-acento); }
+.rp-tv-codigo { margin: 0.25em 0 0.2em; font-size: max(48px, 8vw); font-weight: 700; letter-spacing: 0.08em; line-height: 1; font-variant-numeric: tabular-nums; color: var(--rp-acento); }
 .rp-tv-texto .rp-btn { margin-top: 1em; height: auto; padding: 0.6em 1.2em; font-size: 0.85em; }
 .rp-tv-estado { color: #9a9a9a; font-size: 0.75em; margin-top: 1em; }
 .rp-tv-sonido {

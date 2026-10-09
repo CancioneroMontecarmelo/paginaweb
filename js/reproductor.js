@@ -1319,7 +1319,7 @@ function iniciarPantalla() {
   document.body.classList.add("rp-tv");
   document.body.append($("#rp-video"));
   $("#rp-tv").hidden = false;
-  $("#rp-tv-direccion").textContent = sitioPublico().replace(/^https?:\/\//, "") + "reproductor";
+  $("#rp-tv-direccion").textContent = sitioPublico().replace(/^https?:\/\//, "").replace(/\/$/, "");
   // Los navegadores no dejan sonar nada hasta que alguien toca la pantalla (o el OK del control remoto del TV)
   const activar = () => {
     tv.sonido = true;
@@ -1332,6 +1332,13 @@ function iniciarPantalla() {
   };
   document.addEventListener("pointerdown", activar, true);
   document.addEventListener("keydown", activar, true);
+  // Queda recordado: al volver a abrir el sitio en este equipo aparece directo el QR (js/config.js)
+  guardar("mc-equipo", "tv");
+  $("#rp-tv-salir").addEventListener("click", () => {
+    guardar("mc-equipo", "normal");
+    location.replace(location.pathname + location.search);
+  });
+  $("#rp-tv-activar").focus();
   pedirPantalla();
   conectarComoPantalla();
 }
@@ -1650,8 +1657,18 @@ function conectarControlesPantalla() {
   $("#rp-pant-menu").addEventListener("click", abrir);
   $("#rp-pant-barra").addEventListener("click", abrir);
   $("#rp-control-opciones").addEventListener("click", abrir);
-  $("#rp-pant-direccion").textContent = sitioPublico().replace(/^https?:\/\//, "") + "reproductor#pantalla";
-  $("#rp-pant-escanear").addEventListener("click", escanearPantalla);
+  $("#rp-pant-direccion").textContent = sitioPublico().replace(/^https?:\/\//, "") + "tv";
+  // En un teléfono lo primero es escanear; en un equipo grande y sin pantalla táctil, mostrar el QR
+  const telefono = matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 768;
+  const primero = telefono ? $("#rp-pant-soy-control") : $("#rp-pant-soy-tv");
+  $("#rp-pant-roles").prepend(primero);
+  primero.classList.add("sugerido");
+  $("#rp-pant-soy-control").addEventListener("click", escanearPantalla);
+  $("#rp-pant-soy-tv").addEventListener("click", () => {
+    guardar("mc-equipo", "tv");
+    location.hash = "pantalla";
+    location.reload();
+  });
   $("#rp-pant-conectar").addEventListener("click", () => conectarPantalla($("#rp-pant-codigo").value));
   $("#rp-pant-codigo").addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
@@ -1669,12 +1686,6 @@ function conectarControlesPantalla() {
     $("#rp-dlg-pantalla").close();
     avisar("El TV muestra un código nuevo: todos los teléfonos quedaron desconectados.");
   });
-  $("#rp-pant-ser").addEventListener("click", (e) => {
-    e.preventDefault();
-    location.hash = "pantalla";
-    location.reload();
-  });
-
   $("#rp-tv-play").addEventListener("click", () => $("#rp-play").click());
   $("#rp-tv-anterior").addEventListener("click", () => cambiarEnEscena(-1));
   $("#rp-tv-siguiente").addEventListener("click", () => cambiarEnEscena(1));

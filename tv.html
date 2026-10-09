@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pantalla · Monte Carmelo</title>
+  <!-- Dirección corta para escribir con el control remoto del TV: queda como pantalla del reproductor -->
+  <script>
+    try { localStorage.setItem('mc-equipo', 'tv'); } catch (e) {}
+    location.replace('./reproductor#pantalla');
+  </script>
+</head>
+<body style="background:#000;color:#fff;font-family:sans-serif">
+  <p><a href="./reproductor#pantalla" style="color:#4caf50">Abrir la pantalla</a></p>
+</body>
+</html>

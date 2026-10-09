@@ -273,14 +273,22 @@
     <form method="dialog">
       <h2>Pantalla grande</h2>
       <div id="rp-pant-desconectado">
-        <p class="rp-aviso">En el TV o proyector abrí <b id="rp-pant-direccion"></b>. Aparece un código: escanealo o escribilo aquí. La letra se verá en el TV, el audio sonará en el TV y este teléfono será el control.</p>
-        <button type="button" class="rp-btn rp-btn-fuerte rp-pant-escanear" id="rp-pant-escanear" data-ico="qr">Escanear código QR</button>
+        <p class="rp-aviso">La letra y los acordes se ven en el TV o proyector, el audio suena allí y el teléfono es el control. ¿Qué es este equipo?</p>
+        <div class="rp-pant-roles" id="rp-pant-roles">
+          <button type="button" class="rp-pant-rol" id="rp-pant-soy-control" data-ico="qr">
+            <b>Es el teléfono</b><small>Escanear el QR que muestra el TV</small>
+          </button>
+          <button type="button" class="rp-pant-rol" id="rp-pant-soy-tv" data-ico="pantalla">
+            <b>Es el TV o proyector</b><small>Mostrar aquí el QR y el código</small>
+          </button>
+        </div>
+        <p class="rp-aviso">¿El QR no se puede escanear? Escribí el código que muestra el TV:</p>
         <div class="rp-pant-codigo">
           <input type="text" id="rp-pant-codigo" inputmode="numeric" maxlength="7" placeholder="000 000" autocomplete="off" aria-label="Código de la pantalla">
           <button type="button" class="rp-btn" id="rp-pant-conectar">Conectar</button>
         </div>
         <p class="rp-error" id="rp-pant-error" hidden></p>
-        <p class="rp-aviso">¿Este equipo es el que está conectado al TV? <a href="#pantalla" id="rp-pant-ser">Usarlo como pantalla</a></p>
+        <p class="rp-aviso">En el TV, la dirección más corta es <b id="rp-pant-direccion"></b>.</p>
       </div>
       <div id="rp-pant-conectado" hidden>
         <p>Conectado a la pantalla <b id="rp-pant-cod"></b>.</p>
@@ -299,11 +307,12 @@
     <div class="rp-tv-emparejar" id="rp-tv-emparejar">
       <div class="rp-tv-qr" id="rp-tv-qr"></div>
       <div class="rp-tv-texto">
-        <small>Código de esta pantalla</small>
+        <h1 class="rp-tv-titulo">Conectá tu teléfono</h1>
+        <p>Escaneá el QR con el teléfono, o en el reproductor (<b id="rp-tv-direccion"></b>) tocá <b>Pantalla</b> y escribí este código:</p>
         <p class="rp-tv-codigo" id="rp-tv-codigo">––– –––</p>
-        <p>En el teléfono abrí el reproductor (<b id="rp-tv-direccion"></b>), tocá <b>Pantalla</b> y escaneá este código o escribilo.</p>
         <button type="button" class="rp-btn rp-btn-fuerte" id="rp-tv-activar">Activar sonido y pantalla completa</button>
-        <p class="rp-tv-estado" id="rp-tv-estado">Conectando…</p>
+        <p class="rp-tv-estado" id="rp-tv-estado">Preparando el código…</p>
+        <button type="button" class="rp-tv-salir" id="rp-tv-salir">Este equipo no es un TV: usar el reproductor normal</button>
       </div>
     </div>
     <p class="rp-tv-sonido" id="rp-tv-sonido" hidden>Presioná OK en el control remoto del TV para activar el sonido</p>
