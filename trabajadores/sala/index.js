@@ -27,19 +27,19 @@ export class Sala extends DurableObject {
     const [cliente, servidor] = Object.values(new WebSocketPair());
 
     if (rol === "tv") {
-      const otras = this.ctx.getWebSockets("tv");
+      const otras = this.abiertos("tv");
       const propias = otras.filter((t) => this.ctx.getTags(t).includes(llave));
       this.ctx.acceptWebSocket(servidor, ["tv", llave]);
       if (otras.length > propias.length || llave === "llave:") {
-        servidor.close(4001, "ocupado");
+        terminar(servidor, 4001, "ocupado");
       } else {
-        for (const t of propias) t.close(4003, "reemplazada");
+        for (const t of propias) terminar(t, 4003, "reemplazada");
         if (!propias.length) await this.ctx.storage.deleteAll();
       }
     } else {
       this.ctx.acceptWebSocket(servidor, ["control"]);
-      if (!this.ctx.getWebSockets("tv").length) {
-        servidor.close(4004, "sin pantalla");
+      if (!this.abiertos("tv").length) {
+        terminar(servidor, 4004, "sin pantalla");
       } else {
         for (const clave of ["cola", "estado"]) {
           const m = await this.ctx.storage.get(clave);
@@ -62,15 +62,15 @@ export class Sala extends DurableObject {
     }
     if (this.ctx.getTags(ws).includes("tv")) {
       if (m.guardar && (m.tipo === "estado" || m.tipo === "cola")) await this.ctx.storage.put(m.tipo, mensaje);
-      for (const c of this.ctx.getWebSockets("control")) enviar(c, mensaje);
+      for (const c of this.abiertos("control")) enviar(c, mensaje);
       return;
     }
     if (m.tipo === "cambiar-codigo") {
-      for (const t of this.ctx.getWebSockets("tv")) enviar(t, json({ tipo: "cambiar-codigo" }));
-      for (const c of this.ctx.getWebSockets("control")) c.close(4002, "código nuevo");
+      for (const t of this.abiertos("tv")) enviar(t, json({ tipo: "cambiar-codigo" }));
+      for (const c of this.abiertos("control")) terminar(c, 4002, "código nuevo");
       return;
     }
-    const tvs = this.ctx.getWebSockets("tv");
+    const tvs = this.abiertos("tv");
     if (!tvs.length) return enviar(ws, json({ tipo: "sin-tv" }));
     for (const t of tvs) enviar(t, mensaje);
   }
@@ -78,8 +78,8 @@ export class Sala extends DurableObject {
   async webSocketClose(ws, codigo) {
     try { ws.close(codigo === 1005 ? 1000 : codigo, "chao"); } catch (_) { /* ya cerrado */ }
     if (this.ctx.getTags(ws).includes("tv")) {
-      if (this.ctx.getWebSockets("tv").some((t) => t !== ws && t.readyState === 1)) return;
-      for (const c of this.ctx.getWebSockets("control")) enviar(c, json({ tipo: "sin-tv" }));
+      if (this.abiertos("tv").some((t) => t !== ws)) return;
+      for (const c of this.abiertos("control")) enviar(c, json({ tipo: "sin-tv" }));
     } else {
       this.contarControles(ws);
     }
@@ -89,21 +89,31 @@ export class Sala extends DurableObject {
     return this.webSocketClose(ws, 1011);
   }
 
+  abiertos(rol) {
+    return this.ctx.getWebSockets(rol).filter((w) => w.readyState === 1);
+  }
+
   // Cuántos teléfonos manejan la pantalla: lo ven los teléfonos («se conectó otro control»), nunca el TV
   contarControles(saliente) {
-    const controles = this.ctx.getWebSockets("control").filter((c) => c !== saliente && c.readyState === 1);
+    const controles = this.abiertos("control").filter((c) => c !== saliente);
     const m = json({ tipo: "controles", n: controles.length });
     for (const c of controles) enviar(c, m);
   }
 
   async alarm() {
-    if (this.ctx.getWebSockets().length) return this.ctx.storage.setAlarm(Date.now() + VIDA_MS);
+    if (this.ctx.getWebSockets().some((w) => w.readyState === 1)) return this.ctx.storage.setAlarm(Date.now() + VIDA_MS);
     await this.ctx.storage.deleteAll();
   }
 }
 
 function enviar(ws, mensaje) {
   try { ws.send(mensaje); } catch (_) { /* se desconectó */ }
+}
+
+// El motivo va también como mensaje: el cierre con código no siempre llega completo al navegador
+function terminar(ws, codigo, motivo) {
+  enviar(ws, json({ tipo: "fin", codigo, motivo }));
+  try { ws.close(codigo, motivo); } catch (_) { /* ya cerrado */ }
 }
 
 export default {

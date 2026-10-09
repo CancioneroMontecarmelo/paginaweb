@@ -45,9 +45,18 @@ export function conectarSala(codigo, rol, { llave = "", alMensaje, alEstado } = 
       if (e.data === "pong") return;
       let m;
       try { m = JSON.parse(e.data); } catch (_) { return; }
+      if (m.tipo === "fin" && FINALES.has(m.codigo)) {
+        cerrada = true;
+        clearInterval(latido);
+        try { ws?.close(); } catch (_) { /* ya cerrada */ }
+        ws = null;
+        return estado("cerrada", { code: m.codigo, reason: m.motivo });
+      }
       alMensaje?.(m);
     };
+    const este = ws;
     ws.onclose = (e) => {
+      if (ws !== este) return;
       clearInterval(latido);
       ws = null;
       if (cerrada) return;
