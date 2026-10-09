@@ -150,7 +150,7 @@ function avisar(texto) {
 
 function mostrarVista(v) {
   st.vista = v;
-  document.querySelectorAll(".rp-pestana").forEach((b) => {
+  document.querySelectorAll(".rp-pestana[data-vista]").forEach((b) => {
     b.classList.toggle("activa", b.dataset.vista === v);
     b.setAttribute("aria-selected", b.dataset.vista === v);
   });
@@ -1227,6 +1227,7 @@ function sincronizarEscena() {
 function conectarEscenario() {
   $("#rp-esc-abrir").addEventListener("click", abrirEscenario);
   $("#rp-esc-barra").addEventListener("click", abrirEscenario);
+  $("#rp-esc-menu").addEventListener("click", abrirEscenario);
   $("#rp-esc-cerrar").addEventListener("click", () => cerrarEscenario());
   $("#rp-esc-anterior").addEventListener("click", () => cambiarEnEscena(-1));
   $("#rp-esc-siguiente").addEventListener("click", () => cambiarEnEscena(1));

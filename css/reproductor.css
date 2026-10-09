@@ -565,7 +565,7 @@
   .pagina-reproductor { --rp-menu-w: 0px; --rp-abajo: calc(56px + env(safe-area-inset-bottom)); }
   .pagina-reproductor.con-barra { --rp-barra-h: 64px; }
   .rp-solo-celular { display: inline-flex !important; }
-  .rp-solo-celular[hidden] { display: none !important; }
+  .rp-solo-celular[hidden], .rp-no-celular { display: none !important; }
 
   .rp-pestanas {
     top: auto; bottom: 0; right: 0; width: auto; height: var(--rp-abajo);
