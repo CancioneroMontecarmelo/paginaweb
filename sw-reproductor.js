@@ -1,14 +1,15 @@
 'use strict';
 // App del reproductor: con internet siempre se carga la versión más nueva (y se guarda una copia);
-// sin internet, o si la red tarda, se usa la copia guardada. Ni el servidor (Apps Script), ni YouTube, ni los audios pasan por acá.
+// sin internet, o si la red tarda, se usa la copia guardada. Ni el servidor (/api), ni YouTube, ni los audios pasan por acá.
+// Cloudflare Pages sirve las páginas sin «.html» (reproductor.html redirige a reproductor): se guarda esa dirección.
 
-const CACHE = 'mc-reproductor-2';
+const CACHE = 'mc-reproductor-3';
 const NET_TIMEOUT = 3000;
 const SHELL = [
-  'reproductor.html', 'reproductor.webmanifest',
+  'reproductor', 'reproductor.webmanifest', 'js/config.js',
   'icons/reproductor-180.png', 'icons/reproductor-192.png', 'icons/reproductor-512.png',
   ...['site', 'posturas', 'partituras', 'voces', 'reproductor'].map((n) => `css/${n}.css`),
-  ...['reproductor', 'auth', 'comunidades', 'posturas', 'partituras', 'voces', 'silencio', 'youtube-embed', 'misas-shim'].map((n) => `js/${n}.js`),
+  ...['reproductor', 'auth', 'comunidades', 'posturas', 'partituras', 'voces', 'youtube-embed', 'misas-shim'].map((n) => `js/${n}.js`),
   ...['acordes', 'markdown', 'etiquetas', 'buscar', 'instrumentos', 'rasgueos', 'render'].map((n) => `editor/js/${n}.js`)
 ];
 
@@ -27,11 +28,11 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
-  if (req.method !== 'GET' || url.origin !== location.origin || req.headers.has('range') ||
+  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api') || req.headers.has('range') ||
       /\.(m4a|mp3|webm|ogg|opus|wav|aac)$/i.test(url.pathname)) return;
   const net = fetch(req, { cache: 'no-cache' });
   e.waitUntil(net.then((res) => {
-    if (!res.ok || res.type !== 'basic') return;
+    if (!res.ok || res.type !== 'basic' || res.redirected) return;
     const copy = res.clone();
     return caches.open(CACHE).then((c) => c.put(req, copy));
   }).catch(() => {}));
@@ -41,7 +42,7 @@ self.addEventListener('fetch', (e) => {
 async function networkFirst(req, net) {
   const cache = await caches.open(CACHE);
   const cached = () => cache.match(req, { ignoreSearch: true })
-    .then((r) => r || (req.mode === 'navigate' ? cache.match('reproductor.html') : undefined));
+    .then((r) => r || (req.mode === 'navigate' ? cache.match('reproductor') : undefined));
   let timer;
   const slow = new Promise((resolve) => { timer = setTimeout(resolve, NET_TIMEOUT); }).then(cached);
   try {

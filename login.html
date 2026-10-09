@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
+  <script src="./js/config.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Identificarse — Monte Carmelo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -71,20 +72,6 @@
       </div>
       <p class="msg-ok" data-clave-msg hidden></p>
 
-      <div id="audios-sueltos" class="audios-aac" hidden>
-        <h2 class="auth-h2">Audios sueltos del Drive</h2>
-        <p class="aviso">Recorre todo el Drive de la parroquia, busca los audios que no están en ninguna canción y
-          los vincula solos con la canción del mismo título (en la Biblioteca y con su reproductor en el .md). Los
-          archivos se quedan en su carpeta, y el nombre de esa carpeta (por ejemplo «Entrada») pasa a ser la primera
-          etiqueta de la canción. Si alguno quedó mal, se quita con «Quitar» en Misas.</p>
-        <div class="acciones-form">
-          <button type="button" class="btn btn-primario" id="sueltos-iniciar">Buscar y vincular audios sueltos</button>
-          <button type="button" class="btn btn-secundario" id="sueltos-detener" hidden>Detener</button>
-        </div>
-        <p class="aviso" id="sueltos-estado" aria-live="polite"></p>
-        <div id="sueltos-resultado" class="sueltos-resultado" hidden></div>
-      </div>
-
       <div id="audios-aac" class="audios-aac" hidden>
         <h2 class="auth-h2">Audios de la Biblioteca</h2>
         <p class="aviso">Pasa a AAC (.m4a) los audios que todavía están en el formato anterior (WebM), para que suenen
@@ -126,7 +113,7 @@
     <div class="dlg-cuerpo">
       <h3 class="auth-h2">Invitar a alguien</h3>
       <p class="aviso">Escribí su correo de Google y elegí sus privilegios. La invitación explica cómo entrar
-        (con el botón de Google, sin clave).</p>
+        (con el botón de Google, sin clave): mandásela por WhatsApp o copiala y pegala donde quieras.</p>
       <form class="form-noticia form-invitar" id="form-invitar">
         <label>Correo<input id="inv-email" type="email" required placeholder="persona@gmail.com"></label>
         <label>Nombre (opcional)<input id="inv-nombre"></label>
@@ -134,12 +121,12 @@
         <label>Comunidad<select id="inv-comunidad"></select></label>
         <label>WhatsApp (opcional)<input id="inv-tel" type="tel" placeholder="+56 9 1234 5678"></label>
         <div class="acciones-form">
-          <button type="submit" class="btn btn-primario" id="inv-correo">Invitar por correo</button>
+          <button type="submit" class="btn btn-primario" id="inv-copiar">Copiar invitación</button>
           <button type="button" class="btn btn-secundario" id="inv-whatsapp">Invitar por WhatsApp</button>
         </div>
       </form>
       <p class="msg-error" id="msg-invitar" hidden></p>
-      <p class="msg-ok" id="msg-invitar-ok" hidden></p>
+      <p class="msg-ok" id="msg-invitar-ok" style="white-space: pre-line" hidden></p>
 
       <h3 class="auth-h2">Personas</h3>
       <p class="aviso">Marcá el check para darle privilegios y elegí cuáles. Los cambios se guardan solos.
@@ -203,9 +190,6 @@
         refrescarVisitantes();
         if (s.rol === "admin_general" && $("audios-aac").hidden) {
           const token = () => sesionActual()?.token || "";
-          import("./js/vincular-audios.js")
-            .then((m) => m.iniciarVinculoAudios({ caja: $("audios-sueltos"), llamarApi, token }))
-            .catch((err) => console.warn("Audios sueltos:", err));
           import("./js/convertir-audios.js")
             .then((m) => m.iniciarConversionAudios({ caja: $("audios-aac"), llamarApi, token }))
             .catch((err) => console.warn("Conversión de audios:", err));
@@ -371,8 +355,8 @@
       };
     }
 
-    // El mismo texto que arma el servidor (textoInvitacion_ en backend/Code.gs)
-    const SITIO_URL = "https://cancioneromontecarmelo.github.io/paginaweb/";
+    // El mismo texto que arma el servidor (textoInvitacion en servidor/auth.js)
+    const SITIO_URL = (window.MONTECARMELO_CONFIG || {}).sitio || "./";
     function textoInvitacion(d) {
       const email = String(d.email || "").trim().toLowerCase();
       const yo = sesionActual() || {};
@@ -386,16 +370,19 @@
     async function enviarInvitacion(datos, porWhatsapp, tel) {
       mensaje("msg-invitar", "");
       mensaje("msg-invitar-ok", "");
-      // WhatsApp se abre en el mismo toque: si se espera al servidor, el navegador ya no deja abrir la app
-      if (porWhatsapp) window.open(enlaceWhatsapp(tel, textoInvitacion(datos)), "_blank", "noopener");
+      const texto = textoInvitacion(datos);
+      // WhatsApp y el portapapeles se usan en el mismo toque: si se espera al servidor, el navegador ya no los deja
+      let copiado = Promise.resolve(false);
+      if (porWhatsapp) window.open(enlaceWhatsapp(tel, texto), "_blank", "noopener");
+      else if (navigator.clipboard) copiado = navigator.clipboard.writeText(texto).then(() => true, () => false);
       try {
-        const r = await invitar({ ...datos, porCorreo: !porWhatsapp });
+        const r = await invitar(datos);
         if (porWhatsapp) {
           mensaje("msg-invitar-ok", "Privilegios guardados para " + r.usuario.email + ". Se abrió WhatsApp con la invitación.");
-        } else if (r.correoEnviado) {
-          mensaje("msg-invitar-ok", "Invitación enviada por correo a " + r.usuario.email + ".");
+        } else if (await copiado) {
+          mensaje("msg-invitar-ok", "Privilegios guardados para " + r.usuario.email + ". La invitación quedó copiada: pegala en un mensaje.");
         } else {
-          mensaje("msg-invitar", "Los privilegios quedaron guardados, pero el correo no salió. Probá con WhatsApp.");
+          mensaje("msg-invitar-ok", "Privilegios guardados para " + r.usuario.email + ". Copiá esta invitación y enviásela:\n\n" + texto);
         }
         refrescarPersonas();
         return true;
@@ -493,10 +480,10 @@
           wa.addEventListener("click", () =>
             enviarInvitacion({ email: u.email, nombre: u.nombre, rol: u.rol, comunidad: com.value }, true, "")
           );
-          const mail = Object.assign(document.createElement("button"), { type: "button", className: "btn-chico", textContent: "Correo" });
-          mail.title = "Enviar la invitación por correo";
-          mail.addEventListener("click", () => enviarInvitacion({ email: u.email, rol: u.rol, comunidad: com.value }, false));
-          botones.push(wa, " ", mail, " ");
+          const copiar = Object.assign(document.createElement("button"), { type: "button", className: "btn-chico", textContent: "Copiar" });
+          copiar.title = "Copiar la invitación para pegarla en un mensaje";
+          copiar.addEventListener("click", () => enviarInvitacion({ email: u.email, nombre: u.nombre, rol: u.rol, comunidad: com.value }, false));
+          botones.push(wa, " ", copiar, " ");
         }
         const quitar = Object.assign(document.createElement("button"), { type: "button", className: "btn-chico", textContent: "Quitar" });
         quitar.title = "Quitar de la lista";

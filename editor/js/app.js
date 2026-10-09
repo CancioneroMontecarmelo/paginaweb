@@ -417,7 +417,7 @@ function showSyntax() {
     body: `<table class="syntax-table">${rows.map(([a, b]) =>
       `<tr><td>${a}</td><td><code>${escapeHtml(b)}</code></td></tr>`).join('')}</table>
       <p class="hint" style="margin-top:10px">Al importar se acepta también formato ChordPro (<code>[G]Noche de [D]paz</code>).
-      Cada pestaña es una canción; con <b>Archivo → Guardar cancionero en el Drive</b> se guardan todas juntas.</p>`
+      Cada pestaña es una canción; con <b>Archivo → Guardar cancionero en la nube</b> se guardan todas juntas.</p>`
   });
 }
 
@@ -433,14 +433,14 @@ const MENUS = [
       { label: 'De la Biblioteca de la parroquia…', action: 'openSongBib' },
       { label: 'De este equipo…', action: 'open', key: 'Ctrl+O' },
       { group: 'Cancionero' },
-      { label: 'Del Drive de la parroquia…', action: 'driveOpen' },
+      { label: 'De la nube de la parroquia…', action: 'driveOpen' },
       { label: 'De este equipo…', action: 'openBook' },
       { label: 'Colección de este equipo…', action: 'openCollection', key: 'Ctrl+Alt+O' }
     ]},
     { sep: true },
-    { group: 'Guardar (en el Drive de la parroquia)' },
+    { group: 'Guardar (en la nube de la parroquia)' },
     { label: 'Guardar canción en la Biblioteca', action: 'saveSongBib', key: 'Ctrl+S' },
-    { label: 'Guardar cancionero en el Drive…', action: 'driveSave', key: 'Ctrl+Alt+S' },
+    { label: 'Guardar cancionero en la nube…', action: 'driveSave', key: 'Ctrl+Alt+S' },
     { label: 'Guardar como (en este equipo)', submenu: [
       { label: 'Canción (.md)…', action: 'saveAs', key: 'Ctrl+Shift+S' },
       { label: 'Cancionero (.m3u8)…', action: 'saveBookAs' }

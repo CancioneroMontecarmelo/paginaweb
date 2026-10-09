@@ -1,7 +1,7 @@
 /**
  * auth.js — Identificación en el sitio Monte Carmelo (sin claves)
  *
- *  - «Entrar con Google»: el Apps Script (backend/Code.gs) verifica la cuenta con Google y devuelve
+ *  - «Entrar con Google»: el servidor (servidor/auth.js) verifica la cuenta con Google y devuelve
  *    un token firmado. cancionerolitugico@gmail.com es siempre el administrador general.
  *  - Visitante: solo el correo, sin verificar; nunca recibe privilegios.
  *
@@ -56,6 +56,38 @@ export async function llamarApi(accion, datos, opciones) {
     throw new Error(r.error || "El servidor de la parroquia no respondió");
   }
   if (r.token && datos && datos.token) renovarToken(r.token);
+  return r;
+}
+
+/**
+ * Sube un archivo tal cual (PUT /api/subir?tipo=…, sin pasarlo a base64): `params` va en la dirección y el
+ * token en la cabecera. Como llamarApi, si la sesión venció pide entrar de nuevo y repite.
+ */
+export async function subirBinario(tipo, params, archivo, opciones) {
+  if (!usaBackend()) throw new Error("Falta la dirección del servidor de la parroquia (apiUrl en js/config.js).");
+  const { token: t = token(), ...resto } = params || {};
+  let r;
+  try {
+    const res = await fetch(apiUrl() + "/subir?" + new URLSearchParams({ tipo, ...resto }), {
+      method: "PUT",
+      headers: { Authorization: "Bearer " + t, "Content-Type": archivo.type || "application/octet-stream" },
+      body: archivo
+    });
+    r = await res.json();
+  } catch (_) {
+    throw new Error("No se pudo conectar con el servidor de la parroquia. Revisá tu conexión a internet.");
+  }
+  if (!r.ok) {
+    if (/sesi[oó]n (inv[aá]lida|venci[oó])/i.test(r.error || "")) {
+      olvidarToken(t);
+      if ((opciones || {}).reingreso !== false) {
+        const s = await pedirReingreso();
+        if (s && s.token) return subirBinario(tipo, { ...params, token: s.token }, archivo, { reingreso: false });
+      }
+    }
+    throw new Error(r.error || "El servidor de la parroquia no respondió");
+  }
+  if (r.token) renovarToken(r.token);
   return r;
 }
 
@@ -239,7 +271,7 @@ export async function asignarRol(datos) {
   return (await llamarApi("asignarRol", { token: token(), ...datos, email: normalizarEmail(datos.email) })).usuario;
 }
 
-/** Registra los privilegios y devuelve el texto de la invitación (y si salió por correo). */
+/** Registra los privilegios y devuelve el texto de la invitación (para WhatsApp o copiarlo). */
 export function invitar(datos) {
   return llamarApi("invitar", { token: token(), ...datos, email: normalizarEmail(datos.email) });
 }

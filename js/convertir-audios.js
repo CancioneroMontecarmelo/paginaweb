@@ -1,10 +1,11 @@
 /**
  * convertir-audios.js — Panel del administrador general (login.html): pasa a AAC (.m4a) los audios de la
  * Biblioteca que siguen en otro formato (los WebM de antes). Cada audio se baja, se convierte en este
- * navegador (js/audio-aac.js) y se reemplaza el contenido del mismo archivo de Drive: el enlace no cambia.
+ * navegador (js/audio-aac.js) y se reemplaza el contenido del mismo archivo en el servidor: el enlace no cambia.
  * La lista de pendientes sale siempre del servidor, así que se puede pausar, cerrar y seguir otro día.
  */
 import { aM4a } from "./audio-aac.js";
+import { subirBinario } from "./auth.js";
 
 const mb = (n) => (n / 1048576).toLocaleString("es-CL", { maximumFractionDigits: 1 }) + " MB";
 const duracionTexto = (seg) => {
@@ -12,15 +13,6 @@ const duracionTexto = (seg) => {
   const h = Math.floor(seg / 3600), m = Math.round((seg % 3600) / 60);
   return h ? `${h} h ${m} min` : m ? `${m} min` : "menos de un minuto";
 };
-
-function aBase64(blob) {
-  return new Promise((ok, mal) => {
-    const fr = new FileReader();
-    fr.onload = () => ok(String(fr.result).split(",")[1] || "");
-    fr.onerror = () => mal(fr.error);
-    fr.readAsDataURL(blob);
-  });
-}
 
 export function iniciarConversionAudios({ caja, llamarApi, token }) {
   const $ = (sel) => caja.querySelector(sel);
@@ -32,10 +24,10 @@ export function iniciarConversionAudios({ caja, llamarApi, token }) {
     const n = st.pendientes.length;
     const s = r.resumen;
     const total = s
-      ? [`${s.archivos} archivos de audio en el Drive (${s.usos} usos en ${s.canciones} canciones)`,
+      ? [`${s.archivos} archivos de audio en la Biblioteca (${s.usos} usos en ${s.canciones} canciones)`,
         s.externos && `${s.externos} ${s.externos === 1 ? "MP3 externo, que ya suena" : "MP3 externos, que ya suenan"}`,
         s.videos && `${s.videos} ${s.videos === 1 ? "video de YouTube, que no se convierte" : "videos de YouTube, que no se convierten"}`,
-        s.perdidos && `${s.perdidos} ${s.perdidos === 1 ? "audio borrado del Drive" : "audios borrados del Drive"}`].filter(Boolean).join(" · ") + ". "
+        s.perdidos && `${s.perdidos} ${s.perdidos === 1 ? "audio que ya no está en el servidor" : "audios que ya no están en el servidor"}`].filter(Boolean).join(" · ") + ". "
       : "";
     $("#aac-resumen").textContent = total + (n
       ? `${n} ${n === 1 ? "audio está" : "audios están"} en el formato anterior (${mb(r.bytesPendientes)}) · ${r.convertidos} ya en .m4a o MP3.`
@@ -75,9 +67,9 @@ export function iniciarConversionAudios({ caja, llamarApi, token }) {
   }
 
   async function bajar(item) {
-    const r = await llamarApi("leerAudioAConvertir", { token: token(), fileId: item.fileId });
-    const bytes = Uint8Array.from(atob(r.base64), (c) => c.charCodeAt(0));
-    return new File([bytes], r.nombre || item.nombre, { type: r.mime || item.mime || "audio/webm" });
+    const res = await fetch((window.MONTECARMELO_CONFIG || {}).apiUrl + "/audio/" + encodeURIComponent(item.fileId));
+    if (!res.ok) throw new Error("no se pudo bajar el audio");
+    return new File([await res.blob()], item.nombre, { type: item.mime || res.headers.get("Content-Type") || "audio/webm" });
   }
 
   const avisarAlSalir = (e) => { e.preventDefault(); e.returnValue = ""; };
@@ -110,7 +102,7 @@ export function iniciarConversionAudios({ caja, llamarApi, token }) {
         });
         if (!r.convertido) throw new Error(r.aviso || "no se pudo convertir");
         estado(`${prefijo} · guardando ${mb(r.archivo.size)}…`);
-        await llamarApi("reemplazarAudio", { token: token(), fileId: item.fileId, base64: await aBase64(r.archivo) });
+        await subirBinario("reemplazo", { token: token(), fileId: item.fileId }, r.archivo);
         st.hechos++;
         st.pendientes = st.pendientes.filter((x) => x.fileId !== item.fileId);
       } catch (e) {
@@ -139,7 +131,7 @@ export function iniciarConversionAudios({ caja, llamarApi, token }) {
   $("#aac-iniciar").addEventListener("click", () => {
     if (!st.pendientes.length) return;
     if (!st.hechos && !confirm(`Se van a convertir ${st.pendientes.length} audios a .m4a en este navegador. ` +
-      "Cada archivo conserva su enlace y Drive guarda la versión anterior 30 días. Dejá esta pestaña abierta mientras trabaja. ¿Empezar?")) return;
+      "Cada audio conserva su enlace y queda reemplazado por su versión .m4a. Dejá esta pestaña abierta mientras trabaja. ¿Empezar?")) return;
     st.cola = st.pendientes.filter((x) => !st.errores.some((y) => y.item.fileId === x.fileId));
     correr();
   });
@@ -152,7 +144,6 @@ export function iniciarConversionAudios({ caja, llamarApi, token }) {
     }
   });
   $("#aac-contar").addEventListener("click", () => { if (!st.corriendo) contar(); });
-  document.addEventListener("mc-audios-vinculados", () => { if (!st.corriendo) contar(); });
 
   caja.hidden = false;
   contar();

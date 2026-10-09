@@ -220,15 +220,15 @@ export async function iniciarListaCancioneros(opts) {
   if (!comu) return;
   const api = (window.MONTECARMELO_CONFIG || {}).apiUrl;
   let entradas = [];
-  let aviso = "Aún no hay cancioneros publicados. Los directores los guardan desde el editor con «Guardar en Drive».";
+  let aviso = "Aún no hay cancioneros publicados. Los directores los guardan desde el editor con «Guardar en la nube».";
   if (!api) {
-    aviso = "El Drive de la parroquia todavía no está conectado.";
+    aviso = "El servidor de la parroquia todavía no está conectado.";
   } else {
     try {
       const r = await (await fetch(api + "?accion=listar&comunidad=" + encodeURIComponent(opts.slug))).json();
       entradas = r.cancioneros || [];
     } catch (_) {
-      aviso = "No se pudo consultar el Drive de la parroquia. Probá recargar la página.";
+      aviso = "No se pudo consultar el servidor de la parroquia. Probá recargar la página.";
     }
   }
   el.replaceChildren();
@@ -273,13 +273,13 @@ export async function iniciarListaMisas(opts) {
   let misas = [];
   let aviso = "Todavía no hay cancioneros de misa para esta comunidad.";
   if (!api) {
-    aviso = "El Drive de la parroquia todavía no está conectado.";
+    aviso = "El servidor de la parroquia todavía no está conectado.";
   } else {
     try {
       const r = await (await fetch(api + "?accion=misas&comunidad=" + encodeURIComponent(opts.slug))).json();
       misas = r.misas || [];
     } catch (_) {
-      aviso = "No se pudo consultar el Drive de la parroquia. Probá recargar la página.";
+      aviso = "No se pudo consultar el servidor de la parroquia. Probá recargar la página.";
     }
   }
   el.replaceChildren();

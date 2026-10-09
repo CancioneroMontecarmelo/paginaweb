@@ -1,6 +1,6 @@
 """
 mc_biblioteca.py — Lo común a scripts/video-a-webm.py y scripts/subir-canciones.py: el servidor de la
-parroquia (Apps Script), la clave guardada, el formato de las canciones .md y la conversión a AAC (.m4a).
+parroquia (/api en Cloudflare Pages), la clave guardada, el formato de las canciones .md y la conversión a AAC (.m4a).
 """
 
 import base64
@@ -20,10 +20,10 @@ from datetime import datetime
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-SITIO_URL = "https://cancioneromontecarmelo.github.io/paginaweb/"
-API_POR_DEFECTO = ("https://script.google.com/macros/s/AKfycbypubIfWZ2gsFaSnCEBj7Cy5Rcp3SPCloukVlz7bFF2ZzLB2rv_jg0_oSGe_raQ897X/exec")
+SITIO_URL = "https://montecarmelo-kxg.pages.dev/"  # SITIO en js/config.js
+API_POR_DEFECTO = SITIO_URL + "api"
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "montecarmelo" / "sesion.json"
-MAX_BYTES = 30 * 1024 * 1024  # MAX_ARCHIVO_BYTES en backend/Code.gs
+MAX_BYTES = 30 * 1024 * 1024  # MAX_ARCHIVO_BYTES en servidor/util.js
 ARTISTA = "Parroquia Monte Carmelo"
 COMUNIDADES = {
     "maria-de-nazaret": "Capilla María de Nazaret",
@@ -281,25 +281,35 @@ def a_m4a(origen, destino, titulo, letra=""):
 # ---------------------------------------------------------------- servidor de la parroquia
 
 def api_de_config():
-    try:
-        m = re.search(r"apiUrl:\s*'([^']+)'", (RAIZ / "js" / "config.js").read_text(encoding="utf-8"))
-        if m:
-            return m.group(1)
-    except OSError:
-        pass
-    return API_POR_DEFECTO
+    """El servidor del sitio publicado; MC_API lo cambia (por ejemplo, http://127.0.0.1:8788/api para probar)."""
+    return os.environ.get("MC_API") or API_POR_DEFECTO
+
+
+# Cloudflare frena a los programas que se presentan como «Python-urllib»
+AGENTE = {"User-Agent": "MonteCarmelo-escritorio/2 (+" + SITIO_URL + ")"}
 
 
 class Api:
     def __init__(self, url, token):
-        self.url, self.token = url, token
+        self.url, self.token = url.rstrip("/"), token
+
+    def _abrir(self, pedido):
+        for k, v in AGENTE.items():
+            pedido.add_header(k, v)
+        try:
+            with urllib.request.urlopen(pedido, timeout=600) as res:
+                return res.read()
+        except urllib.error.HTTPError as e:
+            cuerpo = e.read()
+            if cuerpo.startswith(b"{"):
+                return cuerpo
+            raise Error(f"El servidor de la parroquia respondió con un error ({e.code}).")
+        except urllib.error.URLError as e:
+            raise Error(f"No se pudo conectar con el servidor de la parroquia: {e.reason}")
 
     def _leer(self, pedido):
         try:
-            with urllib.request.urlopen(pedido, timeout=600) as res:
-                r = json.loads(res.read().decode("utf-8"))
-        except urllib.error.URLError as e:
-            raise Error(f"No se pudo conectar con el servidor de la parroquia: {e}")
+            r = json.loads(self._abrir(pedido).decode("utf-8"))
         except ValueError:
             raise Error("El servidor de la parroquia respondió algo que no se entiende.")
         if not r.get("ok"):
@@ -314,8 +324,17 @@ class Api:
 
     def post(self, accion, **datos):
         cuerpo = json.dumps({"accion": accion, "token": self.token, **datos}).encode("utf-8")
-        # Apps Script responde con una redirección a la respuesta: urllib la sigue con GET, que es lo que pide
         return self._leer(urllib.request.Request(self.url, data=cuerpo, headers={"Content-Type": "text/plain;charset=utf-8"}))
+
+    def subir(self, tipo, ruta, contenido, **params):
+        """PUT /api/subir?tipo=…: el archivo va tal cual (sin base64) y la clave en la cabecera."""
+        pedido = urllib.request.Request(self.url + "/subir?" + urllib.parse.urlencode({"tipo": tipo, **params}),
+                                        data=Path(ruta).read_bytes(), method="PUT",
+                                        headers={"Content-Type": contenido, "Authorization": "Bearer " + self.token})
+        return self._leer(pedido)
+
+    def bajar_audio(self, file_id):
+        return self._abrir(urllib.request.Request(self.url + "/audio/" + urllib.parse.quote(file_id)))
 
 
 def datos_clave(token):
@@ -354,7 +373,9 @@ CARPETAS_IGNORADAS = {"node_modules", "htmls", "pdfs imprimibles", "partituras",
 # «[Escuchar](<Abandónate.webm>)»: así enlazan su audio las canciones del Copiador de canciones
 ENLACE_MD = re.compile(r"^[ \t]*(?:[-*][ \t]+)?\[[^\]\n]*\]\((?:<([^>\n]+)>|([^)\s]+))\)[ \t]*(?:\n|$)", re.M)
 EXT_AUDIO_LOCAL = re.compile(r"\.(webm|weba|m4a|mp3|ogg|oga|opus|wav|aac|flac|amr|wma|aiff?|mp4|m4v|mkv|mov)$", re.I)
-URL_AUDIO_DRIVE = "https://drive.google.com/uc?export=download&id="
+URL_AUDIO = SITIO_URL + "api/audio/"
+# Audio ya subido a la Biblioteca: «…/api/audio/<id>» o el enlace del Drive de antes de la mudanza (mismo id)
+ID_DE_AUDIO = re.compile(r"/api/audio/([\w-]+)|drive\.google\.com/(?:uc\?(?:[^\s\"]*&)?id=|file/d/)([\w-]+)")
 
 
 def atributo(etiqueta, nombre):
@@ -392,7 +413,9 @@ def leer_cancion_local(ruta):
             continue
         a = {"etiqueta": etiqueta, "src": src, "nombre": atributo(etiqueta, "title") or Path(urllib.parse.unquote(src)).stem,
              "voz": "" if atributo(etiqueta, "data-voz") in ("", "todas") else atributo(etiqueta, "data-voz")}
-        if es_enlace(src):
+        if id_de_audio(src):
+            a["tipo"], a["fileId"] = "biblioteca", id_de_audio(src)
+        elif es_enlace(src):
             a["tipo"] = "video" if atributo(etiqueta, "data-extraer") or PAGINA_DE_VIDEO.match(src) else "enlace"
         else:
             a["tipo"] = "local"
@@ -441,9 +464,14 @@ def quitar_de_cabecera(texto, clave, valor):
     return "---\n" + "\n".join(lineas) + "\n---" + texto[m.end():]
 
 
-def etiqueta_audio_drive(a):
+def id_de_audio(src):
+    m = ID_DE_AUDIO.search(src or "")
+    return (m.group(1) or m.group(2)) if m else ""
+
+
+def etiqueta_audio(a):
     voz = f' data-voz="{escapar_atributo(a["voz"])}"' if a.get("voz") and a["voz"] != "todas" else ""
-    return f'<audio controls src="{escapar_atributo(URL_AUDIO_DRIVE + a["fileId"])}" title="{escapar_atributo(a["nombre"])}"{voz}></audio>'
+    return f'<audio controls src="{escapar_atributo(URL_AUDIO + a["fileId"])}" title="{escapar_atributo(a["nombre"])}"{voz}></audio>'
 
 
 def escanear(carpeta, profundidad=4):
@@ -506,11 +534,12 @@ def estado_cancion(c, previa, repetida_con=None):
 
 
 def resumen_audios(c):
-    n = {"local": 0, "video": 0, "enlace": 0}
+    n = {"local": 0, "video": 0, "enlace": 0, "biblioteca": 0}
     for a in c["audios"]:
         n[a["tipo"]] += 1
     partes = [f"{n['local']} de la compu" if n["local"] else "", f"{n['video']} video" + ("s" if n["video"] > 1 else "") if n["video"] else "",
-              f"{n['enlace']} enlace" + ("s" if n["enlace"] > 1 else "") if n["enlace"] else ""]
+              f"{n['enlace']} enlace" + ("s" if n["enlace"] > 1 else "") if n["enlace"] else "",
+              f"{n['biblioteca']} ya subido" + ("s" if n["biblioteca"] > 1 else "") if n["biblioteca"] else ""]
     return ", ".join(p for p in partes if p) or "sin audios"
 
 
@@ -519,10 +548,20 @@ def subir_cancion_local(api, c, previa, comunidad="", convertir_videos=False, av
     los videos quedan como enlace (los de YouTube suenan en el sitio con el reproductor de YouTube insertado).
     Conserva los audios y las etiquetas que la canción ya tenía."""
     ya = {a.get("nombre"): a for a in (previa or {}).get("audios") or [] if a.get("fileId")}
+    conocidos = {a["fileId"] for a in ya.values()}
     cambios, nuevos, srcs_locales = [], [], []
     with tempfile.TemporaryDirectory(prefix="subir-canciones-") as tmp:
         for i, a in enumerate(c["audios"], 1):
             etiqueta = f"audio {i} de {len(c['audios'])} («{a['nombre']}»)"
+            if a["tipo"] == "biblioteca" and "/api/audio/" not in a["src"] and a["fileId"] not in conocidos:
+                nuevos.append({"nombre": a["nombre"], "voz": a["voz"], "url": a["src"]})
+                continue
+            if a["tipo"] == "biblioteca":
+                hecho = {"nombre": a["nombre"], "voz": a["voz"], "fileId": a["fileId"]}
+                nuevos.append(hecho)
+                if a["etiqueta"]:
+                    cambios.append((a["etiqueta"], etiqueta_audio(hecho) + "\n"))
+                continue
             if a["tipo"] == "enlace" or (a["tipo"] == "video" and not convertir_videos):
                 nuevos.append({"nombre": a["nombre"], "voz": a["voz"], "url": a["src"]})
                 continue
@@ -536,7 +575,7 @@ def subir_cancion_local(api, c, previa, comunidad="", convertir_videos=False, av
                 avance(f"  {etiqueta}: ya estaba en la Biblioteca.")
                 hecho = {"nombre": a["nombre"], "voz": a["voz"], "fileId": ya[a["nombre"]]["fileId"]}
                 nuevos.append(hecho)
-                cambios.append((a["etiqueta"], etiqueta_audio_drive(hecho) + "\n"))
+                cambios.append((a["etiqueta"], etiqueta_audio(hecho) + "\n"))
                 continue
             try:
                 if a["tipo"] == "video":
@@ -555,12 +594,11 @@ def subir_cancion_local(api, c, previa, comunidad="", convertir_videos=False, av
                     cambios.append((a["etiqueta"], ""))
                 continue
             avance(f"  {etiqueta}: subiendo {tam / 1048576:.1f} MB…")
-            r = api.post("subirAudioBiblioteca", nombre=destino.name, mime="audio/mp4",
-                         base64=base64.b64encode(destino.read_bytes()).decode("ascii"),
-                         cancion=(previa or {}).get("titulo") or c["titulo"], voz=a["voz"])
+            r = api.subir("audio", destino, "audio/mp4", nombre=destino.name, mime="audio/mp4",
+                          cancion=(previa or {}).get("titulo") or c["titulo"], voz=a["voz"])
             hecho = {"nombre": a["nombre"], "voz": a["voz"], "fileId": r["fileId"]}
             nuevos.append(hecho)
-            cambios.append((a["etiqueta"], etiqueta_audio_drive(hecho) + "\n"))
+            cambios.append((a["etiqueta"], etiqueta_audio(hecho) + "\n"))
 
     texto = c["texto"]
     for etiqueta, reemplazo in cambios:
@@ -586,109 +624,34 @@ def subir_cancion_local(api, c, previa, comunidad="", convertir_videos=False, av
     return api.post("subirCancion", md=texto, nombre=c["ruta"].name, comunidad=comunidad or "", audios=audios[:20])["cancion"]
 
 
-# ---------------------------------------------------------------- carpetas litúrgicas del Drive
+# ---------------------------------------------------------------- audios que todavía no son .m4a
 
-def clave_ruta(partes, nombre):
-    """«Momentos liturgícos/Comunión» + «Abandónate.webm» → «momentos-liturgicos/comunion/abandónate.webm»."""
-    return "/".join(slug(p) for p in partes) + "/" + unicodedata.normalize("NFC", nombre).lower()
-
-
-def indice_local(raiz):
-    """Audios de la carpeta de la computadora por su ruta sin tildes (también por cada final de la ruta, por si
-    se eligió una carpeta de más arriba), para encontrar la copia de un audio del Drive."""
-    indice, raiz = {}, Path(raiz)
-    for p in raiz.rglob("*"):
-        if p.is_file() and EXT_AUDIO_LOCAL.search(p.name):
-            partes = p.parent.relative_to(raiz).parts
-            for i in range(len(partes) + 1):
-                indice.setdefault(clave_ruta(partes[i:], p.name), p)
-    return indice
-
-
-def audios_de_youtube(api, simular=True, avance=aviso, detener=None):
-    """Los audios que antes se bajaban de YouTube para los .md de las carpetas (quitarAudiosDeYoutube, por
-    tandas). Con simular=False van a la papelera del Drive y esas canciones quedan con el video insertado.
-    Devuelve (audios, detenido): [{ruta, md, audio, fileId}]."""
-    audios, cursor = [], ""
-    while True:
-        r = api.post("quitarAudiosDeYoutube", simular="1" if simular else "", **({"cursor": cursor} if cursor else {}))
-        audios += r.get("audios") or []
-        if not simular and r.get("quitados"):
-            avance(f"  {len(audios)} audios bajados de YouTube quitados…")
-        cursor = r.get("cursor") or ""
-        if not cursor:
-            return audios, False
-        if detener and detener.is_set():
-            return audios, True
-
-
-def procesar_carpetas(api, carpeta_local=None, avance=aviso, detener=None, quitar_youtube=False):
-    """Biblioteca/Momentos litúrgicos y Biblioteca/Tiempos litúrgicos del Drive: 0) si se pide, quita los audios
-    que antes se bajaban de YouTube (ver audios_de_youtube); 1) el servidor vincula cada .md con su audio y le pone
-    la etiqueta de su carpeta (indexarCarpetas, por tandas); 2) cada .webm se convierte a AAC (.m4a) desde la copia
-    de esta computadora (o bajándolo del Drive) y reemplaza al del Drive con el mismo enlace. Los .md con YouTube y
-    sin audio no se completan: en el sitio suenan con el reproductor de YouTube insertado."""
-    parar = lambda: bool(detener and detener.is_set())  # noqa: E731
-    res = {"md": 0, "vinculados": 0, "cambiados": 0, "nuevas": 0, "actualizadas": 0, "convertidos": 0, "con_video": 0,
-           "quitados_youtube": 0, "fallas": [], "sin_audio": [], "otros_audios": [], "detenido": False, "carpetas": 0}
-    if quitar_youtube:
-        avance("Quitando los audios que se habían bajado de YouTube (esas canciones usan el video)…")
-        quitados, detenido = audios_de_youtube(api, simular=False, avance=avance, detener=detener)
-        res["quitados_youtube"] = len(quitados)
-        if detenido:
-            res["detenido"] = True
-            return res
-    a_convertir, cursor, tanda = {}, "", 0
-    avance("Revisando las carpetas del Drive (vincular audios y poner etiquetas)…")
-    while True:
-        tanda += 1
-        r = api.post("indexarCarpetas", **({"cursor": cursor} if cursor else {}))
-        if r.get("aviso"):
-            raise Error(r["aviso"])
-        if not r.get("carpetas"):
-            raise Error("El servidor no devolvió las carpetas (falla pasajera de Apps Script): probá de nuevo en un rato.")
-        for k in ("md", "vinculados", "cambiados", "nuevas", "actualizadas"):
-            res[k] += r.get(k) or 0
-        res["carpetas"] = r.get("carpetas") or 0
-        for a in r.get("aConvertir") or []:
-            a_convertir[a["fileId"]] = a
-        res["con_video"] += r.get("conVideo") or 0
-        res["sin_audio"] += r.get("sinAudio") or []
-        res["otros_audios"] += r.get("otrosAudios") or []
-        avance(f"  Tanda {tanda}: {res['md']} canciones revisadas, {res['vinculados']} audios vinculados, "
-               f"{res['cambiados']} .md actualizados ({res['carpetas']} carpetas).")
-        cursor = r.get("cursor") or ""
-        if not cursor:
-            break
-        if parar():
-            res["detenido"] = True
-            return res
-
-    if a_convertir:
-        locales = indice_local(carpeta_local) if carpeta_local and Path(carpeta_local).is_dir() else {}
-        avance(f"\nConvirtiendo {len(a_convertir)} audios .webm a AAC (.m4a)…")
-        with tempfile.TemporaryDirectory(prefix="carpetas-") as tmp:
-            for i, a in enumerate(a_convertir.values(), 1):
-                if parar():
-                    res["detenido"] = True
-                    return res
-                donde = f"{a['ruta']}/{a['nombre']}"
-                try:
-                    origen = locales.get(clave_ruta(a["ruta"].split("/"), a["nombre"]))
-                    del_drive = not origen
-                    if del_drive:
-                        d = api.post("leerAudioAConvertir", fileId=a["fileId"])
-                        origen = Path(tmp) / ("original" + Path(a["nombre"]).suffix)
-                        origen.write_bytes(base64.b64decode(d["base64"]))
-                    destino = Path(tmp) / "convertido.m4a"
-                    tam, _ = a_m4a(origen, destino, Path(a["nombre"]).stem)
-                    api.post("reemplazarAudio", fileId=a["fileId"], base64=base64.b64encode(destino.read_bytes()).decode("ascii"))
-                    res["convertidos"] += 1
-                    avance(f"  {i}/{len(a_convertir)} {donde} → .m4a ({tam / 1048576:.1f} MB" + (", bajado del Drive)" if del_drive else ")"))
-                except (Error, subprocess.CalledProcessError, OSError, ValueError) as e:
-                    res["fallas"].append(f"{donde}: {e}")
-                    avance(f"  {i}/{len(a_convertir)} {donde}: no se pudo convertir ({e})")
-
+def convertir_pendientes(api, avance=aviso, detener=None):
+    """Los audios de la Biblioteca que no están en .m4a ni .mp3 (los .webm que no suenan en iPhone) se bajan,
+    se convierten a AAC (.m4a) y reemplazan al original con el mismo id: los enlaces no cambian."""
+    res = {"convertidos": 0, "fallas": [], "detenido": False, "pendientes": 0}
+    pendientes = api.post("audiosAConvertir").get("pendientes") or []
+    res["pendientes"] = len(pendientes)
+    if not pendientes:
+        return res
+    avance(f"Convirtiendo {len(pendientes)} audios a AAC (.m4a)…")
+    with tempfile.TemporaryDirectory(prefix="convertir-") as tmp:
+        for i, a in enumerate(pendientes, 1):
+            if detener and detener.is_set():
+                res["detenido"] = True
+                return res
+            donde = f"{a.get('cancion') or ''}: {a['nombre']}"
+            try:
+                origen = Path(tmp) / ("original" + Path(a["nombre"]).suffix)
+                origen.write_bytes(api.bajar_audio(a["fileId"]))
+                destino = Path(tmp) / "convertido.m4a"
+                tam, _ = a_m4a(origen, destino, a.get("cancion") or Path(a["nombre"]).stem)
+                api.subir("reemplazo", destino, "audio/mp4", fileId=a["fileId"])
+                res["convertidos"] += 1
+                avance(f"  {i}/{len(pendientes)} {donde} → .m4a ({tam / 1048576:.1f} MB)")
+            except (Error, subprocess.CalledProcessError, OSError, ValueError) as e:
+                res["fallas"].append(f"{donde}: {e}")
+                avance(f"  {i}/{len(pendientes)} {donde}: no se pudo convertir ({e})")
     return res
 
 

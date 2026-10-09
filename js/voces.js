@@ -4,7 +4,7 @@
  *  - pistasDeVoces(audios) elige un audio por voz (soprano, contralto, tenor…); el mezclador aparece cuando
  *    hay dos o más voces distintas.
  *  - crearMezclador({ contenedor, pistas, leerAudio }) baja cada voz con leerAudio(fileId) → ArrayBuffer
- *    (el respaldo accion=audio del Apps Script, sin problemas de permisos entre sitios), las decodifica con
+ *    (GET /api/audio/<id>, del mismo sitio), las decodifica con
  *    Web Audio y las hace sonar juntas desde el mismo instante. Cada voz pasa por su propio GainNode:
  *    volumen, silencio y «solo»; «Mi voz» deja esa voz al 100 % y las demás bajas, como guía (se recuerda en
  *    el equipo). Devuelve { cerrar }, que corta el sonido y libera el AudioContext.

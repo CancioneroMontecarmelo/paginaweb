@@ -1,6 +1,6 @@
 'use strict';
-// Drive de la parroquia: guarda el cancionero abierto en la cuenta de la parroquia (por el Apps Script
-// de backend/Code.gs) y lo vuelve a abrir desde ahí. Cada cancionero queda en su carpeta:
+// Nube de la parroquia: guarda el cancionero abierto en el servidor de la parroquia (/api, servidor/) y lo
+// vuelve a abrir desde ahí. Cada cancionero queda en su carpeta:
 //   cancionero.m3u8 · canciones/*.md · audios/* · <Título>.html (página con los audios adentro)
 // Sin apiUrl en js/config.js solo funcionan las carpetas del equipo.
 
@@ -86,7 +86,7 @@ async function mcApi(accion, datos = {}, reingreso = true) {
     });
     r = await res.json();
   } catch (_) {
-    throw new Error('No se pudo conectar con el Drive de la parroquia. Revisa tu conexión a internet.');
+    throw new Error('No se pudo conectar con el servidor de la parroquia. Revisa tu conexión a internet.');
   }
   if (!r.ok) {
     if (/sesi[oó]n (inv[aá]lida|venci[oó])/i.test(r.error || '')) {
@@ -97,17 +97,45 @@ async function mcApi(accion, datos = {}, reingreso = true) {
         if (s?.token) return mcApi(accion, { ...datos, token: s.token }, false);
       }
     }
-    throw new Error(r.error || 'El Drive de la parroquia no respondió.');
+    throw new Error(r.error || 'El servidor de la parroquia no respondió.');
   }
   if (r.token && datos.token) mcRenovarToken(r.token);
+  return r;
+}
+
+// Sube un archivo tal cual (PUT /api/subir?tipo=…, sin base64); como mcApi, si la sesión venció pide entrar y repite
+async function mcSubir(tipo, params, blob, token, reingreso = true) {
+  let r;
+  try {
+    const res = await fetch(MC_API + '/subir?' + new URLSearchParams({ tipo, ...params }), {
+      method: 'PUT',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': blob.type || 'application/octet-stream' },
+      body: blob
+    });
+    r = await res.json();
+  } catch (_) {
+    throw new Error('No se pudo conectar con el servidor de la parroquia. Revisa tu conexión a internet.');
+  }
+  if (!r.ok) {
+    if (/sesi[oó]n (inv[aá]lida|venci[oó])/i.test(r.error || '')) {
+      mcOlvidarToken(token);
+      mcPintarSesion();
+      if (reingreso) {
+        const s = await mcEntrar('Tu sesión se cerró. No se perdió nada: al entrar se completa lo que estabas guardando.');
+        if (s?.token) return mcSubir(tipo, params, blob, s.token, false);
+      }
+    }
+    throw new Error(r.error || 'El servidor de la parroquia no respondió.');
+  }
+  if (r.token) mcRenovarToken(r.token);
   return r;
 }
 
 function mcConfigurado() {
   if (MC_API) return true;
   showModal({
-    title: 'Drive de la parroquia',
-    body: `<p>El Drive de la parroquia todavía no está conectado: falta la dirección del Apps Script en <code>js/config.js</code>.</p>
+    title: 'Nube de la parroquia',
+    body: `<p>El servidor de la parroquia todavía no está conectado: falta su dirección en <code>js/config.js</code>.</p>
       <p class="hint">Mientras tanto puedes guardar el cancionero en tu equipo con <b>Archivo → Guardar como (en este equipo) → Cancionero</b>.</p>`
   });
   return false;
@@ -126,7 +154,7 @@ async function mcEntrar(motivo) {
   if ($('#modal').open) $('#modal').close();
   await showModal({
     title: 'Identificarse',
-    body: `<p>${escapeHtml(motivo || 'Para usar el Drive de la parroquia entra con tu cuenta de Google (no hace falta clave).')}</p>
+    body: `<p>${escapeHtml(motivo || 'Para usar la nube de la parroquia entra con tu cuenta de Google (no hace falta clave).')}</p>
       <div id="mcGoogle" style="min-height:44px;margin:.75rem 0"></div>
       <p class="hint">Si tu cuenta todavía no tiene permisos, pídeselos al administrador de la parroquia.</p>`,
     onOpen: d => {
@@ -144,7 +172,6 @@ async function mcEntrar(motivo) {
 }
 
 // ============ GUARDAR ============
-const mcBase64 = blob => blobDataUrl(blob).then(u => u.slice(u.indexOf(',') + 1));
 const mcFecha = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
 async function driveSaveDialog() {
@@ -156,7 +183,7 @@ async function driveSaveDialog() {
   if (!s) return;
   if (s.rol === 'visitante') {
     showModal({
-      title: 'Drive de la parroquia',
+      title: 'Nube de la parroquia',
       body: `<p>Entraste como <b>${escapeHtml(s.email)}</b>, que todavía no tiene permisos para guardar cancioneros.</p>
         <p class="hint">Pídele al administrador de la parroquia que te los asigne en <b>Identificarse → Administradores y permisos</b>.</p>`
     });
@@ -169,7 +196,7 @@ async function driveSaveDialog() {
     : MC_COMUNIDADES[s.comunidad] ? s.comunidad : opciones[0][0];
   const conAudios = songs.some(d => d.audios.some(canEmbed));
   const res = await showModal({
-    title: 'Guardar en el Drive de la parroquia',
+    title: 'Guardar en la nube de la parroquia',
     wide: true,
     body: `<p>Se guardan las <b>${songs.length}</b> canciones abiertas, en el orden de las pestañas, con sus audios.</p>
       <ol class="book-list">${songs.map(d => `<li>${escapeHtml(d.title.trim() || 'Sin título')}</li>`).join('')}</ol>
@@ -192,7 +219,7 @@ async function driveSaveDialog() {
     buttons: [
       { label: 'Cancelar' },
       {
-        label: 'Guardar en Drive', primary: true,
+        label: 'Guardar en la nube', primary: true,
         onClick: d => {
           const titulo = d.querySelector('#mcTitulo').value.trim();
           if (!titulo) return modalFail(d, 'Escribe un nombre para el cancionero.');
@@ -290,7 +317,7 @@ async function mcArmarArchivos(songs, opts, avance) {
 async function mcSubirCancionero(songs, opts, s, avance, seguir = () => {}, reingreso = true) {
   const armado = await mcArmarArchivos(songs, opts, avance);
   seguir();
-  avance('Conectando con el Drive…');
+  avance('Conectando con la nube…');
   const base = { token: s.token, comunidad: opts.comunidad, titulo: opts.titulo, fecha: opts.fecha };
   let ini;
   if (opts.folderId) ini = await mcApi('iniciarCancionero', { ...base, folderId: opts.folderId }, reingreso).catch(() => null);
@@ -302,7 +329,7 @@ async function mcSubirCancionero(songs, opts, s, avance, seguir = () => {}, rein
     seguir();
     avance(`Subiendo ${i + 1} de ${armado.files.length}: ${f.ruta}`, hecho, total);
     if (!(f.audio && existentes.get(f.ruta) === f.blob.size)) {
-      await mcApi('subirArchivo', { token: s.token, folderId: ini.folderId, ruta: f.ruta, mime: f.mime, base64: await mcBase64(f.blob) }, reingreso);
+      await mcSubir('cancionero', { folderId: ini.folderId, ruta: f.ruta, mime: f.mime }, f.blob, s.token, reingreso);
     }
     hecho += f.blob.size;
   }
@@ -320,7 +347,7 @@ async function mcGuardar(songs, opts, s) {
   let cancelado = false;
   // Solo cancela el botón o Escape: si hay que volver a entrar, ese diálogo reemplaza a este y el guardado sigue
   showModal({
-    title: 'Guardando en el Drive de la parroquia',
+    title: 'Guardando en la nube de la parroquia',
     body: `<p class="mc-paso">Preparando el cancionero…</p><progress class="mc-progreso" max="1" value="0"></progress>
       <p class="hint">No cierres esta página hasta que termine.</p>`,
     buttons: [{ label: 'Cancelar' }]
@@ -339,15 +366,15 @@ async function mcGuardar(songs, opts, s) {
     terminado = true;
     state.mcDrive = { folderId: nuevaCarpeta, titulo: opts.titulo, comunidad: opts.comunidad, fecha: opts.fecha, comentario: opts.comentario, htmlId };
     songs.forEach(d => markClean(d));
-    setActiveBook(opts.titulo, null, `Drive · ${MC_COMUNIDADES[opts.comunidad]}`);
+    setActiveBook(opts.titulo, null, `Nube · ${MC_COMUNIDADES[opts.comunidad]}`);
     refresh();
     dlg.close();
     mcGuardado(opts, songs.length, armado, htmlId);
   } catch (e) {
     terminado = true;
     if (dlg.open) dlg.close();
-    if (e.message === 'cancelado') toast('Guardado en Drive cancelado', 3000);
-    else mcError('No se pudo guardar en el Drive', e);
+    if (e.message === 'cancelado') toast('Guardado en la nube cancelado', 3000);
+    else mcError('No se pudo guardar en la nube', e);
   }
 }
 
@@ -361,8 +388,8 @@ function mcGuardado(opts, nCanciones, armado, htmlId) {
   ].filter(Boolean);
   const mensaje = `Cancionero «${opts.titulo}» (${MC_COMUNIDADES[opts.comunidad]}, ${opts.fecha}): ${url}`;
   showModal({
-    title: 'Guardado en el Drive ✓',
-    body: `<p>«${escapeHtml(opts.titulo)}» quedó en el Drive de la parroquia, en <b>${escapeHtml(MC_COMUNIDADES[opts.comunidad])}</b>:
+    title: 'Guardado en la nube ✓',
+    body: `<p>«${escapeHtml(opts.titulo)}» quedó en la nube de la parroquia, en <b>${escapeHtml(MC_COMUNIDADES[opts.comunidad])}</b>:
         ${nCanciones} ${nCanciones === 1 ? 'canción' : 'canciones'} y ${armado.audios} ${armado.audios === 1 ? 'audio' : 'audios'}.</p>
       ${notas.length ? `<ul class="book-list">${notas.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
       ${url ? `<p>Ya aparece en la página de la comunidad. Enlace para verlo:<br><a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a></p>` : ''}`,
@@ -380,8 +407,8 @@ function mcGuardado(opts, nCanciones, armado, htmlId) {
 // ============ BIBLIOTECA DE LA PARROQUIA (canciones sueltas) ============
 // Archivo → Abrir → Canción de la Biblioteca y Archivo → Guardar canción en la Biblioteca. Es la misma
 // Biblioteca de la pantalla Misas: una canción subida ahí solo con su audio se abre aquí, se le escribe
-// la letra y al guardarla queda completa y unida a sus audios (el Apps Script la reconoce por el título).
-const mcDriveAudioUrl = fileId => 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(fileId);
+// la letra y al guardarla queda completa y unida a sus audios (el servidor la reconoce por el título).
+const mcAudioUrl = fileId => MC_API + '/audio/' + encodeURIComponent(fileId);
 const mcIdCancion = titulo => 'c-' + (String(titulo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'cancionero');
 
@@ -512,17 +539,16 @@ async function mcGuardarCancion() {
         { titulo, alEstado: t => avance(t, (n - 1) / (locales.length + 1)) });
       if (r.archivo.size > MC_MAX_ARCHIVO) throw new Error(`El audio «${a.name}» pesa más de 30 MB.`);
       avance(`Audio ${n} de ${locales.length}: subiendo…`, (n - 0.3) / (locales.length + 1));
-      const sub = await mcApi('subirAudioBiblioteca', {
-        token: s.token, nombre: r.archivo.name, mime: r.archivo.type || 'audio/mp4', base64: await mcBase64(r.archivo), cancion: titulo, voz: voz(a)
-      });
+      const sub = await mcSubir('audio', { nombre: r.archivo.name, mime: r.archivo.type || 'audio/mp4', cancion: titulo, voz: voz(a) },
+        r.archivo, s.token);
       enviados.push({ nombre: a.name, voz: voz(a), fileId: sub.fileId });
-      enMd.push({ name: a.name, src: mcDriveAudioUrl(sub.fileId), voice: a.voice });
+      enMd.push({ name: a.name, src: mcAudioUrl(sub.fileId), voice: a.voice });
     }
     // Los audios que la canción ya tenía en la Biblioteca siguen siendo suyos
     for (const a of previa?.audios || []) {
       if (enviados.some(x => (a.fileId && (x.fileId === a.fileId || String(x.url || '').includes(a.fileId))) || (a.url && x.url === a.url))) continue;
       enviados.push(a.fileId ? { nombre: a.nombre, voz: a.voz, fileId: a.fileId } : { nombre: a.nombre, voz: a.voz, url: a.url });
-      enMd.push({ name: a.nombre || 'Audio', src: a.fileId ? mcDriveAudioUrl(a.fileId) : a.url, voice: a.voz || 'todas' });
+      enMd.push({ name: a.nombre || 'Audio', src: a.fileId ? mcAudioUrl(a.fileId) : a.url, voice: a.voz || 'todas' });
     }
     avance('Guardando la canción en la Biblioteca…', locales.length / (locales.length + 1));
     const r = await mcApi('subirCancion', {
@@ -551,7 +577,7 @@ async function mcGuardarCancion() {
 const mcCorreoCancionero = (titulo, comunidad, url) => `mailto:?subject=${encodeURIComponent('Cancionero: ' + titulo)}&body=${encodeURIComponent(
   `Hola:\n\nTe comparto el cancionero «${titulo}»${comunidad ? ` de ${comunidad}` : ''}, con la letra, los acordes y los audios:\n\n${url}\n\nSe abre en el navegador, sin instalar nada.`)}`;
 
-// Con el cancionero guardado en el Drive se comparte el vínculo a su página; si no, se ofrece guardarlo
+// Con el cancionero guardado en la nube se comparte el vínculo a su página; si no, se ofrece guardarlo
 // primero o enviar el archivo .html (Compartir → Enviar el archivo).
 async function mcCompartir(medio) {
   syncFromEditor();
@@ -563,19 +589,19 @@ async function mcCompartir(medio) {
     const eleccion = await showModal({
       title: medio === 'correo' ? 'Compartir por correo' : 'Compartir por WhatsApp',
       body: drive?.htmlId
-        ? `<p>El cancionero tiene cambios que todavía no están en el Drive. ¿Guardarlo antes de compartir el vínculo?</p>`
-        : `<p>Para compartir un vínculo web, el cancionero tiene que estar guardado en el Drive de la parroquia.</p>
+        ? `<p>El cancionero tiene cambios que todavía no están en la nube. ¿Guardarlo antes de compartir el vínculo?</p>`
+        : `<p>Para compartir un vínculo web, el cancionero tiene que estar guardado en la nube de la parroquia.</p>
           <p class="hint">También puedes enviar el archivo .html con las canciones (se abre sin internet).</p>`,
       buttons: [
         { label: 'Cancelar' },
         ...(drive?.htmlId ? [{ label: 'Compartir el vínculo igual', value: 'igual' }] : []),
         { label: 'Enviar el archivo', value: 'archivo' },
-        { label: 'Guardar en el Drive', primary: true, value: 'guardar' }
+        { label: 'Guardar en la nube', primary: true, value: 'guardar' }
       ]
     });
     if (!eleccion) return;
     if (eleccion === 'archivo') return shareBookDialog();
-    // Al terminar de guardar, el aviso «Guardado en el Drive» trae los botones para enviarlo: abrir WhatsApp
+    // Al terminar de guardar, el aviso «Guardado en la nube» trae los botones para enviarlo: abrir WhatsApp
     // o el correo desde aquí, después de esperar al servidor, el navegador ya no lo permite
     if (eleccion === 'guardar') return driveSaveDialog();
   }
@@ -593,16 +619,16 @@ async function mcCompartir(medio) {
 
 // ============ PUBLICAR DESDE LA PANTALLA MISAS ============
 // misas.html abre oculto editor/?misa=<id>&publicar=1: se arman las canciones del cancionero de misa (en el
-// orden de sus momentos y en el tono elegido) y se suben como «Guardar en Drive». El avance va a la página
+// orden de sus momentos y en el tono elegido) y se suben como «Guardar en la nube». El avance va a la página
 // de Misas por postMessage.
 async function mcLeerPublico(params) {
   let r;
   try {
     r = await fetch(MC_API + '?' + new URLSearchParams(params)).then(res => res.json());
   } catch (_) {
-    throw new Error('No se pudo conectar con el Drive de la parroquia. Revisa tu conexión a internet.');
+    throw new Error('No se pudo conectar con el servidor de la parroquia. Revisa tu conexión a internet.');
   }
-  if (!r.ok) throw new Error(r.error || 'El Drive de la parroquia no respondió.');
+  if (!r.ok) throw new Error(r.error || 'El servidor de la parroquia no respondió.');
   return r;
 }
 
@@ -635,7 +661,7 @@ async function mcPublicarMisa(id) {
   };
   const avance = (texto, hecho = 0, total = 1) => avisar('avance', { texto, valor: total ? hecho / total : 0 });
   try {
-    if (!MC_API) throw new Error('El Drive de la parroquia todavía no está conectado.');
+    if (!MC_API) throw new Error('El servidor de la parroquia todavía no está conectado.');
     const s = mcSesion();
     if (!s) throw new Error('Tu sesión se cerró: vuelve a identificarte y publica de nuevo.');
     avance('Leyendo el cancionero…');
@@ -659,7 +685,7 @@ async function mcPublicarMisa(id) {
 }
 
 // Botón «Atril» de la pantalla Misas: editor/?atril=1&misa=<id>. Usa la copia que la pantalla Misas deja en
-// este navegador (con los cambios todavía sin guardar) o, si se abre desde otro lado, la guardada en el Drive.
+// este navegador (con los cambios todavía sin guardar) o, si se abre desde otro lado, la guardada en la nube.
 const MC_ATRIL_KEY = 'mc-atril';
 
 async function mcAtrilMisa(id) {
@@ -670,7 +696,7 @@ async function mcAtrilMisa(id) {
       if (copia?.id === id && Date.now() - copia.t < 12 * 3600e3) misa = copia;
     } catch (_) {}
     if (!misa) {
-      if (!MC_API) throw new Error('El Drive de la parroquia todavía no está conectado.');
+      if (!MC_API) throw new Error('El servidor de la parroquia todavía no está conectado.');
       toast('Buscando el cancionero…', 60000);
       misa = ((await mcLeerPublico({ accion: 'misas' })).misas || []).find(m => m.id === id);
     }
@@ -728,13 +754,13 @@ async function mcCargarActivo(a) {
   mcQuitarAvisoActivo();
   if (!await saveBeforeClosing('Antes de abrir el cancionero de Misas')) return;
   try {
-    if (!MC_API) throw new Error('El Drive de la parroquia todavía no está conectado.');
+    if (!MC_API) throw new Error('El servidor de la parroquia todavía no está conectado.');
     const { songs, faltantes } = await mcCancionesDeMisa(a, (i, n) =>
       toast(`Abriendo «${a.nombre}»: canción ${i + 1} de ${n}…`, 60000));
     if (!songs.length) throw new Error('Ninguna canción del cancionero está en la Biblioteca.');
     replaceOrAddTabs(songs, true);
     setActiveBook(a.nombre || 'Cancionero de misa', null, `Misas · ${MC_COMUNIDADES[a.comunidad] || 'Parroquia'}`);
-    // Lo que se guarde desde aquí es un cancionero nuevo en el Drive, no el que estaba abierto antes
+    // Lo que se guarde desde aquí es un cancionero nuevo en la nube, no el que estaba abierto antes
     state.mcDrive = null;
     state.mcMisa = { id: a.id, t: a.t };
     state.cancioneroClean = bookSignature();
@@ -773,25 +799,25 @@ async function mcListar() {
   try {
     r = await fetch(MC_API + '?accion=listar').then(res => res.json());
   } catch (_) {
-    throw new Error('No se pudo conectar con el Drive de la parroquia. Revisa tu conexión a internet.');
+    throw new Error('No se pudo conectar con el servidor de la parroquia. Revisa tu conexión a internet.');
   }
-  if (!r.ok) throw new Error(r.error || 'El Drive de la parroquia no respondió.');
+  if (!r.ok) throw new Error(r.error || 'El servidor de la parroquia no respondió.');
   return r.cancioneros || [];
 }
 
 async function driveOpenDialog() {
   if (!mcConfigurado()) return;
-  toast('Buscando cancioneros en el Drive…', 30000);
+  toast('Buscando cancioneros en la nube…', 30000);
   let lista;
-  try { lista = await mcListar(); } catch (e) { mcError('No se pudo abrir el Drive', e); return; }
+  try { lista = await mcListar(); } catch (e) { mcError('No se pudo abrir la nube', e); return; }
   toast('');
   if (!lista.length) {
-    showModal({ title: 'Abrir desde el Drive', body: '<p>Todavía no hay cancioneros guardados en el Drive de la parroquia.</p>' });
+    showModal({ title: 'Abrir desde la nube', body: '<p>Todavía no hay cancioneros guardados en la nube de la parroquia.</p>' });
     return;
   }
   let elegido = null;
   await showModal({
-    title: 'Abrir desde el Drive de la parroquia',
+    title: 'Abrir desde la nube de la parroquia',
     wide: true,
     body: `<div class="mc-campos"><label for="mcFiltro">Comunidad</label>
         <select id="mcFiltro"><option value="">Todas</option>${Object.entries(MC_COMUNIDADES).map(([slug, nombre]) =>
@@ -811,17 +837,10 @@ async function driveOpenDialog() {
   if (elegido) await driveOpenFolder(elegido);
 }
 
-function mcBytes(b64) {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
 // Carpeta "virtual" con la forma de las del navegador (getDirectoryHandle / getFileHandle / getFile):
-// así loadM3u8 abre el cancionero del Drive igual que uno de la carpeta de canciones. Cada archivo se
+// así loadM3u8 abre el cancionero de la nube igual que uno de la carpeta de canciones. Cada archivo se
 // descarga solo cuando se pide.
-function mcCarpetaVirtual(archivos, token) {
+function mcCarpetaVirtual(archivos) {
   const noExiste = n => new DOMException(`No existe «${n}»`, 'NotFoundError');
   const carpeta = name => ({
     kind: 'directory', name, dirs: new Map(), files: new Map(),
@@ -842,9 +861,10 @@ function mcCarpetaVirtual(archivos, token) {
       kind: 'file', name: nombre,
       async getFile() {
         if (!archivo) {
-          toast(`Descargando «${nombre}» del Drive…`, 120000);
-          const r = await mcApi('archivo', { token, id: f.id });
-          archivo = new File([mcBytes(r.base64)], nombre, { type: r.mime || f.mime || '' });
+          toast(`Descargando «${nombre}» de la nube…`, 120000);
+          const res = await fetch(MC_API + '/archivo/' + encodeURIComponent(f.id));
+          if (!res.ok) throw new Error(`No se pudo descargar «${nombre}»`);
+          archivo = new File([await res.blob()], nombre, { type: f.mime || res.headers.get('Content-Type') || '' });
         }
         return archivo;
       }
@@ -858,17 +878,17 @@ async function driveOpenFolder(folderId) {
   if (!mcConfigurado()) return;
   const s = await mcEntrar();
   if (!s) return;
-  toast('Abriendo el cancionero desde el Drive…', 60000);
+  toast('Abriendo el cancionero desde la nube…', 60000);
   try {
     const r = await mcApi('abrir', { token: s.token, folderId });
     const lista = r.archivos.find(f => /\.m3u8$/i.test(f.ruta) && !f.ruta.includes('/'));
     if (!lista) throw new Error('La carpeta del cancionero no tiene su lista cancionero.m3u8.');
-    const raiz = mcCarpetaVirtual(r.archivos, s.token);
+    const raiz = mcCarpetaVirtual(r.archivos);
     const texto = await (await (await raiz.getFileHandle(lista.ruta)).getFile()).text();
     toast('');
     const antes = docs;
     const c = r.cancionero;
-    await loadM3u8(parseM3u8(texto), raiz, [], null, { handle: null, path: `Drive · ${c.comunidadNombre || MC_COMUNIDADES[c.comunidad] || ''}` });
+    await loadM3u8(parseM3u8(texto), raiz, [], null, { handle: null, path: `Nube · ${c.comunidadNombre || MC_COMUNIDADES[c.comunidad] || ''}` });
     if (docs !== antes) {
       state.mcDrive = { folderId, titulo: c.titulo, comunidad: c.comunidad, fecha: c.fecha, comentario: c.comentario || '', htmlId: c.htmlId };
       scheduleSave();

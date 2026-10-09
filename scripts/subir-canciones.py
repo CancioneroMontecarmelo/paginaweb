@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 subir-canciones.py — Aplicación de escritorio: encuentra las canciones .md que el editor guardó en esta
-computadora, muestra cuáles faltan o cambiaron frente a la Biblioteca de la parroquia (el Drive de
-cancionerolitugico@gmail.com) y las sube con sus audios convertidos a AAC (.m4a), que suenan en todos los equipos.
+computadora, muestra cuáles faltan o cambiaron frente a la Biblioteca de la parroquia (el servidor del
+sitio en Cloudflare) y las sube con sus audios convertidos a AAC (.m4a), que suenan en todos los equipos.
 
     scripts/subir-canciones.py [CARPETA_O_ARCHIVO.md ...]
 
@@ -84,7 +84,7 @@ class Ventana(Gtk.ApplicationWindow):
         cab = Gtk.HeaderBar(show_close_button=True, title=NOMBRE, subtitle="Parroquia Nuestra Señora del Monte Carmelo")
         self.set_titlebar(cab)
         sitio = Gtk.Button(label="Ver la Biblioteca en el sitio")
-        sitio.connect("clicked", lambda *_: webbrowser.open(mc.SITIO_URL + "misas.html"))
+        sitio.connect("clicked", lambda *_: webbrowser.open(mc.SITIO_URL + "misas"))
         cab.pack_end(sitio)
 
         caja = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin=14)
@@ -96,10 +96,9 @@ class Ventana(Gtk.ApplicationWindow):
             "<b>2.</b> Mirá qué pasa con cada una: las <span foreground='#1a7f37'><b>nuevas</b></span> y las "
             "<span foreground='#b35900'><b>cambiadas</b></span> ya vienen marcadas; las que ya están en la Biblioteca no aparecen.   "
             "<b>3.</b> Tocá <b>Subir las marcadas</b>: quedan en la Biblioteca de la parroquia "
-            "(Drive de cancionerolitugico@gmail.com) con sus audios en AAC (.m4a), que suenan en iPhone, Mac, Android y PC. "
-            "<b>Procesar las carpetas del Drive</b> completa «Momentos litúrgicos» y «Tiempos litúrgicos» de la Biblioteca: "
-            "vincula cada canción con su audio, le pone la etiqueta de su carpeta y pasa los audios a .m4a. Las que solo "
-            "tienen YouTube suenan en el sitio con el video insertado.")
+            "con sus audios en AAC (.m4a), que suenan en iPhone, Mac, Android y PC. "
+            "<b>Convertir audios a .m4a</b> pasa a .m4a los audios de la Biblioteca que todavía están en otro formato "
+            "(los .webm no suenan en iPhone); sus enlaces no cambian.")
         caja.pack_start(guia, False, False, 0)
 
         fila = Gtk.Box(spacing=8)
@@ -111,11 +110,10 @@ class Ventana(Gtk.ApplicationWindow):
         self.btn_revisar = Gtk.Button(label="↻ Revisar de nuevo")
         self.btn_revisar.connect("clicked", lambda *_: self.revisar())
         fila.pack_start(self.btn_revisar, False, False, 0)
-        self.btn_procesar = Gtk.Button(label="Procesar las carpetas del Drive")
-        self.btn_procesar.set_tooltip_text("Biblioteca/Momentos litúrgicos y Biblioteca/Tiempos litúrgicos: vincula cada .md con su "
-                                           "audio, agrega la etiqueta de su carpeta, convierte los .webm a .m4a (desde las copias "
-                                           "de la carpeta elegida aquí). Las que solo tienen YouTube usan el video insertado.")
-        self.btn_procesar.connect("clicked", lambda *_: self.procesar_carpetas())
+        self.btn_procesar = Gtk.Button(label="Convertir audios a .m4a")
+        self.btn_procesar.set_tooltip_text("Los audios de la Biblioteca que no están en .m4a ni .mp3 se convierten con ffmpeg en esta "
+                                           "computadora y reemplazan al original (mismo enlace). Solo el administrador general.")
+        self.btn_procesar.connect("clicked", lambda *_: self.convertir_audios())
         fila.pack_start(self.btn_procesar, False, False, 0)
         caja.pack_start(fila, False, False, 0)
 
@@ -124,7 +122,7 @@ class Ventana(Gtk.ApplicationWindow):
         fila.pack_start(self.lbl_sesion, True, True, 0)
         conseguir = Gtk.Button(label="Conseguir la clave en el sitio")
         conseguir.set_tooltip_text("Abre Identificarse: entrá con tu cuenta y tocá «Copiar clave para el script»")
-        conseguir.connect("clicked", lambda *_: webbrowser.open(mc.SITIO_URL + "login.html"))
+        conseguir.connect("clicked", lambda *_: webbrowser.open(mc.SITIO_URL + "login"))
         fila.pack_start(conseguir, False, False, 0)
         pegar = Gtk.Button(label="Pegar la clave…")
         pegar.connect("clicked", lambda *_: self.pedir_clave())
@@ -301,7 +299,7 @@ class Ventana(Gtk.ApplicationWindow):
                 texto += ". Ya están todas en la Biblioteca: no queda nada por subir"
             elif cuenta.get("igual"):
                 texto += " (esas no se muestran)"
-            texto += ". Los cancioneros (.m3u8) se suben desde el editor: Archivo → Guardar cancionero en el Drive."
+            texto += ". Los cancioneros (.m3u8) se suben desde el editor: Archivo → Guardar cancionero en la nube."
         self.lbl_resumen.set_markup(texto if canciones else GLib.markup_escape_text(texto))
         if error:
             self.anotar("No se pudo leer la Biblioteca: " + error)
@@ -407,119 +405,72 @@ class Ventana(Gtk.ApplicationWindow):
 
         threading.Thread(target=tarea, daemon=True).start()
 
-    # ------------------------------------------------------------ carpetas litúrgicas del Drive
+    # ------------------------------------------------------------ audios que todavía no son .m4a
 
-    def procesar_carpetas(self):
+    def convertir_audios(self):
         if self.trabajando:
             return
         token = mc.clave_guardada() or self.pedir_clave()
         if not token:
             return
         dlg = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.QUESTION,
-                                buttons=Gtk.ButtonsType.OK_CANCEL, text="¿Procesar las carpetas del Drive?")
+                                buttons=Gtk.ButtonsType.OK_CANCEL, text="¿Convertir los audios de la Biblioteca a .m4a?")
         dlg.format_secondary_text(
-            "En MonteCarmelo/Biblioteca/Momentos litúrgicos y Tiempos litúrgicos:\n\n"
-            "1. Cada canción (.md) queda vinculada con el audio de su carpeta y con la carpeta como etiqueta (las que ya "
-            "tenía se conservan). En Misas y en el Reproductor se usa esa versión. En su cabecera, «fuente_url» se "
-            "reemplaza por «fecha_subida» (la fecha en que el .md se subió al Drive).\n"
-            f"2. Los audios .webm se convierten a .m4a, que suena en iPhone, usando las copias de «{self.carpeta}».\n"
-            "Las canciones que solo tienen YouTube no se bajan: en Misas y en el Reproductor suenan con el video insertado.\n\n"
-            "Puede tardar horas: podés tocar Detener y seguir otro día, se retoma donde quedó.")
+            "Los audios que no están en .m4a ni .mp3 (por ejemplo los .webm, que no suenan en iPhone) se bajan, se "
+            "convierten a AAC (.m4a) en esta computadora y reemplazan al original: sus enlaces no cambian.\n\n"
+            "Puede tardar: podés tocar Detener y seguir otro día, se retoma donde quedó.")
         seguir = dlg.run() == Gtk.ResponseType.OK
         dlg.destroy()
         if not seguir:
             return
         self.detalle.set_expanded(True)
-        self.ocupado(True, "Procesando las carpetas del Drive…")
+        self.ocupado(True, "Buscando audios para convertir…")
         self.detener.clear()
         self.btn_detener.set_sensitive(True)
         api = mc.Api(mc.api_de_config(), token)
-        carpeta = self.carpeta
 
         def avance(texto):
             GLib.idle_add(self.anotar, texto)
             GLib.idle_add(self.progreso.set_text, texto.strip()[:120])
             GLib.idle_add(self.progreso.pulse)
 
-        def buscar_bajados():
-            try:
-                bajados, _ = mc.audios_de_youtube(api, simular=True, detener=self.detener)
-            except Exception as e:  # el servidor o la red: se informa y se puede reintentar
-                GLib.idle_add(self.terminar_carpetas, None, str(e))
-                return
-            GLib.idle_add(self.confirmar_bajados, api, carpeta, avance, bajados)
-
-        avance("Buscando audios que se habían bajado de YouTube…")
-        threading.Thread(target=buscar_bajados, daemon=True).start()
-
-    def confirmar_bajados(self, api, carpeta, avance, bajados):
-        """Los audios bajados antes de YouTube se quitan (papelera del Drive) solo si se confirma."""
-        quitar = False
-        if bajados:
-            self.anotar("\nAudios bajados de YouTube:\n" + "\n".join(f"  {b['ruta']}/{b['audio']}" for b in bajados))
-            dlg = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.QUESTION,
-                                    buttons=Gtk.ButtonsType.NONE, text=f"¿Quitar {len(bajados)} audios bajados de YouTube?")
-            dlg.format_secondary_text(
-                "Antes se bajaba el audio de YouTube de las canciones que no tenían otro. Ahora esas canciones suenan con el "
-                "video insertado, así que esos audios sobran:\n\n"
-                + "\n".join(f"• {b['ruta']}/{b['audio']}" for b in bajados[:12])
-                + (f"\n… y {len(bajados) - 12} más (en el detalle)" if len(bajados) > 12 else "")
-                + "\n\nVan a la papelera del Drive (se pueden recuperar durante 30 días) y cada canción queda con su video.")
-            dlg.add_buttons("Dejarlos", Gtk.ResponseType.CANCEL, "Quitarlos y usar el video", Gtk.ResponseType.OK)
-            quitar = dlg.run() == Gtk.ResponseType.OK
-            dlg.destroy()
-
         def tarea():
             try:
-                res, error = mc.procesar_carpetas(api, carpeta, avance, self.detener, quitar_youtube=quitar), ""
+                res, error = mc.convertir_pendientes(api, avance, self.detener), ""
             except Exception as e:  # el servidor o la red: se informa y se puede reintentar
                 res, error = None, str(e)
-            GLib.idle_add(self.terminar_carpetas, res, error)
+            GLib.idle_add(self.terminar_conversion, res, error)
 
         threading.Thread(target=tarea, daemon=True).start()
-        return False
 
-    def terminar_carpetas(self, res, error):
+    def terminar_conversion(self, res, error):
         self.ocupado(False)
         self.btn_detener.set_sensitive(False)
         if error:
             self.progreso.set_text("No se pudo terminar")
             self.anotar("✗ " + error)
             dlg = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.WARNING,
-                                    buttons=Gtk.ButtonsType.CLOSE, text="No se pudieron procesar las carpetas")
+                                    buttons=Gtk.ButtonsType.CLOSE, text="No se pudieron convertir los audios")
             dlg.format_secondary_text(error + "\n\nPodés volver a intentarlo: lo que ya quedó hecho no se repite.")
             dlg.run()
             dlg.destroy()
             return False
         self.progreso.set_fraction(1)
-        self.progreso.set_text("Detenido" if res["detenido"] else "Carpetas del Drive listas")
-        partes = [f"{res['md']} canciones revisadas en {res['carpetas']} carpetas: {res['vinculados']} audios vinculados, "
-                  f"{res['cambiados']} .md actualizados, {res['nuevas']} canciones nuevas en la Biblioteca.",
-                  f"{res['convertidos']} audios convertidos a .m4a. {res['con_video']} canciones sin audio propio suenan con su "
-                  "video de YouTube insertado."]
-        if res["quitados_youtube"]:
-            partes.append(f"{res['quitados_youtube']} audios bajados de YouTube quitados (están en la papelera del Drive).")
-        if res["sin_audio"]:
-            partes.append(f"{len(res['sin_audio'])} canciones no tienen audio ni YouTube (quedan solo con la letra).")
-            self.anotar("\nSin audio ni YouTube:\n" + "\n".join(f"  {s['ruta']}/{s['nombre']}" for s in res["sin_audio"]))
-        if res["otros_audios"]:
-            partes.append(f"{len(res['otros_audios'])} canciones tenían otros audios que ahora quedan solo de respaldo "
-                          "(Biblioteca/audios): están en el detalle, por si alguno era una grabación del coro.")
-            self.anotar("\nAudios que quedan de respaldo:\n" + "\n".join(
-                f"  {o['titulo']}: {', '.join(o['audios'])}" for o in res["otros_audios"]))
+        self.progreso.set_text("Detenido" if res["detenido"] else "Audios listos")
+        if not res["pendientes"]:
+            partes = ["Todos los audios de la Biblioteca ya están en .m4a o .mp3: no hay nada que convertir."]
+        else:
+            partes = [f"{res['convertidos']} de {res['pendientes']} audios convertidos a .m4a."]
         if res["fallas"]:
             partes.append(f"Con problemas ({len(res['fallas'])}):\n" + "\n".join("• " + f for f in res["fallas"][:15])
                           + (f"\n… y {len(res['fallas']) - 15} más (en el detalle)" if len(res["fallas"]) > 15 else ""))
-            self.anotar("\nCon problemas:\n" + "\n".join("  " + f for f in res["fallas"]))
         if res["detenido"]:
-            partes.append("Se detuvo antes de terminar: tocá «Procesar las carpetas del Drive» para seguir.")
+            partes.append("Se detuvo antes de terminar: tocá «Convertir audios a .m4a» para seguir.")
         dlg = Gtk.MessageDialog(transient_for=self, modal=True,
                                 message_type=Gtk.MessageType.WARNING if res["fallas"] else Gtk.MessageType.INFO,
-                                buttons=Gtk.ButtonsType.NONE, text="Carpetas del Drive procesadas" if not res["detenido"] else "Proceso detenido")
+                                buttons=Gtk.ButtonsType.CLOSE, text="Proceso detenido" if res["detenido"] else "Conversión terminada")
         dlg.format_secondary_text("\n\n".join(partes))
-        dlg.add_buttons("Ver en el sitio", 1, "Cerrar", Gtk.ResponseType.CLOSE)
-        if dlg.run() == 1:
-            webbrowser.open(mc.SITIO_URL + "misas.html")
+        dlg.run()
         dlg.destroy()
         return False
 
@@ -551,7 +502,7 @@ class Ventana(Gtk.ApplicationWindow):
         dlg.format_secondary_text("\n\n".join(partes))
         dlg.add_buttons("Ver en el sitio", 1, "Cerrar", Gtk.ResponseType.CLOSE)
         if dlg.run() == 1:
-            webbrowser.open(mc.SITIO_URL + "misas.html")
+            webbrowser.open(mc.SITIO_URL + "misas")
         dlg.destroy()
         self.elegidos = set()
         self.revisar()

@@ -51,31 +51,22 @@ const EMBED_MAX_BYTES = 25 * 1024 * 1024;
 const isDirectMedia = a => a.kind === 'url' && /^https?:\/\//i.test(a.src) && [...AUDIO_EXT, ...VIDEO_EXT].includes(mediaExt(a.src));
 const exportApi = () => (window.MONTECARMELO_CONFIG || {}).apiUrl || '';
 
-// Audios de la Biblioteca (Drive): el enlace de descarga, abierto como enlace, hace que el celular pregunte
-// con qué app abrirlo; por eso van en un reproductor, con el servidor de la parroquia de respaldo.
-function driveIdOf(a) {
+// Audios de la Biblioteca: …/api/audio/<id> o, en canciones guardadas antes de la mudanza, el enlace del Drive
+// (el audio conserva el mismo id). Van en un reproductor que los pide al servidor de la parroquia.
+function bibIdOf(a) {
   if (a.kind !== 'url') return null;
   try {
     const u = new URL(a.src);
-    if (u.hostname !== 'drive.google.com') return null;
-    return u.searchParams.get('id') || u.pathname.match(/\/file\/d\/([\w-]+)/)?.[1] || null;
+    if (u.hostname === 'drive.google.com') return u.searchParams.get('id') || u.pathname.match(/\/file\/d\/([\w-]+)/)?.[1] || null;
+    return u.pathname.match(/\/api\/audio\/([\w-]+)$/)?.[1] || null;
   } catch (_) {
     return null;
   }
 }
 
-async function driveBlob(id) {
-  if (!exportApi()) return null;
-  try {
-    const r = await fetch(exportApi() + '?' + new URLSearchParams({ accion: 'audio', id })).then(res => res.json());
-    if (!r.ok || !r.base64) return null;
-    return new Blob([Uint8Array.from(atob(r.base64), c => c.charCodeAt(0))], { type: r.mime || 'audio/mp4' });
-  } catch (_) {
-    return null;
-  }
-}
+const bibAudioUrl = id => exportApi() + '/audio/' + encodeURIComponent(id);
 
-const canEmbed = a => !!(a.objectUrl || audioPage(a) || isDirectMedia(a) || (driveIdOf(a) && exportApi()));
+const canEmbed = a => !!(a.objectUrl || audioPage(a) || isDirectMedia(a) || (bibIdOf(a) && exportApi()));
 
 async function okBlob(promise) {
   try {
@@ -93,9 +84,9 @@ async function liteAudio(a) {
     if (!original) return null;
     return await okBlob(fetch(`${base}/api/liviano`, { method: 'POST', body: original })) || original;
   }
-  const driveId = driveIdOf(a);
-  if (driveId) {
-    const original = await driveBlob(driveId);
+  const bibId = exportApi() && bibIdOf(a);
+  if (bibId) {
+    const original = await okBlob(fetch(bibAudioUrl(bibId)));
     if (!original) return null;
     // El formato anterior (WebM) no suena en iPhone viejos: se intenta pasar a liviano, si no queda como enlace
     const lite = await okBlob(fetch(`${base}/api/liviano`, { method: 'POST', body: original }));
@@ -142,9 +133,8 @@ function exportAudios(d, embedded = new Map()) {
       players.push({ name, src: embedded.get(a.id), speed: a.speed || 1, page });
     } else if (!page && isDirectMedia(a)) {
       players.push({ name, src: a.src, speed: a.speed || 1 });
-    } else if (!page && driveIdOf(a)) {
-      const drive = driveIdOf(a);
-      players.push({ name, src: 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(drive), speed: a.speed || 1, drive });
+    } else if (!page && bibIdOf(a) && exportApi()) {
+      players.push({ name, src: bibAudioUrl(bibIdOf(a)), speed: a.speed || 1 });
     } else if (page || (a.kind === 'url' && /^https?:\/\//i.test(a.src))) {
       const url = page || a.src;
       links.push({ name, url, site: normalizeMediaUrl(url).streaming || '' });
@@ -182,12 +172,12 @@ function songExportData(d, n, latin, embedded, pos) {
   const title = d.title.trim() || 'Sin título';
   const au = exportAudios(d, embedded);
   const audios = [
-    ...au.players.map(p => `<div class="audio"><span class="au-name">🎵 ${escapeHtml(p.name)}</span><audio controls preload="none" src="${escapeHtml(p.src)}" data-speed="${p.speed}" data-name="${escapeHtml(p.name)}"${p.drive ? ` data-drive="${escapeHtml(p.drive)}"` : ''}></audio>${p.page ? `<a class="orig" href="${escapeHtml(p.page)}" target="_blank" rel="noopener" title="Abrir la página original">↗</a>` : ''}</div>`),
+    ...au.players.map(p => `<div class="audio"><span class="au-name">🎵 ${escapeHtml(p.name)}</span><audio controls preload="none" src="${escapeHtml(p.src)}" data-speed="${p.speed}" data-name="${escapeHtml(p.name)}"></audio>${p.page ? `<a class="orig" href="${escapeHtml(p.page)}" target="_blank" rel="noopener" title="Abrir la página original">↗</a>` : ''}</div>`),
     ...au.links.map(l => `<div class="audio"><a href="${escapeHtml(l.url)}" target="_blank" rel="noopener">▶ Escuchar ${l.site ? 'en ' + escapeHtml(l.site) : 'en su página'}</a><span>${escapeHtml(l.name)}</span></div>`),
     ...au.missing.map(m => `<div class="note">El audio «${escapeHtml(m)}» es un archivo de este equipo y no va incluido.</div>`),
     ...(d.partituras || []).filter(p => p.fileId).map(p => {
       const voz = p.voz && p.voz !== 'todas' ? VOICES[p.voz]?.label || p.voz : '';
-      return `<div class="audio"><a href="https://drive.google.com/file/d/${encodeURIComponent(p.fileId)}/preview" target="_blank" rel="noopener">𝄞 Partitura${voz ? ' · ' + escapeHtml(voz) : ''}</a></div>`;
+      return `<div class="audio"><a href="${escapeHtml(exportApi() + '/archivo/' + encodeURIComponent(p.fileId))}" target="_blank" rel="noopener">𝄞 Partitura${voz ? ' · ' + escapeHtml(voz) : ''}</a></div>`;
     })
   ].join('');
   const html = `<article class="song" id="c${n}">
@@ -497,23 +487,6 @@ function atrilRuntime(D) {
   // normales de cada canción.
   const audios = $$('audio');
   let player = null;
-  // Si el Drive no entrega el audio directo (pasa en algunos celulares), se pide al servidor de la parroquia
-  audios.filter(a => a.dataset.drive && D.api).forEach(a => a.addEventListener('error', async () => {
-    const note = el('div', 'note', 'Cargando el audio desde el Drive de la parroquia…');
-    a.closest('.audio').after(note);
-    try {
-      const r = await (await fetch(D.api + '?accion=audio&id=' + encodeURIComponent(a.dataset.drive))).json();
-      if (!r.ok || !r.base64) throw new Error(r.error || 'sin respuesta');
-      const mime = r.mime || 'audio/mp4';
-      if (/webm/i.test(mime) && !a.canPlayType('audio/webm; codecs="opus"')) throw new Error('este equipo no reproduce el formato anterior (WebM)');
-      const bytes = Uint8Array.from(atob(r.base64), c => c.charCodeAt(0));
-      a.src = URL.createObjectURL(new Blob([bytes], { type: mime }));
-      note.remove();
-      if (player && player.current === a) a.play().catch(() => {});
-    } catch (e) {
-      note.textContent = 'No se pudo cargar «' + a.dataset.name + '»: ' + e.message + '.';
-    }
-  }, { once: true }));
   if (audios.length) {
     document.body.classList.add('has-player');
     const pbar = el('div', 'player', '<button class="pp" title="Reproducir o pausar">▶</button>' +

@@ -19,7 +19,6 @@ para el script». Se guarda en ~/.config/montecarmelo/sesion.json.
 """
 
 import argparse
-import base64
 import getpass
 import subprocess
 import sys
@@ -29,7 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mc_biblioteca import (  # noqa: E402
-    COMUNIDADES, CONFIG, EXT_VIDEO_AUDIO, SITIO_URL, VOCES, Api, Error, a_m4a, api_de_config, armar_md, aviso,
+    COMUNIDADES, CONFIG, EXT_VIDEO_AUDIO, SITIO_URL, URL_AUDIO, VOCES, Api, Error, a_m4a, api_de_config, armar_md, aviso,
     bajar_enlace, cambiar_etiquetas_md, clave_guardada, clave_vigente, datos_clave, es_enlace, etiquetas_de,
     guardar_clave, leer_letra, momentos_en_misas, nombre_archivo, slug, unir_etiquetas, vocabulario_etiquetas)
 
@@ -44,7 +43,7 @@ def obtener_clave(dada):
     if token:
         return token
     aviso("\nPara subir a la Biblioteca hace falta tu clave del sitio (dura 90 días).")
-    aviso(f"Entrá a {SITIO_URL}login.html con tu cuenta y tocá «Copiar clave para el script».")
+    aviso(f"Entrá a {SITIO_URL}login con tu cuenta y tocá «Copiar clave para el script».")
     if not sys.stdin.isatty():
         raise Error("No hay clave guardada: corré el script en una terminal para pegarla, o usá --clave.")
     token = getpass.getpass("Pegá la clave aquí (no se ve al pegar) y apretá Enter: ").strip()
@@ -78,9 +77,8 @@ def subir_cancion(api, cancion, biblioteca, comunidad, si):
     nuevos = []
     for i, a in enumerate(cancion["audios"], 1):
         aviso(f"  Subiendo el audio {i} de {len(cancion['audios'])} ({a['bytes'] / 1048576:.1f} MB)…")
-        r = api.post("subirAudioBiblioteca", nombre=a["archivo"].name, mime="audio/mp4",
-                     base64=base64.b64encode(a["archivo"].read_bytes()).decode("ascii"),
-                     cancion=previa["titulo"] if previa else cancion["titulo"], voz=a["voz"])
+        r = api.subir("audio", a["archivo"], "audio/mp4", nombre=a["archivo"].name, mime="audio/mp4",
+                      cancion=previa["titulo"] if previa else cancion["titulo"], voz=a["voz"])
         nuevos.append({"nombre": a["nombre"], "voz": a["voz"], "fileId": r["fileId"]})
 
     etiquetas = unir_etiquetas(previa.get("etiquetas") if previa else [], cancion["etiquetas"])
@@ -130,7 +128,7 @@ def argumentos():
     p.add_argument("--si", action="store_true", help="responder que sí a las preguntas (reemplazar la letra de una canción existente)")
     p.add_argument("--clave", help="clave del sitio (Identificarse → «Copiar clave para el script»); queda guardada")
     p.add_argument("--olvidar-clave", action="store_true", help="borra la clave guardada en esta computadora")
-    p.add_argument("--api", default=None, help="dirección del servidor (por defecto, apiUrl de js/config.js)")
+    p.add_argument("--api", default=None, help=f"dirección del servidor (por defecto, {SITIO_URL}api o la variable MC_API)")
     return p.parse_args()
 
 
@@ -215,7 +213,7 @@ def main():
               + (f" · etiquetas: {', '.join(e.get('etiquetas') or [])}" if e.get("etiquetas") else ""))
         for a in audios[-len(c["audios"]):]:
             if a.get("fileId"):
-                aviso(f"    {a.get('nombre')}: https://drive.google.com/file/d/{a['fileId']}/view")
+                aviso(f"    {a.get('nombre')}: {URL_AUDIO}{a['fileId']}")
         momentos = momentos_en_misas(api, e["id"])
         if momentos:
             aviso("  Aparece en Misas: " + "; ".join(momentos))

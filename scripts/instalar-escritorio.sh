@@ -38,13 +38,13 @@ Type=Application
 Version=1.0
 Name=Subir canciones a la Biblioteca
 GenericName=Canciones de la parroquia
-Comment=Sube las canciones .md del editor a la Biblioteca de la parroquia Monte Carmelo (Drive), con sus audios en WebM
+Comment=Sube las canciones .md del editor a la Biblioteca de la parroquia Monte Carmelo, con sus audios en AAC (.m4a)
 Exec=python3 "$DIR/subir-canciones.py" %F
 Icon=montecarmelo-subir
 Terminal=false
 Categories=AudioVideo;Audio;Music;
 MimeType=text/markdown;text/x-markdown;
-Keywords=cancionero;canciones;misa;drive;biblioteca;monte carmelo;webm;
+Keywords=cancionero;canciones;misa;biblioteca;monte carmelo;m4a;
 StartupWMClass=montecarmelo-subir
 EOF
 chmod +x "$LANZADOR"

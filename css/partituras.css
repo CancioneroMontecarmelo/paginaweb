@@ -1,4 +1,4 @@
-/* Partituras: botones bajo la canción y diálogos (vista previa de Drive y subir/quitar) */
+/* Partituras: botones bajo la canción y diálogos (ver la partitura y subir/quitar) */
 
 .partituras-fila {
   display: flex;
@@ -65,8 +65,28 @@
 .partitura-marco {
   flex: 1;
   width: 100%;
-  border: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem;
+  box-sizing: border-box;
+  background: #e9e4da;
+}
+
+.partitura-pagina,
+.partitura-imagen {
+  max-width: 100%;
+  height: auto;
   background: #fff;
+  box-shadow: 0 0.2rem 0.8rem rgba(42, 36, 28, 0.2);
+}
+
+.partitura-nota {
+  margin: 2rem 1rem;
+  text-align: center;
+  color: var(--texto);
 }
 
 .partitura-cuerpo {
