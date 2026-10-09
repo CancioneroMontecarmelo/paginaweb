@@ -3,13 +3,14 @@
 // sin internet, o si la red tarda, se usa la copia guardada. Ni el servidor (/api), ni YouTube, ni los audios pasan por acá.
 // Cloudflare Pages sirve las páginas sin «.html» (reproductor.html redirige a reproductor): se guarda esa dirección.
 
-const CACHE = 'mc-reproductor-6';
+const CACHE = 'mc-reproductor-7';
 const NET_TIMEOUT = 3000;
 const SHELL = [
   'reproductor', 'reproductor.webmanifest', 'js/config.js',
   'icons/reproductor-180.png', 'icons/reproductor-192.png', 'icons/reproductor-512.png',
   ...['site', 'posturas', 'partituras', 'voces', 'reproductor'].map((n) => `css/${n}.css`),
-  ...['reproductor', 'auth', 'comunidades', 'liturgia', 'posturas', 'partituras', 'voces', 'youtube-embed', 'misas-shim'].map((n) => `js/${n}.js`),
+  ...['reproductor', 'auth', 'comunidades', 'liturgia', 'posturas', 'partituras', 'voces', 'youtube-embed', 'misas-shim', 'sala', 'lector-qr'].map((n) => `js/${n}.js`),
+  'js/vendor/qrcode.mjs',
   ...['acordes', 'markdown', 'etiquetas', 'buscar', 'instrumentos', 'rasgueos', 'render', 'caratula'].map((n) => `editor/js/${n}.js`)
 ];
 

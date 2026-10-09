@@ -1,0 +1,15 @@
+# Sala en tiempo real entre una pantalla (TV o proyector) y los teléfonos que la manejan.
+# El sitio (Pages) la usa con el enlace SALA de ../../wrangler.toml. Se publica aparte, desde esta carpeta:
+#   npx wrangler deploy
+name = "montecarmelo-sala"
+main = "index.js"
+compatibility_date = "2026-04-01"
+workers_dev = false
+
+[[durable_objects.bindings]]
+name = "SALA"
+class_name = "Sala"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Sala"]

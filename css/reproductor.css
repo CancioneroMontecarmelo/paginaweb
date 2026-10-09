@@ -653,6 +653,80 @@ body.en-escenario .rp-toast { bottom: calc(64px + env(safe-area-inset-bottom)); 
 .rp-esc-avanza { font-size: 18px; }
 .rp-esc-avanza[aria-pressed="true"] { background: var(--rp-acento); color: #fff; }
 
+/* ============ PANTALLA GRANDE ============ */
+/* En el teléfono: el botón se pinta con el acento mientras está conectado a un TV */
+.rp-pant.conectada, .rp-pant.conectada .ico { color: var(--rp-acento); }
+
+.rp-control-tv {
+  display: grid; gap: 8px; margin-bottom: 16px; padding: 10px 12px; border-radius: 12px;
+  background: color-mix(in srgb, var(--rp-acento) 14%, var(--rp-fondo)); border: 1px solid color-mix(in srgb, var(--rp-acento) 40%, transparent);
+}
+.rp-control-cabeza { display: flex; align-items: center; gap: 10px; }
+.rp-control-ico { color: var(--rp-acento); display: flex; }
+.rp-control-texto { flex: 1; min-width: 0; display: grid; }
+.rp-control-texto b { font-size: 15px; font-weight: 600; }
+.rp-control-texto small { color: var(--rp-suave); font-size: 12px; }
+.rp-control-fila { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+.rp-control-grupo { display: flex; align-items: center; gap: 2px; }
+.rp-control-grupo .rp-btn { height: 32px; padding: 0 12px; }
+.rp-control-grupo .rp-ctl { font-size: 18px; font-weight: 600; }
+.rp-control-nivel { min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
+.rp-control-tv .rp-esc-avanza[aria-pressed="true"] { background: var(--rp-acento); color: #fff; }
+
+.rp-pant-escanear { width: 100%; justify-content: center; height: 44px; margin: 0.4rem 0 0.8rem; }
+.rp-pant-codigo { display: flex; gap: 0.5rem; }
+.rp-pant-codigo input {
+  flex: 1; min-width: 0; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rp-linea);
+  background: var(--rp-fondo); color: var(--rp-texto); font-size: 1.3rem; letter-spacing: 0.2em; text-align: center; font-variant-numeric: tabular-nums;
+}
+.rp-error { color: #f28b82; font-size: 0.9rem; margin: 0.5rem 0; }
+
+/* Lector de QR (js/lector-qr.js) */
+.lector-qr {
+  width: min(24rem, 94vw); padding: 12px; border: 1px solid var(--rp-linea); border-radius: 14px;
+  background: #000; color: #fff; text-align: center;
+}
+.lector-qr::backdrop { background: rgba(0, 0, 0, 0.8); }
+.lector-qr-caja { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #111; }
+.lector-qr-caja video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lector-qr-marco {
+  position: absolute; inset: 18%; border-radius: 12px;
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.35); outline: 3px solid var(--rp-acento, #4caf50);
+}
+.lector-qr-texto { margin: 10px 0; font-size: 0.95rem; }
+
+/* En el TV (reproductor#pantalla): nada del reproductor, solo el código y después la letra con los acordes */
+body.rp-tv > :is(nav, main, footer, .rp-cola-velo, .rp-toast) { display: none !important; }
+body.rp-tv { padding: 0; background: #000; }
+body.rp-tv :is(.rp-esc-cabeza, .rp-esc-pie, .rp-esc-letra .song-header) { display: none; }
+body.rp-tv .rp-esc-cuerpo { padding-top: 2vh; }
+body.rp-tv-conectada, body.rp-tv-conectada * { cursor: none !important; }
+body.rp-tv .rp-escenario .rp-vacio { color: #777; font-size: 2.2vw; text-align: center; margin-top: 30vh; }
+/* YouTube exige que el video se vea mientras suena: chico, en una esquina */
+body.rp-tv #rp-video { position: fixed; right: 2vw; bottom: 3vh; z-index: 160; width: 22vw; min-width: 220px; margin: 0; }
+
+.rp-tv { position: fixed; inset: 0; z-index: 170; pointer-events: none; }
+.rp-tv-emparejar {
+  pointer-events: auto; position: absolute; inset: 0; background: #000; color: #f1f1f1;
+  display: flex; align-items: center; justify-content: center; gap: 6vw; padding: 5vh 6vw; text-align: left;
+}
+.rp-tv-qr { flex: none; width: min(34vw, 62vh); aspect-ratio: 1; background: #fff; border-radius: 1.2vw; padding: 0.6vw; }
+.rp-tv-qr svg { display: block; width: 100%; height: 100%; }
+.rp-tv-texto { max-width: 46vw; font-size: max(16px, 1.8vw); line-height: 1.4; }
+.rp-tv-texto small { color: #9a9a9a; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.1em; }
+.rp-tv-codigo { margin: 0.1em 0 0.4em; font-size: max(48px, 8vw); font-weight: 700; letter-spacing: 0.08em; line-height: 1; font-variant-numeric: tabular-nums; color: var(--rp-acento); }
+.rp-tv-texto .rp-btn { margin-top: 1em; height: auto; padding: 0.6em 1.2em; font-size: 0.85em; }
+.rp-tv-estado { color: #9a9a9a; font-size: 0.75em; margin-top: 1em; }
+.rp-tv-sonido {
+  position: absolute; left: 50%; bottom: 4vh; transform: translateX(-50%); margin: 0; padding: 0.6em 1.2em; border-radius: 99px;
+  background: rgba(255, 255, 255, 0.12); color: #ddd; font-size: max(14px, 1.4vw);
+}
+@media (max-aspect-ratio: 1/1) {
+  .rp-tv-emparejar { flex-direction: column; text-align: center; }
+  .rp-tv-qr { width: min(60vw, 40vh); }
+  .rp-tv-texto { max-width: none; }
+}
+
 /* ============ DIÁLOGO Y AVISOS ============ */
 .rp-dlg {
   width: min(26rem, 94vw);

@@ -28,6 +28,7 @@ import { activarPosturas, cerrar as cerrarPostura } from "./posturas.js";
 import { botonesPartituras } from "./partituras.js";
 import { crearMezclador, pistasDeVoces } from "./voces.js";
 import { crearReproductorYT, esYoutube, youtubeId } from "./youtube-embed.js";
+import { conectarSala, codigoValido } from "./sala.js";
 
 // editor/js/caratula.js (script clásico) busca la miniatura del video con esta función
 window.youtubeId ||= youtubeId;
@@ -53,7 +54,9 @@ const ICONOS = {
   repetir: "M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z",
   repetirUna: "M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v4H13z",
   iglesia: "M18 12.22V9l-5-2.5V5h2V3h-2V1h-2v2H9v2h2v1.5L6 9v3.22L2 14v8h8v-3c0-1.1.9-2 2-2s2 .9 2 2v3h8v-8l-4-1.78zM12 13.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z",
-  escenario: "M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+  escenario: "M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z",
+  pantalla: "M21 3H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11z",
+  qr: "M9.5 6.5v3h-3v-3h3M11 5H5v6h6V5zm-1.5 9.5v3h-3v-3h3M11 13H5v6h6v-6zm6.5-6.5v3h-3v-3h3M19 5h-6v6h6V5zm-6 8h1.5v1.5H13V13zm1.5 1.5H16V16h-1.5v-1.5zM16 13h1.5v1.5H16V13zm-3 3h1.5v1.5H13V16zm1.5 1.5H16V19h-1.5v-1.5zM16 16h1.5v1.5H16V16zm1.5-1.5H19V16h-1.5v-1.5zm0 3H19V19h-1.5v-1.5zM22 7h-2V4h-3V2h5v5zm0 15v-5h-2v3h-3v2h5zM2 22h5v-2H4v-3H2v5zM2 2v5h2V4h3V2H2z"
 };
 const icono = (n) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONOS[n]}"/></svg>`;
 const ponerIconos = () => document.querySelectorAll("[data-ico]").forEach((e) => {
@@ -601,9 +604,12 @@ function recuperarSonando(s) {
 
 // Al abrir: un enlace distinto arma su cola; si no, sigue con la guardada
 function arrancar() {
-  const h = location.hash, s = h.startsWith("#vivo=") ? null : sonandoGuardado();
+  const h = location.hash, s = /^#(vivo=|pantalla)/.test(h) ? null : sonandoGuardado();
   if (s && (!h || h === s.hash)) recuperarSonando(s);
   else leerHash();
+  // El teléfono que manejaba una pantalla vuelve a conectarse solo
+  const p = guardado("mc-rp-pantalla", "");
+  if (!tv && !remoto && codigoValido(p)) conectarPantalla(p);
 }
 
 // ============ REPRODUCCIÓN ============
@@ -627,10 +633,10 @@ const reproductorYT = () => yt || (yt = crearReproductorYT($("#rp-video"), {
   },
   alError: (_, texto) => noDisponible(turno, texto)
 }));
-const motor = () => (yt?.activo ? yt : audio);
+const motor = () => (remoto?.listo ? motorRemoto : yt?.activo ? yt : audio);
 const tocarMotor = () => {
   const m = motor();
-  if (m === audio) audio.play().catch(() => {});
+  if (m === audio) audio.play().catch(sinPermisoDeSonido);
   else m.play();
 };
 
@@ -694,13 +700,13 @@ function cargarAudio(a, tocar, desde = 0) {
   if (!a.fileId) {
     audio.onerror = () => noDisponible(t, "No se pudo cargar el audio: el enlace no responde.");
     audio.src = a.url;
-    if (tocar) audio.play().catch(() => {});
+    if (tocar) audio.play().catch(sinPermisoDeSonido);
     return;
   }
   audio.onerror = () => noDisponible(t, reproduceWebm ? "No se pudo cargar el audio."
     : "No se pudo cargar el audio: puede que todavía esté en el formato anterior (WebM), que este equipo no reproduce.");
   audio.src = urlAudio(a.fileId);
-  if (tocar) audio.play().catch(() => {});
+  if (tocar) audio.play().catch(sinPermisoDeSonido);
 }
 
 function pintarDonde(extra) {
@@ -709,7 +715,8 @@ function pintarDonde(extra) {
   $("#rp-donde").textContent = extra || `${c.nombre} · ${st.indice + 1} de ${c.items.length}`;
 }
 
-async function reproducir(i, tocar = true, desde = 0) {
+// desdeTv: el teléfono conectado a una pantalla solo se pone al día con la canción que el TV ya cambió
+async function reproducir(i, tocar = true, desde = 0, desdeTv = false) {
   const c = st.cola;
   if (!c || i < 0 || i >= c.items.length) return;
   st.indice = i;
@@ -736,7 +743,8 @@ async function reproducir(i, tocar = true, desde = 0) {
   $("#rp-voz-caja").hidden = lista.length < 2;
   $("#rp-voz").innerHTML = lista.map((a, k) => `<option value="${k}"${k === elegido ? " selected" : ""}>${esc(nombreAudio(a))}</option>`).join("");
   $("#rp-sin-audio").hidden = lista.length > 0;
-  cargarAudio(lista[elegido], tocar, desde);
+  if (!remoto?.listo) cargarAudio(lista[elegido], tocar, desde);
+  else if (!desdeTv) enviarAPantalla(i, tocar, desde);
   pintarCaras(entrada, item, lista[elegido]);
   pintarBarra();
   pintarExtras(entrada);
@@ -985,7 +993,7 @@ function vecinosDeBarra() {
 
 function pintarBarra() {
   const m = motor();
-  const tiene = m !== audio || !!audio.getAttribute("src");
+  const tiene = m === motorRemoto ? !!remoto.estado?.tiene : m !== audio || !!audio.getAttribute("src");
   const play = $("#rp-play"), ico = m.paused ? "play" : "pausa";
   play.disabled = !tiene;
   if (play.dataset.icono !== ico) {
@@ -1006,6 +1014,7 @@ function pintarBarra() {
   $("#rp-total").textContent = reloj(dur);
   if (!m.paused && Date.now() - ultimoGuardado > 5000) guardarSonando();
   sincronizarEscena();
+  if (tv) enviarEstadoTv();
 }
 
 function sesionDeMedios(entrada, item) {
@@ -1035,7 +1044,7 @@ function conectarMedios() {
 // La pantalla no se apaga mientras se lee la letra o se sigue en vivo
 let bloqueo = null;
 async function pedirPantalla() {
-  const quiere = escena.abierto || (st.vista === "sonando" && !!st.cola) || (st.vista === "vivo" && !!st.vivo);
+  const quiere = !!tv || escena.abierto || (st.vista === "sonando" && !!st.cola) || (st.vista === "vivo" && !!st.vivo);
   if (!quiere || document.hidden) {
     bloqueo?.release().catch(() => {});
     bloqueo = null;
@@ -1070,7 +1079,7 @@ function abrirEscenario() {
 }
 
 function cerrarEscenario(desdeHistorial = false) {
-  if (!escena.abierto) return;
+  if (!escena.abierto || tv) return;
   escena.abierto = false;
   escena.turno++;
   avanzar(false);
@@ -1140,7 +1149,8 @@ function ajustarEscenario() {
     if (l.offsetParent) largo = Math.max(largo, l.textContent.replace(/\s+$/, "").length);
   }
   const base = +guardado("mc-rp-letra", "18") || 18;
-  const max = Math.max(base + 6, Math.round(base * 1.6));
+  // En el TV se lee desde lejos: la letra puede crecer mucho más
+  const max = tv ? base * 3 : Math.max(base + 6, Math.round(base * 1.6));
   const px = largo ? Math.min(max, Math.floor((box.clientWidth - 8) / (largo * proporcionLetra) * 10) / 10) : max;
   box.style.setProperty("--song-font", Math.max(11, px) + "px");
 }
@@ -1155,6 +1165,12 @@ function avanzar(si, porAudio = false) {
   b.setAttribute("aria-pressed", si);
   b.textContent = si ? "⏸" : "▼";
   b.setAttribute("aria-label", si ? "Detener el desplazamiento" : "Desplazar la letra");
+  if (tv) enviarEstadoTv();
+}
+
+function paginaEscena(d) {
+  const c = $("#rp-esc-cuerpo");
+  c.scrollBy({ top: d * c.clientHeight * 0.8, behavior: "smooth" });
 }
 
 function pasoEscena(ahora) {
@@ -1197,6 +1213,7 @@ function pintarNivel() {
   $("#rp-esc-nivel").textContent = escena.nivel;
   $("#rp-esc-lento").disabled = escena.nivel <= 1;
   $("#rp-esc-rapido").disabled = escena.nivel >= 20;
+  if (tv) enviarEstadoTv();
 }
 
 // ⏮ ⏭ recorren todas las canciones, también las que no tienen audio: en la misa se cantan igual
@@ -1259,7 +1276,7 @@ function conectarEscenario() {
   // Teclado y pedales (los pedales Bluetooth mandan flechas o Avance/Retroceso de página)
   window.addEventListener("keydown", (e) => {
     if (!escena.abierto || e.ctrlKey || e.metaKey || e.altKey || document.querySelector("dialog[open]")) return;
-    const c = $("#rp-esc-cuerpo"), pagina = (d) => c.scrollBy({ top: d * c.clientHeight * 0.8, behavior: "smooth" });
+    const pagina = paginaEscena;
     const acciones = {
       Escape: () => cerrarEscenario(),
       " ": alternarAvance,
@@ -1281,6 +1298,394 @@ function conectarEscenario() {
     e.stopPropagation();
     f();
   }, true);
+}
+
+// ============ PANTALLA GRANDE (TV O PROYECTOR) ============
+// El TV abre reproductor#pantalla: muestra un código y, cuando un teléfono se conecta, solo la letra y los acordes,
+// y hace sonar el audio. El teléfono que escanea o escribe el código queda como control remoto: lo que se elige en él
+// pasa en el TV, y el teléfono muestra lo que pasa en el TV (js/sala.js, trabajadores/sala).
+
+let tv = null; // en el TV: { codigo, llave, sala, conectado, colaRev, ultimo, ultimoClave, sonido }
+let remoto = null; // en el teléfono: { codigo, sala, listo, estado, colaTv, controles, sinTv, reloj }
+
+const conEspacio = (c) => String(c).slice(0, 3) + " " + String(c).slice(3);
+const codigoDeQr = (texto) => (String(texto).match(/#control=(\d{6})\b/) || String(texto).match(/^\s*(\d{3})\s?(\d{3})\s*$/))?.slice(1).join("") || "";
+const sitioPublico = () => (window.MONTECARMELO_CONFIG || {}).sitio || location.origin + "/";
+
+// ---- En el TV ----
+
+function iniciarPantalla() {
+  tv = { codigo: "", llave: crypto.randomUUID?.() || String(Math.random()).slice(2) + Date.now(), sala: null, conectado: false, colaRev: 0, ultimo: 0, ultimoClave: "", sonido: false };
+  document.body.classList.add("rp-tv");
+  document.body.append($("#rp-video"));
+  $("#rp-tv").hidden = false;
+  $("#rp-tv-direccion").textContent = sitioPublico().replace(/^https?:\/\//, "") + "reproductor";
+  // Los navegadores no dejan sonar nada hasta que alguien toca la pantalla (o el OK del control remoto del TV)
+  const activar = () => {
+    tv.sonido = true;
+    $("#rp-tv-activar").textContent = "Sonido activado ✓";
+    $("#rp-tv-sonido").hidden = true;
+    document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
+    if (tv.queriaSonar && st.cola) tocarMotor();
+    document.removeEventListener("pointerdown", activar, true);
+    document.removeEventListener("keydown", activar, true);
+  };
+  document.addEventListener("pointerdown", activar, true);
+  document.addEventListener("keydown", activar, true);
+  pedirPantalla();
+  conectarComoPantalla();
+}
+
+function conectarComoPantalla() {
+  tv.sala?.cerrar();
+  tv.codigo = String(100000 + Math.floor(Math.random() * 900000));
+  tv.conectado = false;
+  document.body.classList.remove("rp-tv-conectada");
+  motor().pause();
+  escena.abierto = false;
+  avanzar(false);
+  $("#rp-escenario").hidden = true;
+  $("#rp-tv-emparejar").hidden = false;
+  $("#rp-tv-sonido").hidden = true;
+  $("#rp-tv-codigo").textContent = conEspacio(tv.codigo);
+  $("#rp-tv-estado").textContent = "Conectando…";
+  pintarQrTv(sitioPublico() + "reproductor#control=" + tv.codigo);
+  const sala = tv.sala = conectarSala(tv.codigo, "tv", {
+    llave: tv.llave,
+    alMensaje: ordenEnTv,
+    alEstado: (e) => {
+      if (tv.sala !== sala) return;
+      if (e === "conectada") {
+        $("#rp-tv-estado").textContent = "Lista: esperando un teléfono";
+        enviarColaTv();
+        enviarEstadoTv(true);
+      } else if (e === "reintentando") {
+        $("#rp-tv-estado").textContent = "Sin conexión a internet: reintentando…";
+      } else if (e === "cerrada") {
+        conectarComoPantalla(); // otra pantalla tenía ese código: se elige otro
+      }
+    }
+  });
+}
+
+async function pintarQrTv(url) {
+  const box = $("#rp-tv-qr");
+  try {
+    const { default: qrcode } = await import("./vendor/qrcode.mjs");
+    const q = qrcode(0, "M");
+    q.addData(url);
+    q.make();
+    box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 4, scalable: true, alt: "Código QR para conectar el teléfono" });
+  } catch (_) {
+    box.replaceChildren();
+  }
+}
+
+function abrirEscenarioTv() {
+  tv.conectado = true;
+  document.body.classList.add("rp-tv-conectada");
+  $("#rp-tv-emparejar").hidden = true;
+  escena.abierto = true;
+  $("#rp-escenario").hidden = false;
+  document.body.classList.add("en-escenario");
+  if (st.cola && st.indice >= 0) pintarEscenario();
+  else $("#rp-esc-letra").innerHTML = '<div class="rp-vacio"><p>Pantalla conectada. Elegí una canción en el teléfono.</p></div>';
+}
+
+const entero = (n, min, max) => Math.max(min, Math.min(max, Math.round(+n || 0)));
+
+function ordenEnTv(o) {
+  if (o.tipo === "cambiar-codigo") return conectarComoPantalla();
+  if (o.tipo !== "orden") return;
+  if (!tv.conectado) abrirEscenarioTv();
+  if (o.modos) {
+    modos.aleatorio = !!o.modos.aleatorio;
+    modos.repetir = ["no", "lista", "una"].includes(o.modos.repetir) ? o.modos.repetir : "no";
+  }
+  const desde = Math.max(0, +o.desde || 0);
+  if (o.tocar) tv.queriaSonar = true;
+  switch (o.accion) {
+    case "cola":
+      if (!Array.isArray(o.cola?.items) || !o.cola.items.length) break;
+      st.cola = { nombre: String(o.cola.nombre || "Lista").slice(0, 120), tipo: String(o.cola.tipo || "lista"), items: o.cola.items.filter((x) => x && typeof x.cancionId === "string") };
+      ordenDe = null;
+      tv.colaRev++;
+      enviarColaTv();
+      reproducir(entero(o.indice, 0, st.cola.items.length - 1), !!o.tocar, desde);
+      break;
+    case "ir":
+      if (st.cola) reproducir(entero(o.indice, 0, st.cola.items.length - 1), !!o.tocar, desde);
+      break;
+    case "play": tv.queriaSonar = true; tocarMotor(); break;
+    case "pausa": tv.queriaSonar = false; motor().pause(); break;
+    case "buscar": motor().currentTime = Math.max(0, +o.segundo || 0); break;
+    case "voz": if (o.cancionId === actualId()) cambiarVoz(entero(o.i, 0, 50)); break;
+    case "avance": alternarAvance(); break;
+    case "nivel": cambiarNivel(entero(o.d, -19, 19)); break;
+    case "pagina": paginaEscena(o.d < 0 ? -1 : 1); break;
+    case "acordes":
+      guardar("mc-rp-acordes", o.si ? "si" : "no");
+      aplicarAjustes();
+      ajustarEscenario();
+      break;
+    case "tam":
+      guardar("mc-rp-letra", String(entero((+guardado("mc-rp-letra", "18") || 18) + (+o.d || 0), 12, 36)));
+      aplicarAjustes();
+      ajustarEscenario();
+      break;
+  }
+  if (o.accion === "hola") enviarColaTv();
+  enviarEstadoTv(true);
+}
+
+function sinPermisoDeSonido(e) {
+  if (!tv || e?.name !== "NotAllowedError") return;
+  $("#rp-tv-sonido").hidden = !tv.conectado || tv.sonido;
+  tv.sala?.enviar({ tipo: "aviso", texto: "El TV todavía no tiene el sonido activado: presioná OK en su control remoto (o hacé clic en la pantalla)." });
+}
+
+function enviarColaTv() {
+  if (tv?.sala && st.cola) tv.sala.enviar({ tipo: "cola", cola: st.cola, rev: tv.colaRev, guardar: true });
+}
+
+// Al cambiar algo se avisa enseguida; mientras suena, el avance cada 2 segundos
+function enviarEstadoTv(forzar = false) {
+  if (!tv?.sala) return;
+  const m = motor();
+  const e = {
+    indice: st.cola ? st.indice : -1, paused: m.paused, tiene: m !== audio || !!audio.getAttribute("src"),
+    dur: isFinite(m.duration) ? Math.round(m.duration) : 0, nivel: escena.nivel, avanza: escena.avanza, preset: escena.preset,
+    colaRev: tv.colaRev, acordes: guardado("mc-rp-acordes", "si") !== "no", letra: +guardado("mc-rp-letra", "18") || 18,
+    voz: st.elegido.get(actualId()) ?? null
+  };
+  const clave = JSON.stringify(e), ahora = Date.now(), cambio = clave !== tv.ultimoClave;
+  if (!forzar && !cambio && (m.paused || ahora - tv.ultimo < 2000)) return;
+  tv.ultimoClave = clave;
+  tv.ultimo = ahora;
+  tv.sala.enviar({ tipo: "estado", ...e, t: Math.round((m.currentTime || 0) * 10) / 10, guardar: cambio || forzar });
+}
+
+// ---- En el teléfono ----
+
+// Hace de <audio> para la barra y los botones: lee el estado que manda el TV y le manda las órdenes
+const motorRemoto = {
+  get paused() { return remoto?.estado?.paused ?? true; },
+  get currentTime() {
+    const e = remoto?.estado;
+    if (!e) return 0;
+    return e.paused ? e.t || 0 : Math.min(e.dur || Infinity, (e.t || 0) + (Date.now() - e.recibido) / 1000);
+  },
+  set currentTime(s) {
+    if (remoto?.estado) Object.assign(remoto.estado, { t: s, recibido: Date.now() });
+    clearTimeout(motorRemoto.espera);
+    motorRemoto.espera = setTimeout(() => ordenTv("buscar", { segundo: s }), 150);
+  },
+  get duration() { return remoto?.estado?.dur || NaN; },
+  play() { ordenTv("play"); },
+  pause() { ordenTv("pausa"); }
+};
+
+function ordenTv(accion, extra = {}) {
+  return !!remoto?.sala?.enviar({ tipo: "orden", accion, ...extra, modos: { aleatorio: modos.aleatorio, repetir: modos.repetir } });
+}
+
+function enviarAPantalla(i, tocar, desde) {
+  if (remoto.colaTv === st.cola) ordenTv("ir", { indice: i, tocar, desde });
+  else {
+    remoto.colaTv = st.cola;
+    ordenTv("cola", { cola: st.cola, indice: i, tocar, desde });
+  }
+  if (remoto.estado) Object.assign(remoto.estado, { indice: i, paused: !tocar, t: desde || 0, recibido: Date.now() });
+}
+
+const mismaCola = (a, b) => !!a && !!b && a.nombre === b.nombre && a.items.length === b.items.length
+  && a.items.every((x, k) => x.cancionId === b.items[k].cancionId && (x.desplazamiento || 0) === (b.items[k].desplazamiento || 0));
+
+function conectarPantalla(codigo) {
+  codigo = String(codigo || "").replace(/\D/g, "");
+  if (!codigoValido(codigo)) return errorPantalla("El código de la pantalla tiene 6 cifras.");
+  desconectarPantalla(false);
+  $("#rp-pant-error").hidden = true;
+  remoto = { codigo, sala: null, listo: false, estado: null, colaTv: null, controles: 1, sinTv: false };
+  guardar("mc-rp-pantalla", codigo);
+  const r = remoto;
+  r.sala = conectarSala(codigo, "control", {
+    alMensaje: (m) => remoto === r && mensajeDelTv(m),
+    alEstado: (e, cierre) => {
+      if (remoto !== r) return;
+      if (e === "conectada") r.sala.enviar({ tipo: "orden", accion: "hola" });
+      if (e === "cerrada") {
+        desconectarPantalla();
+        return errorPantalla(cierre?.code === 4004 ? `No hay ninguna pantalla con el código ${conEspacio(codigo)}: revisalo en el TV.`
+          : cierre?.code === 4002 ? "La pantalla cambió de código: el teléfono quedó desconectado."
+            : "Se cortó la conexión con la pantalla.");
+      }
+      pintarRemoto();
+    }
+  });
+  r.reloj = setInterval(() => remoto === r && r.listo && !r.estado?.paused && pintarBarra(), 1000);
+  pintarRemoto();
+}
+
+function errorPantalla(texto) {
+  if ($("#rp-dlg-pantalla").open) {
+    $("#rp-pant-error").textContent = texto;
+    $("#rp-pant-error").hidden = false;
+  } else avisar(texto);
+}
+
+function mensajeDelTv(m) {
+  const r = remoto;
+  if (m.tipo === "controles") {
+    if (r.listo && m.n > r.controles) avisar("Se conectó otro teléfono a la pantalla.");
+    r.controles = m.n;
+  } else if (m.tipo === "sin-tv") {
+    r.sinTv = true;
+  } else if (m.tipo === "aviso") {
+    avisar(String(m.texto || "").slice(0, 200));
+  } else if (m.tipo === "cola" && Array.isArray(m.cola?.items)) {
+    if (!mismaCola(st.cola, m.cola)) {
+      st.cola = m.cola;
+      ordenDe = null;
+      colaHash = "";
+      if (r.listo) pintarCola();
+    }
+    r.colaTv = st.cola;
+  } else if (m.tipo === "estado") {
+    r.sinTv = false;
+    r.estado = { ...m, recibido: Date.now() };
+    if (!r.listo) primeraConexion();
+    else if (m.indice >= 0 && st.cola && m.indice !== st.indice) reproducir(m.indice, false, 0, true);
+    if (m.voz != null && $("#rp-voz").value !== String(m.voz)) $("#rp-voz").value = m.voz;
+    pintarBarra();
+  }
+  pintarRemoto();
+}
+
+// Al conectarse: si el TV ya tiene algo, el teléfono se pone al día; si no, lo que sonaba en el teléfono pasa al TV
+function primeraConexion() {
+  const r = remoto, e = r.estado;
+  const local = yt?.activo ? yt : audio, sonaba = !local.paused, segundo = local.currentTime || 0;
+  ++turno;
+  audio.onerror = null;
+  audio.pause();
+  audio.removeAttribute("src");
+  audio.load();
+  quitarVideo();
+  st.mezclador?.cerrar();
+  r.listo = true;
+  if ($("#rp-dlg-pantalla").open) $("#rp-dlg-pantalla").close();
+  if (e.indice >= 0 && r.colaTv) {
+    reproducir(e.indice, false, 0, true);
+    mostrarVista("sonando");
+  } else if (st.cola && st.indice >= 0) {
+    enviarAPantalla(st.indice, sonaba, segundo);
+    mostrarVista("sonando");
+  }
+  avisar(`Conectado a la pantalla ${conEspacio(r.codigo)}: lo que elijas aquí suena y se ve en el TV.`);
+}
+
+function desconectarPantalla(olvidar = true) {
+  const r = remoto;
+  if (!r) return;
+  remoto = null;
+  r.sala?.cerrar();
+  clearInterval(r.reloj);
+  if (olvidar) guardar("mc-rp-pantalla", "");
+  pintarRemoto();
+  // Lo que sonaba en el TV queda listo en el teléfono, en pausa
+  if (r.listo && st.cola && st.indice >= 0) reproducir(st.indice, false, r.estado?.t || 0);
+  pintarBarra();
+}
+
+function pintarRemoto() {
+  const r = remoto, e = r?.estado;
+  document.body.classList.toggle("rp-remoto", !!r?.listo);
+  for (const b of [$("#rp-pant-menu"), $("#rp-pant-barra")]) b.classList.toggle("conectada", !!r);
+  $("#rp-pant-barra").setAttribute("aria-pressed", !!r);
+  $("#rp-control-tv").hidden = !r;
+  $("#rp-pant-desconectado").hidden = !!r;
+  $("#rp-pant-conectado").hidden = !r;
+  if (!r) return;
+  const estado = !r.sala?.abierta ? "Reconectando…" : r.sinTv ? "El TV se desconectó: esperando que vuelva…"
+    : !r.listo ? "Conectando…" : r.controles > 1 ? `Conectada · ${r.controles} teléfonos` : "Conectada";
+  $("#rp-control-titulo").textContent = "Pantalla " + conEspacio(r.codigo);
+  $("#rp-control-estado").textContent = estado;
+  $("#rp-pant-cod").textContent = conEspacio(r.codigo);
+  $("#rp-pant-info").textContent = estado;
+  $("#rp-tv-nivel").textContent = e?.nivel ?? "–";
+  const av = $("#rp-tv-avanza");
+  av.setAttribute("aria-pressed", !!e?.avanza);
+  av.textContent = e?.avanza ? "⏸" : "▼";
+  av.setAttribute("aria-label", e?.avanza ? "Detener el desplazamiento en el TV" : "Desplazar la letra en el TV");
+  $("#rp-tv-acordes").setAttribute("aria-pressed", e?.acordes !== false);
+  const play = $("#rp-tv-play"), ico = motor().paused ? "play" : "pausa";
+  if (play.dataset.icono !== ico) {
+    play.innerHTML = icono(ico);
+    play.dataset.icono = ico;
+  }
+}
+
+async function escanearPantalla() {
+  $("#rp-pant-error").hidden = true;
+  try {
+    const { leerQr } = await import("./lector-qr.js");
+    const texto = await leerQr({ texto: "Apuntá la cámara al código QR que muestra el TV" });
+    if (texto == null) return;
+    const codigo = codigoDeQr(texto);
+    if (!codigo) return errorPantalla("Ese QR no es el de una pantalla del reproductor.");
+    $("#rp-pant-codigo").value = conEspacio(codigo);
+    conectarPantalla(codigo);
+  } catch (e) {
+    errorPantalla(e.message);
+  }
+}
+
+function conectarControlesPantalla() {
+  const abrir = () => {
+    pintarRemoto();
+    $("#rp-pant-error").hidden = true;
+    $("#rp-dlg-pantalla").showModal();
+  };
+  $("#rp-pant-menu").addEventListener("click", abrir);
+  $("#rp-pant-barra").addEventListener("click", abrir);
+  $("#rp-control-opciones").addEventListener("click", abrir);
+  $("#rp-pant-direccion").textContent = sitioPublico().replace(/^https?:\/\//, "") + "reproductor#pantalla";
+  $("#rp-pant-escanear").addEventListener("click", escanearPantalla);
+  $("#rp-pant-conectar").addEventListener("click", () => conectarPantalla($("#rp-pant-codigo").value));
+  $("#rp-pant-codigo").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    conectarPantalla($("#rp-pant-codigo").value);
+  });
+  $("#rp-pant-desconectar").addEventListener("click", () => {
+    desconectarPantalla();
+    $("#rp-dlg-pantalla").close();
+    avisar("Desconectado de la pantalla: ahora suena en este teléfono.");
+  });
+  $("#rp-pant-cambiar").addEventListener("click", () => {
+    remoto?.sala?.enviar({ tipo: "cambiar-codigo" });
+    desconectarPantalla();
+    $("#rp-dlg-pantalla").close();
+    avisar("El TV muestra un código nuevo: todos los teléfonos quedaron desconectados.");
+  });
+  $("#rp-pant-ser").addEventListener("click", (e) => {
+    e.preventDefault();
+    location.hash = "pantalla";
+    location.reload();
+  });
+
+  $("#rp-tv-play").addEventListener("click", () => $("#rp-play").click());
+  $("#rp-tv-anterior").addEventListener("click", () => cambiarEnEscena(-1));
+  $("#rp-tv-siguiente").addEventListener("click", () => cambiarEnEscena(1));
+  $("#rp-tv-arriba").addEventListener("click", () => ordenTv("pagina", { d: -1 }));
+  $("#rp-tv-abajo").addEventListener("click", () => ordenTv("pagina", { d: 1 }));
+  $("#rp-tv-avanza").addEventListener("click", () => ordenTv("avance"));
+  $("#rp-tv-lento").addEventListener("click", () => ordenTv("nivel", { d: -1 }));
+  $("#rp-tv-rapido").addEventListener("click", () => ordenTv("nivel", { d: 1 }));
+  $("#rp-tv-acordes").addEventListener("click", () => ordenTv("acordes", { si: remoto?.estado?.acordes === false }));
+  $("#rp-tv-menos").addEventListener("click", () => ordenTv("tam", { d: -2 }));
+  $("#rp-tv-mas").addEventListener("click", () => ordenTv("tam", { d: 2 }));
 }
 
 // ============ AJUSTES DE LA LETRA ============
@@ -1440,6 +1845,26 @@ function leerHash() {
     }
   } else if (clave === "misa" && valor) abrirMisa(valor);
   else if (clave === "vivo" && /^\d{4}$/.test(valor)) seguirVivo(valor);
+  else if (clave === "pantalla" && !tv) iniciarPantalla();
+  else if (clave === "control" && codigoValido(valor)) {
+    // El QR del TV leído con la cámara del teléfono
+    history.replaceState(null, "", location.pathname + location.search);
+    conectarPantalla(valor);
+  }
+}
+
+function cambiarVoz(k) {
+  const entrada = st.porId.get(actualId());
+  const a = entrada && audiosReproducibles(entrada)[k];
+  if (!a) return;
+  st.elegido.set(entrada.id, k);
+  const antes = motor();
+  const t = antes.currentTime, sonaba = !antes.paused;
+  cargarAudio(a, sonaba);
+  // Las voces de una misma grabación siguen en el mismo punto; el video es otra grabación
+  if (antes === audio && motor() === audio) {
+    audio.addEventListener("loadedmetadata", () => { audio.currentTime = Math.min(t, audio.duration || t); }, { once: true });
+  }
 }
 
 // ============ EVENTOS ============
@@ -1517,16 +1942,9 @@ function conectar() {
   });
 
   $("#rp-voz").addEventListener("change", (e) => {
-    const entrada = st.porId.get(actualId());
-    if (!entrada) return;
-    st.elegido.set(entrada.id, +e.target.value);
-    const antes = motor();
-    const t = antes.currentTime, sonaba = !antes.paused;
-    cargarAudio(audiosReproducibles(entrada)[+e.target.value], sonaba);
-    // Las voces de una misma grabación siguen en el mismo punto; el video es otra grabación
-    if (antes === audio && motor() === audio) {
-      audio.addEventListener("loadedmetadata", () => { audio.currentTime = Math.min(t, audio.duration || t); }, { once: true });
-    }
+    if (!remoto?.listo) return cambiarVoz(+e.target.value);
+    st.elegido.set(actualId(), +e.target.value);
+    ordenTv("voz", { cancionId: actualId(), i: +e.target.value });
   });
   $("#rp-acordes").addEventListener("click", () => {
     guardar("mc-rp-acordes", guardado("mc-rp-acordes", "si") === "no" ? "si" : "no");
@@ -1674,6 +2092,7 @@ function conectar() {
   activarPosturas($("#rp-vivo-letra"));
   conectarMedios();
   conectarEscenario();
+  conectarControlesPantalla();
 }
 
 // ============ APP INSTALABLE ============

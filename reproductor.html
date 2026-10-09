@@ -54,6 +54,7 @@
     <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="listas" data-ico="biblioteca">Listas</button>
     <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="sonando" data-ico="nota" aria-label="Reproduciendo"><span class="rp-no-celular">Reproduciendo</span><span class="rp-solo-celular" aria-hidden="true">Sonando</span></button>
     <button type="button" class="rp-pestana" id="rp-esc-menu" data-ico="escenario" title="Solo la letra y los acordes a pantalla completa">Escenario</button>
+    <button type="button" class="rp-pestana rp-pant" id="rp-pant-menu" data-ico="pantalla" title="Mostrar la letra y hacer sonar el audio en un TV o proyector">Pantalla</button>
     <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="vivo" data-ico="vivo">En vivo</button>
     <button type="button" class="rp-pestana rp-instalar" data-ico="instalar" hidden>Instalar app</button>
   </nav>
@@ -114,6 +115,34 @@
       </div>
       <div class="rp-sonando" id="rp-sonando" hidden>
         <div class="rp-principal">
+          <!-- Con una pantalla conectada: lo que el TV no muestra (solo muestra la letra) se maneja desde aquí -->
+          <section class="rp-control-tv" id="rp-control-tv" aria-label="Control de pantalla" hidden>
+            <div class="rp-control-cabeza">
+              <span class="rp-control-ico" data-ico="pantalla"></span>
+              <span class="rp-control-texto"><b id="rp-control-titulo">Pantalla</b><small id="rp-control-estado"></small></span>
+              <button type="button" class="rp-btn" id="rp-control-opciones">Opciones</button>
+            </div>
+            <div class="rp-control-fila">
+              <span class="rp-control-grupo" role="group" aria-label="Canción">
+                <button type="button" class="rp-ctl" id="rp-tv-anterior" aria-label="Canción anterior" title="Canción anterior (también las sin audio)" data-ico="anterior"></button>
+                <button type="button" class="rp-ctl" id="rp-tv-play" aria-label="Reproducir o pausar en el TV"></button>
+                <button type="button" class="rp-ctl" id="rp-tv-siguiente" aria-label="Canción siguiente" title="Canción siguiente (también las sin audio)" data-ico="siguiente"></button>
+              </span>
+              <span class="rp-control-grupo" role="group" aria-label="Desplazamiento de la letra en el TV">
+                <button type="button" class="rp-ctl" id="rp-tv-arriba" aria-label="Subir la letra una pantalla" title="Subir la letra">⇑</button>
+                <button type="button" class="rp-ctl rp-esc-avanza" id="rp-tv-avanza" aria-pressed="false" aria-label="Desplazar la letra en el TV">▼</button>
+                <button type="button" class="rp-ctl" id="rp-tv-abajo" aria-label="Bajar la letra una pantalla" title="Bajar la letra">⇓</button>
+                <button type="button" class="rp-ctl" id="rp-tv-lento" aria-label="Desplazamiento más lento">−</button>
+                <b class="rp-control-nivel" id="rp-tv-nivel" title="Velocidad del desplazamiento (1 a 20)">–</b>
+                <button type="button" class="rp-ctl" id="rp-tv-rapido" aria-label="Desplazamiento más rápido">+</button>
+              </span>
+              <span class="rp-control-grupo" role="group" aria-label="Letra en el TV">
+                <button type="button" class="rp-btn" id="rp-tv-acordes" aria-pressed="true" title="Mostrar u ocultar los acordes en el TV">Acordes</button>
+                <button type="button" class="rp-btn" id="rp-tv-menos" title="Letra más chica en el TV">A−</button>
+                <button type="button" class="rp-btn" id="rp-tv-mas" title="Letra más grande en el TV">A+</button>
+              </span>
+            </div>
+          </section>
           <header class="rp-hero">
             <span class="rp-hero-cara" id="rp-hero-cara"></span>
             <div class="rp-hero-texto">
@@ -202,6 +231,7 @@
       <button type="button" class="rp-ctl rp-modo" id="rp-barra-agregar" aria-label="Agregar a una lista" title="Agregar a una lista" data-ico="agregar"></button>
       <button type="button" class="rp-ctl rp-modo" id="rp-repetir" aria-pressed="false" aria-label="Repetir: no" title="Repetir: no"></button>
       <button type="button" class="rp-ctl rp-modo" id="rp-aleatorio" aria-pressed="false" aria-label="Aleatorio" title="Aleatorio" data-ico="aleatorio"></button>
+      <button type="button" class="rp-ctl rp-modo rp-pant" id="rp-pant-barra" aria-pressed="false" aria-label="Pantalla (TV o proyector)" title="Mostrar la letra y hacer sonar el audio en un TV o proyector" data-ico="pantalla"></button>
       <button type="button" class="rp-ctl rp-modo" id="rp-esc-barra" aria-label="Modo escenario" title="Modo escenario: solo la letra y los acordes" data-ico="escenario"></button>
       <button type="button" class="rp-ctl rp-modo" id="rp-cola-btn" aria-label="Cola" title="A continuación (la cola)" data-ico="cola"></button>
     </div>
@@ -237,6 +267,47 @@
       </div>
     </form>
   </dialog>
+
+  <!-- Conectar el teléfono a una pantalla (TV o proyector) -->
+  <dialog class="rp-dlg" id="rp-dlg-pantalla">
+    <form method="dialog">
+      <h2>Pantalla grande</h2>
+      <div id="rp-pant-desconectado">
+        <p class="rp-aviso">En el TV o proyector abrí <b id="rp-pant-direccion"></b>. Aparece un código: escanealo o escribilo aquí. La letra se verá en el TV, el audio sonará en el TV y este teléfono será el control.</p>
+        <button type="button" class="rp-btn rp-btn-fuerte rp-pant-escanear" id="rp-pant-escanear" data-ico="qr">Escanear código QR</button>
+        <div class="rp-pant-codigo">
+          <input type="text" id="rp-pant-codigo" inputmode="numeric" maxlength="7" placeholder="000 000" autocomplete="off" aria-label="Código de la pantalla">
+          <button type="button" class="rp-btn" id="rp-pant-conectar">Conectar</button>
+        </div>
+        <p class="rp-error" id="rp-pant-error" hidden></p>
+        <p class="rp-aviso">¿Este equipo es el que está conectado al TV? <a href="#pantalla" id="rp-pant-ser">Usarlo como pantalla</a></p>
+      </div>
+      <div id="rp-pant-conectado" hidden>
+        <p>Conectado a la pantalla <b id="rp-pant-cod"></b>.</p>
+        <p class="rp-aviso" id="rp-pant-info"></p>
+        <div class="rp-dlg-acciones">
+          <button type="button" class="rp-btn" id="rp-pant-cambiar" title="El TV muestra un código nuevo y se desconectan todos los teléfonos">Cambiar código</button>
+          <button type="button" class="rp-btn rp-peligro" id="rp-pant-desconectar">Desconectar</button>
+        </div>
+      </div>
+      <div class="rp-dlg-acciones"><span class="espacio"></span><button type="submit" class="rp-btn">Cerrar</button></div>
+    </form>
+  </dialog>
+
+  <!-- Modo pantalla (reproductor#pantalla, en el TV): el código para conectar el teléfono -->
+  <div class="rp-tv" id="rp-tv" hidden>
+    <div class="rp-tv-emparejar" id="rp-tv-emparejar">
+      <div class="rp-tv-qr" id="rp-tv-qr"></div>
+      <div class="rp-tv-texto">
+        <small>Código de esta pantalla</small>
+        <p class="rp-tv-codigo" id="rp-tv-codigo">––– –––</p>
+        <p>En el teléfono abrí el reproductor (<b id="rp-tv-direccion"></b>), tocá <b>Pantalla</b> y escaneá este código o escribilo.</p>
+        <button type="button" class="rp-btn rp-btn-fuerte" id="rp-tv-activar">Activar sonido y pantalla completa</button>
+        <p class="rp-tv-estado" id="rp-tv-estado">Conectando…</p>
+      </div>
+    </div>
+    <p class="rp-tv-sonido" id="rp-tv-sonido" hidden>Presioná OK en el control remoto del TV para activar el sonido</p>
+  </div>
 
   <!-- Instalar en iPhone -->
   <dialog class="rp-dlg" id="rp-dlg-instalar">

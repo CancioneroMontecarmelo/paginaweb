@@ -21,3 +21,9 @@ migrations_dir = "migrations"
 [[r2_buckets]]
 binding = "ARCHIVOS"
 bucket_name = "montecarmelo-archivos"
+
+# Pantallas (TV o proyector) manejadas desde el teléfono: el Durable Object vive en trabajadores/sala
+[[durable_objects.bindings]]
+name = "SALA"
+class_name = "Sala"
+script_name = "montecarmelo-sala"
