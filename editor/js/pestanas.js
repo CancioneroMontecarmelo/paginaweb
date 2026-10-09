@@ -3,11 +3,14 @@
 
 let docs = [];
 let activeId = null;
+// Canción de la Biblioteca que se está escuchando sin agregarla al cancionero (no es una pestaña)
+let previa = null;
 
-const cur = () => docs.find(d => d.id === activeId) || docs[0];
+const cur = () => (previa && activeId === previa.id ? previa : docs.find(d => d.id === activeId) || docs[0]);
 
 function makeDoc({ id, title = 'Sin título', text = '', audios = [], currentAudioId = null, clean = true, scrollSpeed = null,
-  sheets = [], instruments = [], capos = {}, view = null, sheetSel = {}, panelInst = 0, tags = [], credits = null } = {}) {
+  sheets = [], instruments = [], capos = {}, view = null, sheetSel = {}, panelInst = 0, tags = [], credits = null,
+  mc = null, partituras = null, bibId = null } = {}) {
   const d = {
     id: id || uid(),
     title, text,
@@ -25,6 +28,10 @@ function makeDoc({ id, title = 'Sin título', text = '', audios = [], currentAud
     scroll: 0,
     clean: ''
   };
+  // mc: canción de un cancionero de misa (cancionId, momento, posición y los ajustes guardados en la misa)
+  if (mc) d.mc = mc;
+  if (partituras?.length) d.partituras = partituras;
+  if (bibId) d.bibId = bibId;
   if (!d.audios.some(a => a.id === d.currentAudioId)) d.currentAudioId = d.audios[0]?.id ?? null;
   if (clean) d.clean = docSignature(d);
   return d;
@@ -53,7 +60,7 @@ function activate(id) {
   try { editor.setSelectionRange(d.sel[0], d.sel[1]); } catch (_) {}
   updateAudioBar();
   refresh();
-  window.scrollTo(0, d.scroll || 0);
+  if (typeof ytmVista === 'undefined' || ytmVista === 'cancionero') window.scrollTo(0, d.scroll || 0);
 }
 
 function leaveCurrent() {
@@ -61,7 +68,7 @@ function leaveCurrent() {
   if (!d) return;
   histPush();
   syncFromEditor();
-  d.scroll = window.scrollY;
+  if (typeof ytmVista === 'undefined' || ytmVista === 'cancionero') d.scroll = window.scrollY;
 }
 
 function switchTab(id) {
@@ -91,7 +98,8 @@ function closeTab(id = activeId) {
   const d = docs.find(x => x.id === id);
   if (!d) return;
   if (d.id === activeId) syncFromEditor();
-  if (isDirty(d) && !isBlank(d) && !confirm(`"${d.title}" tiene cambios sin guardar. ¿Cerrar la pestaña?`)) return;
+  const cambios = d.mc ? mcCambio(d) : isDirty(d) && !isBlank(d);
+  if (cambios && !confirm(`"${d.title}" tiene cambios sin guardar. ¿Quitarla del cancionero?`)) return;
   const i = docs.indexOf(d);
   revokeDocAudios(d);
   revokeDocSheets(d);
@@ -117,29 +125,52 @@ function moveTab(fromId, toId) {
   scheduleSave();
 }
 
+// La cola de la derecha: las canciones del cancionero, en orden (cada una es una pestaña)
+const colaSub = d => {
+  const key = detectKey(d.text);
+  const capo = capoPrincipal(d);
+  return [d.mc?.momento, key ? keyName(key.idx, key.minor) : '', capo ? 'Cejilla ' + capo : ''].filter(Boolean).join(' · ');
+};
+let colaFirma = '';
+
 function renderTabs() {
   const bar = $('#tabs');
+  const playing = typeof ytmSonando === 'function' && ytmSonando();
+  const firma = JSON.stringify([activeId, playing, docs.map(d => [d.id, d.title, colaSub(d), isDirty(d) && !isBlank(d), !!d.audios.length,
+    d.audios[0]?.src, d.mc && mcCambio(d)])]);
+  if (firma === colaFirma && bar.childElementCount) return;
+  colaFirma = firma;
   bar.innerHTML = '';
+  const vacio = !docs.some(d => !isBlank(d));
+  let num = 0;
   for (const d of docs) {
-    const t = el('div', 'tab' + (d.id === activeId ? ' active' : ''));
+    const activa = d.id === activeId;
+    // Las canciones nuevas sin escribir no ocupan lugar en la cola (salvo la que se está escribiendo)
+    if (isBlank(d) && (vacio || !activa)) continue;
+    num++;
+    const t = el('div', 'tab' + (activa ? ' active' : '') + (activa && playing ? ' sonando' : ''));
     t.dataset.id = d.id;
     t.draggable = true;
-    t.setAttribute('role', 'tab');
+    t.setAttribute('role', 'listitem');
     t.title = d.title + (isDirty(d) ? ' (cambios sin guardar)' : '');
-    if (d.audios.length) t.appendChild(el('span', 'tab-audio', '🔊'));
-    t.appendChild(el('span', 'tab-title', d.title.trim() || 'Sin título'));
-    if (isDirty(d) && !isBlank(d)) t.appendChild(el('span', 'tab-dirty', '●'));
-    const x = el('button', 'tab-close', '×');
-    x.type = 'button';
-    x.title = 'Cerrar pestaña (Ctrl+Alt+W)';
-    t.appendChild(x);
+    const cambio = d.mc ? mcCambio(d) : isDirty(d) && !isBlank(d);
+    t.innerHTML = `<span class="tab-num">${num}</span>${caraHtml(caraInfoDoc(d), 'chica')}
+      <span class="tab-texto"><span class="tab-title">${escapeHtml(d.title.trim() || (isBlank(d) ? 'Canción nueva' : 'Sin título'))}</span>
+      <small>${escapeHtml(colaSub(d))}</small></span>
+      ${cambio ? `<span class="tab-dirty" title="${d.mc ? 'Cambió el tono, la cejilla o las velocidades: falta guardarlo en la misa' : 'Cambios sin guardar'}">●</span>` : ''}
+      <button type="button" class="tab-close" title="Quitar del cancionero">×</button>`;
     bar.appendChild(t);
   }
-  const add = el('button', 'tab-add', '+');
-  add.type = 'button';
-  add.title = 'Nueva pestaña (Ctrl+Alt+N)';
-  add.dataset.action = 'new';
-  bar.appendChild(add);
+  if (vacio) {
+    bar.appendChild(el('p', 'cola-vacia', 'El cancionero está vacío. Agrega canciones desde Inicio, Explorar o la Biblioteca, o abre un cancionero de misa.'));
+  }
+  $('#colaSub') && ($('#colaSub').textContent = colaResumen());
+}
+
+function colaResumen() {
+  const n = docs.filter(d => !isBlank(d)).length;
+  const m = state.mcMisa;
+  return [`${n} ${n === 1 ? 'canción' : 'canciones'}`, m ? 'Cancionero de misa' : '', m?.fechaUso || ''].filter(Boolean).join(' · ');
 }
 
 function bindTabs() {
@@ -149,13 +180,15 @@ function bindTabs() {
     const t = e.target.closest('.tab');
     if (!t) return;
     if (e.target.closest('.tab-close')) closeTab(t.dataset.id);
-    else switchTab(t.dataset.id);
+    else {
+      switchTab(t.dataset.id);
+      ytmIrA('cancionero');
+    }
   });
   bar.addEventListener('auxclick', e => {
     const t = e.target.closest('.tab');
     if (t && e.button === 1) { e.preventDefault(); closeTab(t.dataset.id); }
   });
-  bar.addEventListener('dblclick', e => { if (e.target === bar) newTab(); });
   bar.addEventListener('dragstart', e => {
     const t = e.target.closest('.tab');
     if (!t) return;
@@ -169,6 +202,24 @@ function bindTabs() {
     e.preventDefault();
     bar.querySelectorAll('.drag-over').forEach(x => x.classList.remove('drag-over'));
     t.classList.add('drag-over');
+  });
+  // Arrastrar con el dedo: mantener apretada la canción y moverla
+  let toque = null;
+  bar.addEventListener('touchstart', e => {
+    const t = e.target.closest('.tab');
+    if (!t || e.target.closest('.tab-close') || !e.target.closest('.tab-num, .cara')) return;
+    toque = { id: t.dataset.id };
+  }, { passive: true });
+  bar.addEventListener('touchmove', e => {
+    if (!toque) return;
+    e.preventDefault();
+    const sobre = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY)?.closest('.tab');
+    bar.querySelectorAll('.drag-over').forEach(x => x.classList.remove('drag-over'));
+    if (sobre && sobre.dataset.id !== toque.id) { sobre.classList.add('drag-over'); toque.sobre = sobre.dataset.id; }
+  }, { passive: false });
+  bar.addEventListener('touchend', () => {
+    if (toque?.sobre) moveTab(toque.id, toque.sobre);
+    toque = null;
   });
   bar.addEventListener('drop', e => {
     const t = e.target.closest('.tab');
@@ -259,6 +310,9 @@ function saveNow() {
         instruments: d.instruments, capos: d.capos, view: d.view, sheetSel: d.sheetSel, panelInst: d.panelInst,
         tags: d.tags,
         credits: d.credits,
+        mc: d.mc || null,
+        partituras: d.partituras || null,
+        bibId: d.bibId || null,
         clean: !isDirty(d)
       }))
     }));

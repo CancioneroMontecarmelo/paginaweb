@@ -342,7 +342,7 @@ function renderCollection() {
   cq('.bp-count').textContent = `${n} ${n === 1 ? 'elegida' : 'elegidas'} para el cancionero`;
 }
 
-async function openCollection() {
+async function openLocalCollection() {
   updateChromeHeight();
   collPanel.hidden = false;
   document.body.classList.add('picker-open');

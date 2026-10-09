@@ -346,7 +346,9 @@ function pintarMisas() {
 function colaDeMisa(m) {
   return {
     nombre: m.nombre || "Cancionero de misa", tipo: "misa",
-    items: m.momentos.flatMap((x) => x.canciones.map((c) => ({ cancionId: c.cancionId, desplazamiento: c.desplazamiento || 0, momento: x.momento })))
+    items: m.momentos.flatMap((x) => x.canciones.map((c) => ({
+      cancionId: c.cancionId, desplazamiento: c.desplazamiento || 0, momento: x.momento, capo: c.capo || 0, velocidad: c.velocidad || 1
+    })))
   };
 }
 
@@ -546,8 +548,11 @@ async function reproducir(i, tocar = true, desde = 0) {
   $("#rp-sonando").hidden = false;
   $("#rp-barra").hidden = false;
   document.body.classList.add("con-barra");
-  $("#rp-momento").hidden = !item.momento;
-  $("#rp-momento").textContent = item.momento || "";
+  // La cejilla y la velocidad que eligieron en el editor para esta misa
+  const etiqueta = [item.momento, item.capo ? "Capo " + item.capo : "", item.velocidad && item.velocidad !== 1 ? String(item.velocidad).replace(".", ",") + "×" : ""];
+  $("#rp-momento").hidden = !etiqueta.some(Boolean);
+  $("#rp-momento").textContent = etiqueta.filter(Boolean).join(" · ");
+  audio.defaultPlaybackRate = audio.playbackRate = item.velocidad || 1;
   pintarDonde();
 
   const { lista, i: elegido } = elegirAudio(entrada);

@@ -29,6 +29,13 @@ function limpiarMomentos(lista) {
     canciones: (Array.isArray(m.canciones) ? m.canciones : []).slice(0, 10).map((x) => {
       const r = { cancionId: texto(x.cancionId, 120), desplazamiento: Math.max(-11, Math.min(11, Math.round(Number(x.desplazamiento) || 0))) };
       if (x.sugerida === true) r.sugerida = true;
+      // Ajustes de esta misa (el editor y el atril): cejilla, velocidad del audio y nivel del desplazamiento
+      const capo = Math.round(Number(x.capo));
+      if (capo >= 1 && capo <= 11) r.capo = capo;
+      const velocidad = Math.round(Number(x.velocidad) * 100) / 100;
+      if (velocidad >= 0.25 && velocidad <= 1.5 && velocidad !== 1) r.velocidad = velocidad;
+      const scroll = Math.round(Number(x.scroll));
+      if (scroll >= 1 && scroll <= 20) r.scroll = scroll;
       return r;
     }).filter((x) => x.cancionId)
   }));

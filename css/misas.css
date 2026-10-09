@@ -1207,6 +1207,12 @@
   color: inherit;
 }
 
+.canciones-momento .ajustes-misa {
+  font-size: 0.7rem;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
 .btn-publicar {
   display: block;
   width: calc(100% - 0.55rem);

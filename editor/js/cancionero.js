@@ -79,7 +79,7 @@ function setActiveBook(name, handle = null, path = '', clean = true) {
 function renderBookName() {
   const b = $('#bookName');
   const dirty = bookDirty();
-  b.querySelector('.book-label').textContent = state.cancioneroName || 'Cancionero sin nombre';
+  b.querySelector('.book-label').textContent = state.cancioneroName || 'Cancionero nuevo';
   b.classList.toggle('dirty', dirty);
   b.classList.toggle('unsaved', !state.cancioneroPath);
   b.title = state.cancioneroPath

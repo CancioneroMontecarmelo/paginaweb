@@ -1093,83 +1093,83 @@ body.pv-open { overflow: hidden; }
   .note-btn:hover:not(:disabled) { transform: none; }
 }
 
-/* ============ MODO NOCHE (solo el atril, para el escenario) ============ */
+/* ============ OSCURO (todo el editor, estilo YouTube Music; al imprimir vuelve a ser claro) ============ */
 /* Negro y blanco muy contrastados para no deslumbrar; los acordes en amarillo se distinguen de la letra */
 @media screen {
-  :root:has(body.night.mode-atril) { color-scheme: dark; background: #000; }
-  body.night.mode-atril { background: #000; color: #fff; }
-  body.night.mode-atril .chrome { background: #000; }
-  body.night.mode-atril .menu-title, body.night.mode-atril .menu-toggle { color: #e8eaed; }
-  body.night.mode-atril .menu-title:hover, body.night.mode-atril .menu.open .menu-title { background: #262626; }
-  body.night.mode-atril .menu-dropdown { background: #1a1a1a; box-shadow: 0 0 0 1px #333, 0 6px 18px rgba(0,0,0,.6); }
-  body.night.mode-atril .menu-item { color: #e8eaed; }
-  body.night.mode-atril .menu-item:hover, body.night.mode-atril .menu-item.has-sub.sub-open { background: #333; }
-  body.night.mode-atril .menu-item.disabled { color: #5f6368; }
-  body.night.mode-atril .menu-sep { background: #333; }
-  body.night.mode-atril .doc-title { color: #fff; }
-  body.night.mode-atril .doc-title:hover, body.night.mode-atril .doc-title:focus { background: #111; border-color: #444; }
-  body.night.mode-atril .book-name { background: #111; border-color: #444; color: #e8eaed; }
-  body.night.mode-atril .toolbar, body.night.mode-atril .toolbar .mode-toggle { background: #111; }
-  body.night.mode-atril .toolbar button { color: #e8eaed; }
-  body.night.mode-atril .toolbar button:hover { background: #333; }
-  body.night.mode-atril .toolbar .separator { background: #444; }
-  body.night.mode-atril .toolbar .mode-toggle button { background: #000; border-color: #555; }
-  body.night.mode-atril .toolbar .mode-toggle button.active { background: #fff; color: #000; border-color: #fff; }
-  body.night.mode-atril .transposer { background: #000; border-color: #333; }
-  body.night.mode-atril .transposer-label, body.night.mode-atril .key-info { color: #bbb; }
-  body.night.mode-atril .key-info b { color: #ffd400; }
-  body.night.mode-atril .note-btn, body.night.mode-atril .key-toggle { background: #000; border-color: #555; color: #fff; }
-  body.night.mode-atril .note-btn:hover:not(:disabled) { background: #222; border-color: #fff; }
-  body.night.mode-atril .note-btn.sharp { background: #1a1400; border-color: #b38f00; }
-  body.night.mode-atril .note-btn.active { background: #fff; color: #000; border-color: #fff; box-shadow: none; }
-  body.night.mode-atril .notation-badge { background: #333; }
-  body.night.mode-atril .key-sheet { background: #111; }
-  body.night.mode-atril .tabs { background: #000; border-color: #333; }
-  body.night.mode-atril .tab { background: #111; border-color: #333; color: #bbb; }
-  body.night.mode-atril .tab:hover { background: #1a1a1a; }
-  body.night.mode-atril .tab.active { background: #000; color: #fff; border-bottom-color: #000; }
-  body.night.mode-atril .tab-close, body.night.mode-atril .tab-add, body.night.mode-atril .panel-close { color: #aaa; }
-  body.night.mode-atril .tab-close:hover, body.night.mode-atril .tab-add:hover, body.night.mode-atril .panel-close:hover { background: #333; color: #fff; }
-  body.night.mode-atril .document { background: #000; color: #fff; box-shadow: none; }
-  body.night.mode-atril .song-header { border-color: #333; }
-  body.night.mode-atril .song-meta, body.night.mode-atril .song-credits, body.night.mode-atril .strum-name { color: #bbb; }
-  body.night.mode-atril .lyric-line { color: #fff; }
-  body.night.mode-atril .chord-line, body.night.mode-atril .chord, body.night.mode-atril .chord-name { color: #ffd400; }
-  body.night.mode-atril .chord-extra { color: #9e9e9e; }
-  body.night.mode-atril .section-heading { color: #8ab4f8; }
-  body.night.mode-atril .comment-line { background: #1a1a1a; color: #e0e0e0; border-color: #b38f00; }
-  body.night.mode-atril .voice-section { background: color-mix(in srgb, var(--vc) 14%, #000); }
-  body.night.mode-atril .voice-section .lyric-line { color: color-mix(in srgb, var(--vc) 30%, #fff); }
-  body.night.mode-atril .empty-hint, body.night.mode-atril .sheet-loading, body.night.mode-atril .sheet-missing { color: #9e9e9e; }
-  body.night.mode-atril .strum-svg, body.night.mode-atril .chord-svg,
-  body.night.mode-atril .sheet-img, body.night.mode-atril .sheet-page { filter: invert(1) hue-rotate(180deg); }
-  body.night.mode-atril .sheet-bar, body.night.mode-atril .sheet-name { color: #e8eaed; }
-  body.night.mode-atril .sheet-bar select, body.night.mode-atril .sheet-remove { background: #000; color: #fff; border-color: #555; }
-  body.night.mode-atril .sheet-note { background: #1a1a1a; color: #e0e0e0; }
-  body.night.mode-atril .tag-chip { background: #1a2433; color: #aecbfa; }
-  body.night.mode-atril .side-panel, body.night.mode-atril .panel-head { background: #111; color: #e8eaed; border-color: #333; }
-  body.night.mode-atril .panel-sec { border-color: #262626; }
-  body.night.mode-atril .panel-sec select { background: #000; color: #fff; border-color: #555; }
-  body.night.mode-atril .panel-tip { background: #1a2433; color: #cfe2ff; }
-  body.night.mode-atril .chord-card { border-color: #333; }
-  body.night.mode-atril .chord-name small, body.night.mode-atril .chord-foot { color: #9e9e9e; }
-  body.night.mode-atril .v-nav, body.night.mode-atril .chord-origin { background: #333; color: #e8eaed; }
-  body.night.mode-atril .atril-controls { background: #111; box-shadow: 0 0 0 1px #333, 0 2px 10px rgba(0,0,0,.6); }
-  body.night.mode-atril .atril-controls button { background: #000; border-color: #555; color: #fff; }
-  body.night.mode-atril .atril-controls button.on { background: #fff; color: #000; border-color: #fff; }
-  body.night.mode-atril .atril-controls .view-switch { border-color: #555; }
-  body.night.mode-atril .atril-controls .view-switch button:disabled { color: #5f6368; }
-  body.night.mode-atril.autoscrolling .atril-controls { background: rgba(0,0,0,.9); }
-  body.night.mode-atril .scroll-level { color: #fff; }
-  body.night.mode-atril .audio-bar { background: #111; border-color: #333; }
-  body.night.mode-atril .audio-bar select { background: #000; color: #fff; border-color: #555; }
-  body.night.mode-atril .speed button:hover { background: #333; }
-  body.night.mode-atril .speed .speed-label { color: #bbb; }
-  body.night.mode-atril .drawer-panel, body.night.mode-atril .drawer-head { background: #111; border-color: #333; }
-  body.night.mode-atril .drawer-menu > summary, body.night.mode-atril .drawer-item, body.night.mode-atril .drawer-sub > summary { color: #e8eaed; border-color: #222; }
-  body.night.mode-atril .drawer-menu[open] > summary { background: #1a1a1a; }
-  body.night.mode-atril .drawer-item:disabled { color: #5f6368; }
-  body.night.mode-atril .drawer-sep { background: #333; }
+  :root:has(body.ytm) { color-scheme: dark; background: #000; }
+  body.ytm { background: #000; color: #fff; }
+  body.ytm .chrome { background: #000; }
+  body.ytm .menu-title, body.ytm .menu-toggle { color: #e8eaed; }
+  body.ytm .menu-title:hover, body.ytm .menu.open .menu-title { background: #262626; }
+  body.ytm .menu-dropdown { background: #1a1a1a; box-shadow: 0 0 0 1px #333, 0 6px 18px rgba(0,0,0,.6); }
+  body.ytm .menu-item { color: #e8eaed; }
+  body.ytm .menu-item:hover, body.ytm .menu-item.has-sub.sub-open { background: #333; }
+  body.ytm .menu-item.disabled { color: #5f6368; }
+  body.ytm .menu-sep { background: #333; }
+  body.ytm .doc-title { color: #fff; }
+  body.ytm .doc-title:hover, body.ytm .doc-title:focus { background: #111; border-color: #444; }
+  body.ytm .book-name { background: #111; border-color: #444; color: #e8eaed; }
+  body.ytm .toolbar, body.ytm .toolbar .mode-toggle { background: #111; }
+  body.ytm .toolbar button { color: #e8eaed; }
+  body.ytm .toolbar button:hover { background: #333; }
+  body.ytm .toolbar .separator { background: #444; }
+  body.ytm .toolbar .mode-toggle button { background: #000; border-color: #555; }
+  body.ytm .toolbar .mode-toggle button.active { background: #fff; color: #000; border-color: #fff; }
+  body.ytm .transposer { background: #000; border-color: #333; }
+  body.ytm .transposer-label, body.ytm .key-info { color: #bbb; }
+  body.ytm .key-info b { color: #ffd400; }
+  body.ytm .note-btn, body.ytm .key-toggle { background: #000; border-color: #555; color: #fff; }
+  body.ytm .note-btn:hover:not(:disabled) { background: #222; border-color: #fff; }
+  body.ytm .note-btn.sharp { background: #1a1400; border-color: #b38f00; }
+  body.ytm .note-btn.active { background: #fff; color: #000; border-color: #fff; box-shadow: none; }
+  body.ytm .notation-badge { background: #333; }
+  body.ytm .key-sheet { background: #111; }
+  body.ytm .tabs { background: #000; border-color: #333; }
+  body.ytm .tab { background: #111; border-color: #333; color: #bbb; }
+  body.ytm .tab:hover { background: #1a1a1a; }
+  body.ytm .tab.active { background: #000; color: #fff; border-bottom-color: #000; }
+  body.ytm .tab-close, body.ytm .tab-add, body.ytm .panel-close { color: #aaa; }
+  body.ytm .tab-close:hover, body.ytm .tab-add:hover, body.ytm .panel-close:hover { background: #333; color: #fff; }
+  body.ytm .document { background: #000; color: #fff; box-shadow: none; }
+  body.ytm .song-header { border-color: #333; }
+  body.ytm .song-meta, body.ytm .song-credits, body.ytm .strum-name { color: #bbb; }
+  body.ytm .lyric-line { color: #fff; }
+  body.ytm .chord-line, body.ytm .chord, body.ytm .chord-name { color: #ffd400; }
+  body.ytm .chord-extra { color: #9e9e9e; }
+  body.ytm .section-heading { color: #8ab4f8; }
+  body.ytm .comment-line { background: #1a1a1a; color: #e0e0e0; border-color: #b38f00; }
+  body.ytm .voice-section { background: color-mix(in srgb, var(--vc) 14%, #000); }
+  body.ytm .voice-section .lyric-line { color: color-mix(in srgb, var(--vc) 30%, #fff); }
+  body.ytm .empty-hint, body.ytm .sheet-loading, body.ytm .sheet-missing { color: #9e9e9e; }
+  body.ytm .strum-svg, body.ytm .chord-svg,
+  body.ytm .sheet-img, body.ytm .sheet-page { filter: invert(1) hue-rotate(180deg); }
+  body.ytm .sheet-bar, body.ytm .sheet-name { color: #e8eaed; }
+  body.ytm .sheet-bar select, body.ytm .sheet-remove { background: #000; color: #fff; border-color: #555; }
+  body.ytm .sheet-note { background: #1a1a1a; color: #e0e0e0; }
+  body.ytm .tag-chip { background: #1a2433; color: #aecbfa; }
+  body.ytm .side-panel, body.ytm .panel-head { background: #111; color: #e8eaed; border-color: #333; }
+  body.ytm .panel-sec { border-color: #262626; }
+  body.ytm .panel-sec select { background: #000; color: #fff; border-color: #555; }
+  body.ytm .panel-tip { background: #1a2433; color: #cfe2ff; }
+  body.ytm .chord-card { border-color: #333; }
+  body.ytm .chord-name small, body.ytm .chord-foot { color: #9e9e9e; }
+  body.ytm .v-nav, body.ytm .chord-origin { background: #333; color: #e8eaed; }
+  body.ytm .atril-controls { background: #111; box-shadow: 0 0 0 1px #333, 0 2px 10px rgba(0,0,0,.6); }
+  body.ytm .atril-controls button { background: #000; border-color: #555; color: #fff; }
+  body.ytm .atril-controls button.on { background: #fff; color: #000; border-color: #fff; }
+  body.ytm .atril-controls .view-switch { border-color: #555; }
+  body.ytm .atril-controls .view-switch button:disabled { color: #5f6368; }
+  body.ytm.autoscrolling .atril-controls { background: rgba(0,0,0,.9); }
+  body.ytm .scroll-level { color: #fff; }
+  body.ytm .audio-bar { background: #111; border-color: #333; }
+  body.ytm .audio-bar select { background: #000; color: #fff; border-color: #555; }
+  body.ytm .speed button:hover { background: #333; }
+  body.ytm .speed .speed-label { color: #bbb; }
+  body.ytm .drawer-panel, body.ytm .drawer-head { background: #111; border-color: #333; }
+  body.ytm .drawer-menu > summary, body.ytm .drawer-item, body.ytm .drawer-sub > summary { color: #e8eaed; border-color: #222; }
+  body.ytm .drawer-menu[open] > summary { background: #1a1a1a; }
+  body.ytm .drawer-item:disabled { color: #5f6368; }
+  body.ytm .drawer-sep { background: #333; }
 }
 
 /* ============ IMPRESIÓN ============ */

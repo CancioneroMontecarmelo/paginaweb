@@ -50,6 +50,7 @@ function refresh() {
   renderTabs();
   showScrollSpeed();
   renderBookName();
+  ytmRefresh();
   document.title = `${d.title.trim() || 'Sin título'}${state.cancioneroName ? ' · ' + state.cancioneroName : ''} – ${APP_INFO.nombre}`;
   autosize();
   scheduleSave();
@@ -92,9 +93,6 @@ function applyState() {
   const b = document.body.classList;
   b.toggle('hide-comments', !state.showComments);
   b.toggle('show-preview', state.showPreview);
-  b.toggle('night', state.night);
-  $('#btnNight').textContent = state.night ? '☀️' : '🌙';
-  $('#btnNight').title = state.night ? 'Modo día (Ctrl+Alt+D)' : 'Modo noche: fondo negro y letra blanca, para el escenario (Ctrl+Alt+D)';
   $('#infoBanner').hidden = state.bannerHidden;
   $('#btnNotation').textContent = isLatin() ? '🔤 Anglosajona' : '🔤 Latina';
   $('#notationBadge').textContent = isLatin() ? 'LATINA' : 'ANGLOSAJONA';
@@ -115,9 +113,7 @@ const clampLevel = v => Math.min(SCROLL_SPEEDS.length, Math.max(1, Math.round(+v
 const scrollLevel = () => cur()?.scrollSpeed || state.scrollSpeed;
 
 function showScrollSpeed() {
-  const lv = scrollLevel();
-  $('#scrollSpeed').value = lv;
-  $('#scrollLevel').textContent = lv;
+  $('#scrollLevel').textContent = scrollLevel();
 }
 
 function setScrollSpeed(lv) {
@@ -127,7 +123,6 @@ function setScrollSpeed(lv) {
   showScrollSpeed();
   scheduleSave();
 }
-$('#scrollSpeed').addEventListener('input', e => setScrollSpeed(e.target.value));
 
 let scrollOn = false, scrollAcc = 0, scrollLast = 0;
 function scrollStep(ts) {
@@ -433,12 +428,14 @@ const MENUS = [
       { label: 'De la Biblioteca de la parroquia…', action: 'openSongBib' },
       { label: 'De este equipo…', action: 'open', key: 'Ctrl+O' },
       { group: 'Cancionero' },
+      { label: 'Cancionero de misa…', action: 'openMisa' },
       { label: 'De la nube de la parroquia…', action: 'driveOpen' },
       { label: 'De este equipo…', action: 'openBook' },
-      { label: 'Colección de este equipo…', action: 'openCollection', key: 'Ctrl+Alt+O' }
+      { label: 'Colección de este equipo…', action: 'openLocalCollection', key: 'Ctrl+Alt+O' }
     ]},
     { sep: true },
     { group: 'Guardar (en la nube de la parroquia)' },
+    { label: 'Guardar tono, cejilla y velocidades en la misa', action: 'guardarMisa', key: 'Ctrl+S', disabled: () => !state.mcMisa || !mcCambiosMisa().length },
     { label: 'Guardar canción en la Biblioteca', action: 'saveSongBib', key: 'Ctrl+S' },
     { label: 'Guardar cancionero en la nube…', action: 'driveSave', key: 'Ctrl+Alt+S' },
     { label: 'Guardar como (en este equipo)', submenu: [
@@ -506,7 +503,7 @@ const MENUS = [
     { label: 'Panel de acordes', action: 'togglePanel', check: () => state.showPanel, key: 'Ctrl+Alt+P' },
     { sep: true },
     { group: 'En el atril' },
-    { label: 'Modo noche (fondo negro)', action: 'toggleNight', check: () => state.night, key: 'Ctrl+Alt+D' },
+    { label: 'Atril a pantalla completa', action: 'atril', key: 'Ctrl+Alt+D' },
     { label: 'Letra y acordes', action: 'view:letra', check: () => atrilView(cur()) === 'letra' },
     { label: 'Partitura', action: 'view:partitura', check: () => atrilView(cur()) === 'partitura', disabled: () => !cur().sheets.some(h => h.tipo === 'partitura') },
     { label: 'Tablatura', action: 'view:tablatura', check: () => atrilView(cur()) === 'tablatura', disabled: () => !cur().sheets.some(h => h.tipo === 'tablatura') },
@@ -583,7 +580,15 @@ const ACTIONS = {
   driveSave: driveSaveDialog,
   driveOpen: driveOpenDialog,
   newBook: newBookDialog,
-  openCollection,
+  openCollection: () => ytmIrA('biblioteca'),
+  openLocalCollection,
+  openMisa: ytmElegirMisa,
+  guardarMisa: mcGuardarEnMisa,
+  atril: abrirAtrilDesdeMenu,
+  capoMas: () => cambiarCapo(1),
+  capoMenos: () => cambiarCapo(-1),
+  velMas: () => cambiarVelocidad(1),
+  velMenos: () => cambiarVelocidad(-1),
   relinkAudios: activateFolderAudios,
   printBook: () => openPrintPreview('cancionero'),
   printTriptych: () => openPrintPreview('triptico'),
@@ -612,17 +617,12 @@ const ACTIONS = {
   creditsDialog,
 
   modeEdit: () => setMode('edit'),
-  modeAtril: () => mcAtrilActivo(),
+  modeAtril: () => setMode('atril'),
   toggleMode: () => setMode(state.mode === 'edit' ? 'atril' : 'edit'),
   fullscreen: toggleFullscreen,
   toggleComments: () => { state.showComments = !state.showComments; applyState(); toast(state.showComments ? 'Comentarios visibles' : 'Comentarios ocultos', 1500); },
   togglePreview: () => { state.showPreview = !state.showPreview; applyState(); },
-  toggleNight: () => {
-    state.night = !state.night;
-    if (state.night && state.mode !== 'atril') setMode('atril');
-    applyState();
-    scheduleSave();
-  },
+  toggleNight: abrirAtrilDesdeMenu,
   toggleNotation: () => { state.notation = isLatin() ? 'eng' : 'latin'; applyState(); refresh(); },
   nextTab: () => cycleTab(1),
   prevTab: () => cycleTab(-1),
@@ -691,13 +691,15 @@ document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   let act = null;
   if (e.altKey) {
-    act = { KeyN: 'new', KeyO: 'openCollection', KeyW: 'closeTab', KeyM: 'comment', KeyS: 'driveSave', KeyP: 'togglePanel', KeyE: 'tagDialog', KeyD: 'toggleNight', ArrowRight: 'nextTab', ArrowLeft: 'prevTab' }[e.code] || null;
+    act = { KeyN: 'new', KeyO: 'openLocalCollection', KeyW: 'closeTab', KeyM: 'comment', KeyS: 'driveSave', KeyP: 'togglePanel', KeyE: 'tagDialog', KeyD: 'atril', ArrowRight: 'nextTab', ArrowLeft: 'prevTab' }[e.code] || null;
   } else if (e.shiftKey) {
     act = { z: 'redo', f: 'fullscreen', s: 'saveAs' }[k] || null;
   } else {
     act = { z: 'undo', y: 'redo', o: 'open', s: 'saveSongBib', p: 'print', e: 'toggleMode',
             b: 'bold', i: 'italic', u: 'underline', '\\': 'clearFormat' }[k] || null;
     if (k === 'a' && state.mode === 'atril' && !inOtherField) act = 'selectAll';
+    // En un cancionero de misa, Ctrl+S guarda el tono, la cejilla y las velocidades en la misa
+    if (act === 'saveSongBib' && state.mcMisa && cur().mc) act = 'guardarMisa';
   }
   if (!act) return;
   const formatting = ['bold', 'italic', 'underline', 'clearFormat', 'comment'];
@@ -710,22 +712,27 @@ document.addEventListener('keydown', e => {
 titleEl.addEventListener('input', scheduleRefresh);
 window.addEventListener('beforeprint', refresh);
 // La sesión queda en el navegador, pero los archivos no: si hay algo sin guardar, el navegador avisa
+// En un cancionero de misa cuentan los ajustes sin guardar en la misa y las canciones propias sin guardar
 window.addEventListener('beforeunload', e => {
+  if (EFIMERO) return;
   syncFromEditor();
-  if (docs.some(d => !isBlank(d) && isDirty(d)) || bookDirty() || recorderBusy()) { e.preventDefault(); e.returnValue = ''; }
+  const sinGuardar = docs.some(d => !isBlank(d) && (d.mc ? mcCambio(d) : isDirty(d)));
+  if (sinGuardar || (!state.mcMisa && bookDirty()) || recorderBusy()) { e.preventDefault(); e.returnValue = ''; }
 });
 
 // ============ INICIO ============
 function init() {
   buildMenubar(MENUS);
   bindTabs();
+  ytmInit();
+  atrilInit();
   if (EFIMERO) {
     if (ATRIL_MISA) loadViewPrefs();
     docs = [makeDoc({ title: '', text: '' })];
     activeId = docs[0].id;
     applyState();
     activate(activeId);
-    if (ATRIL_MISA) mcAtrilMisa(MC_PARAMS.get('misa'));
+    if (ATRIL_MISA) mcAtrilMisa(MC_PARAMS.get('misa'), MC_PARAMS.get('foco'));
     else mcPublicarMisa(MC_PARAMS.get('misa'));
     return;
   }
@@ -738,11 +745,14 @@ function init() {
   activate(activeId);
   // Sesiones de versiones anteriores: lo abierto cuenta como el cancionero tal como está
   if (state.cancioneroClean == null) state.cancioneroClean = bookSignature();
-  // Cancionero que llega del botón «Editar» de un .html compartido; si no, en el primer inicio se abre el de ejemplo
-  const driveId = new URLSearchParams(location.search).get('drive');
-  if (location.hash.startsWith(SHARE_HASH)) openSharedFromHash();
+  // Cancionero que llega de Misas («Editar en el editor») o del botón «Editar» de un .html compartido.
+  // Si no hay nada abierto se empieza en Inicio, con la música de la parroquia
+  const driveId = MC_PARAMS.get('drive'), misaId = MC_PARAMS.get('misa');
+  const compartido = location.hash.startsWith(SHARE_HASH);
+  ytmIrA(bookSongs().length || compartido || driveId || misaId ? 'cancionero' : 'inicio');
+  if (compartido) openSharedFromHash();
+  else if (misaId) mcAbrirMisaDeUrl(misaId, MC_PARAMS.get('foco'));
   else if (driveId) driveOpenFolder(driveId);
-  else if (!restored) loadExample();
   relinkAll().then(() => refresh());
   driveInit();
 }

@@ -112,6 +112,9 @@ function nota(texto) {
   return p;
 }
 
+// El atril del editor dibuja la partitura dentro de su propia pantalla
+export const dibujarPartitura = (p, marco) => mostrar(p, marco);
+
 let turnoVer = 0;
 async function mostrar(p, marco) {
   const t = ++turnoVer;

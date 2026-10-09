@@ -5,86 +5,257 @@
 <script src="../js/config.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Editor de cancioneros — Monte Carmelo</title>
-<meta name="theme-color" content="#1a73e8">
+<meta name="theme-color" content="#030303">
 <meta name="description" content="Editor y atril de cancioneros con acordes, transposición, audios y exportación a PowerPoint, Word y OpenDocument">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icono-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Cancionero">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a73e8'/%3E%3Ctext x='16' y='24' font-size='22' text-anchor='middle' fill='white'%3E%E2%99%AA%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/canciotras.css">
+<link rel="stylesheet" href="css/ytm.css">
 </head>
 <body class="mode-atril">
 
-<div class="chrome">
-  <header class="top-bar">
-    <div class="title-row">
-      <button type="button" class="menu-toggle" id="menuToggle" aria-label="Menú" title="Menú">☰</button>
-      <div class="logo" title="Cancionero Universal">♪</div>
-      <div class="title-col">
-        <div class="title-line">
-          <a class="mc-volver" href="../inicio.html" title="Volver al sitio de la parroquia">← Monte Carmelo</a>
-          <span class="brand">Cancionero Universal</span>
-          <button type="button" class="book-name unsaved" id="bookName" data-action="saveBook"><span class="book-icon">📒</span><span class="book-label">Cancionero sin nombre</span></button>
-          <input type="text" class="doc-title" id="docTitle" aria-label="Título de la canción">
-          <button type="button" class="doc-credits" data-action="creditsDialog" title="Créditos: quién escribió la letra y la música">✎ Créditos</button>
-          <button type="button" class="mc-drive" data-action="driveSave" title="Guardar el cancionero y sus audios en la nube de la parroquia">☁ Guardar en la nube</button>
-          <span class="mc-sesion" id="mcSesion"></span>
+<header class="ytm-top">
+  <button type="button" class="redondo menu-toggle" id="menuToggle" aria-label="Menú" title="Menú" data-ico="menu"></button>
+  <button type="button" class="redondo nav-corta-btn" id="navCorta" aria-label="Achicar el menú" title="Achicar el menú" data-ico="menu"></button>
+  <a class="ytm-marca" href="#" data-vista="inicio" title="Inicio">
+    <span class="logo">♪</span><span class="brand">Cancionero <small>Monte Carmelo</small></span>
+  </a>
+  <label class="buscar-top">
+    <span data-ico="buscar"></span>
+    <input type="search" id="buscarTop" autocomplete="off" placeholder="Buscar canciones, etiquetas o una frase de la letra" aria-label="Buscar en la Biblioteca">
+  </label>
+  <button type="button" class="redondo buscar-abrir" id="buscarAbrir" aria-label="Buscar" title="Buscar" data-ico="buscar"></button>
+  <span class="ytm-top-der">
+    <a class="mc-volver" href="../inicio.html" title="Volver al sitio de la parroquia">← Sitio</a>
+    <span class="mc-sesion" id="mcSesion"></span>
+  </span>
+</header>
+
+<nav class="ytm-nav" aria-label="Secciones">
+  <a href="#" class="nav-item" data-vista="inicio"><span data-ico="inicio"></span><span>Inicio</span></a>
+  <a href="#" class="nav-item" data-vista="explorar"><span data-ico="explorar"></span><span>Explorar</span></a>
+  <a href="#" class="nav-item" data-vista="biblioteca"><span data-ico="biblioteca"></span><span>Biblioteca</span></a>
+  <a href="#" class="nav-item" data-vista="cancionero"><span data-ico="cola"></span><span>Cancionero</span></a>
+  <a href="#" class="nav-item nav-atril" data-vista="atril"><span data-ico="atril"></span><span>Atril</span></a>
+  <div class="nav-sep"></div>
+  <a href="../misas.html" class="nav-item nav-extra"><span data-ico="iglesia"></span><span>Misas</span></a>
+  <a href="../reproductor.html" class="nav-item nav-extra"><span data-ico="play"></span><span>Reproductor</span></a>
+  <button type="button" class="nav-item nav-extra" data-action="openMisa"><span data-ico="cola"></span><span>Abrir cancionero de misa</span></button>
+  <button type="button" class="nav-item nav-extra" data-action="driveOpen"><span data-ico="biblioteca"></span><span>Cancioneros en la nube</span></button>
+</nav>
+
+<main class="ytm-main">
+  <section class="vista" id="vista-inicio" hidden></section>
+  <section class="vista" id="vista-explorar" hidden></section>
+  <section class="vista" id="vista-biblioteca" hidden></section>
+
+  <section class="vista" id="vista-cancionero">
+    <div class="chrome">
+      <nav class="menubar" id="menubar" role="menubar"></nav>
+      <div class="toolbar" id="toolbar">
+        <div class="mode-toggle">
+          <button id="btnAtril" data-action="modeAtril" title="Ver la letra y los acordes">🎼<span class="lbl"> Ver</span></button>
+          <button id="btnEdit" data-action="modeEdit" title="Editar la canción (Ctrl+E)">✏️<span class="lbl"> Editar</span></button>
         </div>
-        <nav class="menubar" id="menubar" role="menubar"></nav>
+        <div class="separator"></div>
+        <button data-action="undo" title="Deshacer (Ctrl+Z)">↶</button>
+        <button data-action="redo" title="Rehacer (Ctrl+Y)">↷</button>
+        <div class="separator edit-only"></div>
+        <button data-action="bold" class="edit-only" title="Negrita (Ctrl+B)"><b>N</b></button>
+        <button data-action="italic" class="edit-only" title="Cursiva (Ctrl+I)"><i>K</i></button>
+        <button data-action="underline" class="edit-only" title="Subrayado (Ctrl+U)"><u>S</u></button>
+        <button data-action="clearFormat" class="edit-only" title="Texto normal (Ctrl+\)">T<sub>x</sub></button>
+        <button data-action="comment" class="edit-only" title="Comentario (Ctrl+Alt+M)">💬</button>
+        <div class="separator"></div>
+        <button data-action="fontDown" title="Reducir letra">A−</button>
+        <button data-action="fontUp" title="Aumentar letra">A+</button>
+        <div class="separator"></div>
+        <button data-action="toggleNotation" id="btnNotation">🔤 Anglosajona</button>
+      </div>
+      <div class="transposer">
+        <span class="transposer-label">🎼 Tono:</span>
+        <button type="button" class="key-toggle" id="keyToggle" aria-haspopup="dialog">🎼 Tono ▾</button>
+        <div class="key-sheet" id="keySheet">
+          <div class="key-sheet-head"><b>Cambiar de tono</b><button type="button" class="panel-close" id="keySheetClose" aria-label="Cerrar">×</button></div>
+          <div class="notes-container" id="notesContainer"></div>
+          <span class="key-info" id="keyInfo"></span>
+        </div>
+        <span class="notation-badge" id="notationBadge" data-action="toggleNotation" title="Cambiar notación">LATINA</span>
       </div>
     </div>
-  </header>
 
-  <div class="toolbar" id="toolbar">
-    <button data-action="undo" title="Deshacer (Ctrl+Z)">↶</button>
-    <button data-action="redo" title="Rehacer (Ctrl+Y)">↷</button>
-    <div class="separator edit-only"></div>
-    <button data-action="bold" class="edit-only" title="Negrita (Ctrl+B)"><b>N</b></button>
-    <button data-action="italic" class="edit-only" title="Cursiva (Ctrl+I)"><i>K</i></button>
-    <button data-action="underline" class="edit-only" title="Subrayado (Ctrl+U)"><u>S</u></button>
-    <button data-action="clearFormat" class="edit-only" title="Texto normal (Ctrl+\)">T<sub>x</sub></button>
-    <button data-action="comment" class="edit-only" title="Comentario (Ctrl+Alt+M)">💬</button>
-    <div class="separator"></div>
-    <button data-action="fontDown" title="Reducir letra">A−</button>
-    <button data-action="fontUp" title="Aumentar letra">A+</button>
-    <div class="separator"></div>
-    <button data-action="toggleNotation" id="btnNotation">🔤 Anglosajona</button>
-    <div class="mode-toggle">
-      <button id="btnEdit" data-action="modeEdit" title="Edición">✏️<span class="lbl"> Edición</span></button>
-      <button id="btnAtril" data-action="modeAtril" title="Atril">🎼<span class="lbl"> Atril</span></button>
+    <section class="cancion-hero" id="cancionHero">
+      <div class="hero-cara" id="heroCara"></div>
+      <div class="hero-texto">
+        <small id="heroSobre"></small>
+        <input type="text" class="doc-title" id="docTitle" aria-label="Título de la canción" placeholder="Título de la canción">
+        <div class="hero-linea">
+          <span id="heroInfo"></span>
+          <button type="button" class="doc-credits" data-action="creditsDialog" title="Créditos: quién escribió la letra y la música">✎ Créditos</button>
+        </div>
+        <div class="hero-ajustes">
+          <div class="paso" title="Cejilla del primer instrumento de la canción">
+            <span>Cejilla</span>
+            <button type="button" data-action="capoMenos" aria-label="Bajar la cejilla">−</button>
+            <b id="heroCapo">0</b>
+            <button type="button" data-action="capoMas" aria-label="Subir la cejilla">+</button>
+          </div>
+          <div class="paso" title="Velocidad del audio (el tono no cambia)">
+            <span>Velocidad</span>
+            <button type="button" data-action="velMenos" aria-label="Más lento">−</button>
+            <b id="heroVel">1×</b>
+            <button type="button" data-action="velMas" aria-label="Más rápido">+</button>
+          </div>
+          <div class="paso" title="Velocidad del desplazamiento automático de esta canción (teclas − y +)">
+            <span>Desplazar</span>
+            <button type="button" data-action="scrollSlower" aria-label="Más lento">−</button>
+            <b id="scrollLevel">5</b>
+            <button type="button" data-action="scrollFaster" aria-label="Más rápido">+</button>
+          </div>
+        </div>
+        <div class="hero-botones">
+          <button type="button" class="btn-acento btn-guardar-misa" id="heroGuardarMisa" data-action="guardarMisa" hidden><span data-ico="guardar"></span> Guardar en la misa</button>
+          <button type="button" class="btn-borde" data-action="atril" title="Atril a pantalla completa (Ctrl+Alt+D)"><span data-ico="atril"></span> Atril</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="previa-banner" id="previaBanner" hidden>
+      <span>Estás mirando una canción de la Biblioteca: no está en tu cancionero.</span>
+      <button type="button" class="btn-acento" id="previaAgregar"><span data-ico="agregar"></span> Agregar al cancionero</button>
+      <button type="button" class="btn-borde" id="previaCerrar">Volver</button>
+    </div>
+
+    <div class="info-banner" id="infoBanner">
+      💡 Escribe los acordes en una línea sobre la letra (<code>Do Rem Sol7 Fa#m Sib</code> o <code>C Dm G7 F#m Bb</code>).
+      El <strong>tono se detecta con el primer acorde</strong>.
+      Comentarios: <code>&gt; texto</code> · Voces: <code>[Voz: Tenor]</code> · Formato: <code>**negrita**</code> <code>_cursiva_</code> <code>&lt;u&gt;subrayado&lt;/u&gt;</code>
+      <button class="banner-more" type="button" id="bannerMore">Ver más</button>
+      <button class="banner-close" data-action="hideBanner" title="Ocultar">×</button>
+    </div>
+
+    <div class="doc-area">
+      <div class="workspace">
+        <div class="document" id="editorPane">
+          <div class="song-render" id="editHeader"></div>
+          <textarea id="editor" spellcheck="false" placeholder="Escribe aquí tu canción…&#10;&#10;Sol              Re7        Sol&#10;Noche de paz, noche de amor"></textarea>
+        </div>
+        <div class="document" id="viewPane">
+          <div id="viewMode" class="song-render"></div>
+        </div>
+        <aside id="sidePanel" class="side-panel" hidden aria-label="Panel de acordes">
+          <div class="panel-head">
+            <span>🎸 Acordes</span>
+            <button type="button" class="panel-close" data-action="togglePanel" title="Cerrar (Ctrl+Alt+P)">×</button>
+          </div>
+          <div id="panelBody"></div>
+        </aside>
+      </div>
+    </div>
+
+    <div class="atril-controls">
+      <div class="view-switch" id="viewSwitch" hidden>
+        <button data-action="view:letra" title="Letra y acordes">Letra</button>
+        <button data-action="view:partitura" title="Partitura">Partitura</button>
+        <button data-action="view:tablatura" title="Tablatura">Tablatura</button>
+      </div>
+      <button data-action="togglePanel" title="Panel de acordes (Ctrl+Alt+P)">🎸</button>
+      <button data-action="fontDown" title="Reducir letra">A−</button>
+      <button data-action="fontUp" title="Aumentar letra">A+</button>
+      <button data-action="autoscroll" id="btnScroll" title="Desplazamiento automático (barra espaciadora)">▶ Desplazar</button>
+    </div>
+  </section>
+</main>
+
+<aside class="ytm-cola" id="cola" aria-label="Cancionero">
+  <div class="cola-cabeza">
+    <div class="cola-cara" id="colaCara"></div>
+    <div class="cola-texto">
+      <small>Cancionero</small>
+      <button type="button" class="book-name unsaved" id="bookName" data-action="saveBook"><span class="book-label">Cancionero nuevo</span></button>
+      <small id="colaSub"></small>
+    </div>
+    <button type="button" class="redondo" id="colaCerrar" aria-label="Ocultar el cancionero" title="Ocultar el cancionero">×</button>
+  </div>
+  <div class="cola-acciones">
+    <button type="button" class="btn-acento btn-guardar-misa" data-action="guardarMisa" hidden><span data-ico="guardar"></span> Guardar en la misa</button>
+    <button type="button" class="btn-borde mc-drive" data-action="driveSave" title="Guardar el cancionero y sus audios en la nube de la parroquia">☁ Guardar en la nube</button>
+  </div>
+  <div class="tabs" id="tabs" role="tablist" title="Arrastra para ordenar"></div>
+  <div class="cola-pie">
+    <button type="button" class="btn-borde" data-action="new"><span data-ico="agregar"></span> Canción nueva</button>
+    <button type="button" class="btn-borde" data-vista="biblioteca"><span data-ico="biblioteca"></span> De la Biblioteca</button>
+  </div>
+</aside>
+<div class="cola-velo" id="colaVelo"></div>
+
+<footer class="audio-bar ytm-player sin-audio" id="audioBar">
+  <input type="range" class="rep-progreso" id="repProgreso" min="0" max="1000" value="0" aria-label="Posición">
+  <div class="rep-izq">
+    <button type="button" class="redondo" id="repAnterior" title="Canción anterior" data-ico="anterior"></button>
+    <button type="button" class="rep-play" id="repPlay" title="Reproducir (k)"></button>
+    <button type="button" class="redondo" id="repSiguiente" title="Canción siguiente" data-ico="siguiente"></button>
+    <span class="rep-tiempo" id="repTiempo"></span>
+  </div>
+  <div class="rep-centro">
+    <button type="button" class="rep-cara" id="repCara" title="Ver la letra y los acordes"></button>
+    <div class="rep-texto">
+      <button type="button" class="rep-titulo" id="repTitulo" title="Ver la letra y los acordes"></button>
+      <small id="repSub"></small>
     </div>
   </div>
-
-  <div class="transposer">
-    <span class="transposer-label">🎼 Tono:</span>
-    <button type="button" class="key-toggle" id="keyToggle" aria-haspopup="dialog">🎼 Tono ▾</button>
-    <div class="key-sheet" id="keySheet">
-      <div class="key-sheet-head"><b>Cambiar de tono</b><button type="button" class="panel-close" id="keySheetClose" aria-label="Cerrar">×</button></div>
-      <div class="notes-container" id="notesContainer"></div>
-      <span class="key-info" id="keyInfo"></span>
+  <div class="rep-der">
+    <select id="audioSelect" hidden title="Elegir audio"></select>
+    <button id="relinkBtn" class="relink-btn" data-action="relinkAudios" hidden title="El navegador pide permiso para leer tu carpeta de canciones">🔓 Activar audios</button>
+    <button id="pageBtn" class="page-btn" hidden title="Abre el video en otra pestaña (o en la app de YouTube del celular)"></button>
+    <button id="installBtn" class="relink-btn" hidden title="Instala una vez el reproductor local para que los videos suenen aquí mismo">⬇ Instalar reproducción en local</button>
+    <div class="speed" title="Velocidad de reproducción (el tono no cambia)">
+      <button id="speedDown" title="Más lento">🐢</button>
+      <input type="range" id="speedRange" min="0.25" max="1.5" step="0.05" value="1" aria-label="Velocidad">
+      <button id="speedUp" title="Más rápido">🐇</button>
+      <button id="speedLabel" class="speed-label" title="Volver a velocidad normal">1×</button>
     </div>
-    <span class="notation-badge" id="notationBadge" data-action="toggleNotation" title="Cambiar notación">LATINA</span>
+    <label class="rep-volumen" title="Volumen"><span data-ico="volumen"></span><input type="range" id="repVolumen" min="0" max="1" step="0.05" value="1" aria-label="Volumen"></label>
+    <button type="button" class="redondo" id="repCola" title="Mostrar u ocultar el cancionero" data-ico="cola"></button>
   </div>
+  <audio id="audioPlayer" preload="metadata"></audio>
+</footer>
 
-  <div class="tabs" id="tabs" role="tablist" title="Doble clic en el espacio libre: nueva pestaña. Arrastra para ordenar."></div>
-</div>
-
-<div class="info-banner" id="infoBanner">
-  💡 Escribe los acordes en una línea sobre la letra (<code>Do Rem Sol7 Fa#m Sib</code> o <code>C Dm G7 F#m Bb</code>).
-  El <strong>tono se detecta con el primer acorde</strong>.
-  Comentarios: <code>&gt; texto</code> · Voces: <code>[Voz: Tenor]</code> · Formato: <code>**negrita**</code> <code>_cursiva_</code> <code>&lt;u&gt;subrayado&lt;/u&gt;</code>
-  <button class="banner-more" type="button" id="bannerMore">Ver más</button>
-  <button class="banner-close" data-action="hideBanner" title="Ocultar">×</button>
+<div class="atril" id="atril" hidden>
+  <div class="atril-cabeza">
+    <div class="atril-pestanas" role="tablist">
+      <button type="button" data-atril-vista="letra" class="activo">Letra y acordes</button>
+      <button type="button" data-atril-vista="partituras">Partituras <small></small></button>
+    </div>
+    <div class="atril-titulo"><span id="atrilPos"></span> <b id="atrilTitulo"></b> <small id="atrilMomento"></small></div>
+    <button type="button" class="atril-x" id="atrilPantalla" title="Pantalla completa" hidden>⛶</button>
+    <button type="button" class="atril-x" id="atrilCerrar" title="Salir del atril (Esc)">×</button>
+  </div>
+  <div class="atril-cuerpo" id="atrilCuerpo">
+    <div id="atrilLetra" class="song-render"></div>
+    <div id="atrilHojas" hidden><div class="chips" id="atrilHojasLista"></div><div class="atril-hoja" id="atrilHoja"></div></div>
+  </div>
+  <div class="atril-pie">
+    <div class="atril-ajuste" id="atrilVel" title="Velocidad del audio">
+      <span>Audio</span><button type="button" data-paso="-1" aria-label="Más lento">−</button><b>1×</b><button type="button" data-paso="1" aria-label="Más rápido">+</button>
+    </div>
+    <button type="button" class="atril-play" id="atrilPlay" title="Reproducir (k)"></button>
+    <div class="atril-ajuste" id="atrilScroll" title="Velocidad del desplazamiento (teclas − y +)">
+      <button type="button" class="atril-avanza" id="atrilAvanza">▼</button><button type="button" data-paso="-1" aria-label="Más lento">−</button><b>5</b><button type="button" data-paso="1" aria-label="Más rápido">+</button>
+    </div>
+  </div>
 </div>
 
 <div class="drawer" id="drawer" hidden>
   <nav class="drawer-panel" aria-label="Menú">
     <div class="drawer-head">
       <div class="logo">♪</div>
-      <span class="brand">Cancionero Universal</span>
+      <span class="brand">Cancionero</span>
       <button type="button" class="panel-close" id="drawerClose" aria-label="Cerrar menú">×</button>
     </div>
     <div id="drawerMenus"></div>
@@ -92,63 +263,12 @@
 </div>
 <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
 <div class="install-hint" id="installHint" hidden>
-  <span>📲 Instala Cancionero Universal en este dispositivo</span>
+  <span>📲 Instala el Cancionero en este dispositivo</span>
   <button type="button" class="btn primary" id="installHintGo">Instalar</button>
   <button type="button" class="panel-close" id="installHintClose" aria-label="Cerrar">×</button>
 </div>
 
-<main class="doc-area">
-  <div class="workspace">
-    <div class="document" id="editorPane">
-      <div class="song-render" id="editHeader"></div>
-      <textarea id="editor" spellcheck="false" placeholder="Escribe aquí tu canción…&#10;&#10;Sol              Re7        Sol&#10;Noche de paz, noche de amor"></textarea>
-    </div>
-    <div class="document" id="viewPane">
-      <div id="viewMode" class="song-render"></div>
-    </div>
-    <aside id="sidePanel" class="side-panel" hidden aria-label="Panel de acordes">
-      <div class="panel-head">
-        <span>🎸 Acordes</span>
-        <button type="button" class="panel-close" data-action="togglePanel" title="Cerrar (Ctrl+Alt+P)">×</button>
-      </div>
-      <div id="panelBody"></div>
-    </aside>
-  </div>
-</main>
-
 <div id="printAll" class="print-all"></div>
-
-<div class="atril-controls">
-  <div class="view-switch" id="viewSwitch" hidden>
-    <button data-action="view:letra" title="Letra y acordes">Letra</button>
-    <button data-action="view:partitura" title="Partitura">Partitura</button>
-    <button data-action="view:tablatura" title="Tablatura">Tablatura</button>
-  </div>
-  <button data-action="togglePanel" title="Panel de acordes (Ctrl+Alt+P)">🎸</button>
-  <button data-action="fontDown" title="Reducir letra">A−</button>
-  <button data-action="fontUp" title="Aumentar letra">A+</button>
-  <button data-action="toggleNight" id="btnNight" title="Modo noche">🌙</button>
-  <button data-action="autoscroll" id="btnScroll" title="Desplazamiento automático (barra espaciadora)">▶ Desplazar</button>
-  <button data-action="scrollSlower" class="round" title="Más lento (tecla −)">−</button>
-  <input type="range" id="scrollSpeed" min="1" max="20" step="1" value="5" title="Velocidad del desplazamiento">
-  <button data-action="scrollFaster" class="round" title="Más rápido (tecla +)">+</button>
-  <span class="scroll-level" id="scrollLevel" title="Velocidad del desplazamiento de esta canción">5</span>
-</div>
-
-<div class="audio-bar" id="audioBar" hidden>
-  <select id="audioSelect" hidden title="Elegir audio"></select>
-  <button id="relinkBtn" class="relink-btn" data-action="relinkAudios" hidden title="El navegador pide permiso para leer tu carpeta de canciones">🔓 Activar audios de la carpeta</button>
-  <audio id="audioPlayer" controls preload="metadata"></audio>
-  <button id="pageBtn" class="page-btn" hidden title="Abre el video en otra pestaña (o en la app de YouTube del celular)"></button>
-  <button id="installBtn" class="relink-btn" hidden title="Instala una vez el reproductor local para que los videos suenen aquí mismo">⬇ Instalar reproducción en local</button>
-  <div class="speed" title="Velocidad de reproducción (el tono no cambia)">
-    <button id="speedDown" title="Más lento">🐢</button>
-    <input type="range" id="speedRange" min="0.25" max="1.5" step="0.05" value="1" aria-label="Velocidad">
-    <button id="speedUp" title="Más rápido">🐇</button>
-    <button id="speedLabel" class="speed-label" title="Volver a velocidad normal">1×</button>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 <dialog id="modal"></dialog>
 <input type="file" id="fileOpen" multiple accept=".md,.markdown,.txt,.json,.m3u8,.m3u,.cho,.crd,.chopro,.chordpro,.pro,.html,.htm,text/markdown,text/plain,application/json,audio/x-mpegurl,text/html" hidden>
@@ -172,18 +292,21 @@
 <script src="js/coleccion.js"></script>
 <script src="js/grabar.js"></script>
 <script src="js/nuevo.js"></script>
-  <script src="js/imprimir.js"></script>
-  <script src="js/etiquetas.js"></script>
-  <script src="js/buscar.js"></script>
-  <script src="js/exportar.js"></script>
-  <script src="js/compartir.js"></script>
-  <script src="js/zip.js"></script>
-  <script src="js/oficina.js"></script>
+<script src="js/imprimir.js"></script>
+<script src="js/etiquetas.js"></script>
+<script src="js/buscar.js"></script>
+<script src="js/exportar.js"></script>
+<script src="js/compartir.js"></script>
+<script src="js/zip.js"></script>
+<script src="js/oficina.js"></script>
 <script src="js/ejemplo.js"></script>
 <script src="js/guardar.js"></script>
 <script src="js/colaboradores.js"></script>
 <script src="js/movil.js"></script>
 <script src="js/nube.js"></script>
+<script src="js/caratula.js"></script>
+<script src="js/ytm.js"></script>
+<script src="js/atril.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

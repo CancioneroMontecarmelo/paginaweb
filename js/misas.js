@@ -210,6 +210,7 @@ function momentosHtml() {
   const mover = ed && a.momentos.length > 1;
   const items = a.momentos.map((m, i) => {
     const titulos = m.canciones.map((c) => esc(tituloDe(c.cancionId)) +
+      (ajustesDe(c) ? ` <small class="ajustes-misa">${esc(ajustesDe(c))}</small>` : "") +
       (c.sugerida && ed ? ' <em class="sugerida" title="La sugirió el sistema: tocá el momento para cambiarla">sugerida</em>' : "")).join(" · ");
     return `<li class="momento${i === st.momento ? " activo" : ""}" data-i="${i}">
       ${mover ? `<button type="button" class="arrastrar" data-i="${i}" title="Arrastrá para cambiar el orden (o usá las flechas ↑ ↓)" aria-label="Mover ${esc(m.momento)}">⠿</button>` : ""}
@@ -228,6 +229,7 @@ function momentosHtml() {
       <option value="__otro">Otro…</option></select></div>` : ""}
     <div class="misa-acciones">
       <button type="button" class="btn-chico btn-atril" data-accion="atril" title="Abre las canciones de este cancionero en el atril del editor, en una pestaña nueva">▶ Atril</button>
+      ${ed && !a.borrador ? '<button type="button" class="btn-chico btn-atril" data-accion="editar-editor" title="Abre este cancionero en el editor, en la canción que estás mirando, para cambiar el tono, la cejilla o las velocidades">✎ Editar en el editor</button>' : ""}
       <button type="button" class="btn-chico btn-atril" data-accion="reproducir" title="Escuchar este cancionero en el reproductor, con la letra de cada canción">♪ Reproducir</button>
       ${ed && !a.borrador ? `<button type="button" class="btn-chico btn-atril${st.vivo?.misaId === a.id ? " en-vivo" : ""}" data-accion="vivo" title="El coro sigue en sus celulares la canción que vas eligiendo, en su tono">${st.vivo?.misaId === a.id ? "● En vivo" : "📡 En vivo"}</button>` : ""}
       ${ed ? `<button type="button" class="btn-chico" data-accion="guardar">${a.borrador ? "Guardar…" : sucio() ? "Guardar cambios…" : "Fechas y ensayos…"}</button>` : ""}
@@ -368,8 +370,18 @@ function moverMomento(desde, hacia) {
 
 const copiaParaAtril = (a) => ({
   id: a.id, nombre: a.nombre || "Cancionero nuevo", comunidad: a.comunidad, fechaUso: a.fechaUso, tiempoLiturgico: a.tiempoLiturgico,
-  momentos: a.momentos.map((m) => ({ momento: m.momento, canciones: m.canciones.map(({ cancionId, desplazamiento }) => ({ cancionId, desplazamiento })) }))
+  momentos: a.momentos.map((m) => ({ momento: m.momento, canciones: m.canciones.map(({ sugerida, ...c }) => c) }))
 });
+// La canción que se está mirando: el editor y el atril abren ahí
+const focoActual = () => (st.actual && !st.vista?.previa ? { momento: st.momento, indice: st.indice } : null);
+
+// «Capo 3 · 0,9×»: los ajustes que el editor guardó para esta misa
+function ajustesDe(c) {
+  const partes = [];
+  if (c?.capo) partes.push("Capo " + c.capo);
+  if (c?.velocidad && c.velocidad !== 1) partes.push(String(c.velocidad).replace(".", ",") + "×");
+  return partes.join(" · ");
+}
 
 // El cancionero abierto aquí es el «activo»: el botón Atril del editor lo ofrece (editor/js/nube.js, mcAtrilActivo).
 // «t» cambia solo cuando cambia el contenido, para que el editor sepa si ya lo tiene cargado.
@@ -382,7 +394,7 @@ function guardarActivo() {
   const f = JSON.stringify(copia);
   if (f === activoFirma) return;
   try {
-    localStorage.setItem(MC_ACTIVO, JSON.stringify({ ...copia, t: Date.now() }));
+    localStorage.setItem(MC_ACTIVO, JSON.stringify({ ...copia, foco: focoActual(), t: Date.now() }));
     activoFirma = f;
   } catch (_) { /* sin espacio: el editor sigue con sus pestañas */ }
 }
@@ -391,19 +403,23 @@ function soltarActivo() {
   try { localStorage.removeItem(MC_ACTIVO); } catch (_) {}
 }
 
-function abrirAtril() {
+// atril: solo para cantar (no guarda nada); si no, el editor abre el cancionero para cambiar tono, cejilla y velocidades
+function abrirAtril(atril = true) {
   const a = st.actual;
   if (!a) return;
   if (!a.momentos.some((m) => m.canciones.length)) return avisar("Este cancionero todavía no tiene canciones.", true);
-  const copia = { ...copiaParaAtril(a), t: Date.now() };
+  const foco = focoActual();
+  const copia = { ...copiaParaAtril(a), foco, t: Date.now() };
   let copiada = true;
   try {
     localStorage.setItem("mc-atril", JSON.stringify(copia));
   } catch (_) {
-    copiada = false; // el atril lee la versión guardada
+    copiada = false; // el editor lee la versión guardada
   }
-  if (a.borrador && !copiada) return avisar("Guardá el cancionero para abrirlo en el atril.", true);
-  window.open(new URL("editor/?atril=1&misa=" + encodeURIComponent(a.id), location.href).href, "_blank");
+  if (a.borrador && !copiada) return avisar("Guardá el cancionero para abrirlo en el " + (atril ? "atril." : "editor."), true);
+  if (!atril && a.borrador) return avisar("Guardá el cancionero antes de editarlo en el editor.", true);
+  const q = "misa=" + encodeURIComponent(a.id) + (foco ? "&foco=" + foco.momento + "." + foco.indice : "") + (atril ? "&atril=1" : "");
+  window.open(new URL("editor/?" + q, location.href).href, "_blank");
 }
 
 // El reproductor usa esta copia (con los cambios sin guardar) si es del mismo cancionero; si no, la del servidor
@@ -512,7 +528,7 @@ function conectarVivo() {
 
 function mostrarCancionDelMomento() {
   const c = momentoActual()?.canciones[st.indice];
-  st.vista = c ? { cancionId: c.cancionId, desplazamiento: c.desplazamiento || 0, ref: editable() ? c : null } : null;
+  st.vista = c ? { cancionId: c.cancionId, desplazamiento: c.desplazamiento || 0, ref: editable() ? c : null, ajustes: c } : null;
   pintarLienzo();
 }
 
@@ -1025,7 +1041,7 @@ function pintarAudios(entrada) {
     et.textContent = "♪ " + (a.nombre || "Audio") + (voz ? " · " + voz : "");
     div.append(et);
     if (a.fileId) {
-      div.append(audioDeBiblioteca(a.fileId));
+      div.append(audioDeBiblioteca(a.fileId, st.vista?.ajustes?.velocidad));
     } else if (esYoutube(a.url)) {
       const b = document.createElement("button");
       b.type = "button";
@@ -1066,11 +1082,15 @@ function pintarAudios(entrada) {
 }
 
 // El audio suena directo del servidor (empieza mientras se baja); preload="none": no se baja hasta tocar ▶
-function audioDeBiblioteca(fileId) {
+function audioDeBiblioteca(fileId, velocidad) {
   const au = document.createElement("audio");
   au.controls = true;
   au.preload = "none";
   au.src = urlAudio(fileId);
+  if (velocidad && velocidad !== 1) {
+    au.defaultPlaybackRate = au.playbackRate = velocidad;
+    au.title = "Suena a " + String(velocidad).replace(".", ",") + "× (lo eligieron en el editor para esta misa)";
+  }
   au.addEventListener("error", () => {
     const aviso = document.createElement("small");
     aviso.textContent = reproduceWebm ? "No se pudo cargar el audio."
@@ -1101,6 +1121,7 @@ function pintarTrasponedor() {
   if (orig) {
     info = `Original: <b>${esc(keyLabel(orig))}</b>`;
     if (d) info += ` · ${d > 0 ? "+" : ""}${d} semitono${Math.abs(d) > 1 ? "s" : ""}`;
+    if (ajustesDe(st.vista.ajustes)) info += ` · <b>${esc(ajustesDe(st.vista.ajustes))}</b>`;
     if (st.vista.ref) info += " · se guarda en el cancionero";
   } else if (st.vista && st.porId.has(st.vista.cancionId) && st.textos.has(st.vista.cancionId)) {
     info = "Sin acordes para transponer";
@@ -2469,6 +2490,7 @@ function conectarEventos() {
     else if (accion === "sugerir") volverASugerir();
     else if (accion === "publicar") publicarCancionero();
     else if (accion === "atril") abrirAtril();
+    else if (accion === "editar-editor") abrirAtril(false);
     else if (accion === "reproducir") abrirReproductor();
     else if (accion === "vivo") iniciarVivo();
     else if (accion === "descartar") descartarCambios();
@@ -2544,6 +2566,26 @@ function conectarEventos() {
       e.preventDefault();
       e.returnValue = "";
     }
+  });
+
+  // El editor guardó el tono, la cejilla o las velocidades de un cancionero (editor/js/nube.js, mcGuardarEnMisa)
+  window.addEventListener("storage", async (e) => {
+    if (e.key !== "mc-misa-guardada" || !e.newValue) return;
+    let id;
+    try { id = JSON.parse(e.newValue).id; } catch (_) { return; }
+    const abierto = st.actual?.id === id;
+    const conCambios = abierto && sucio();
+    await cargarMisas();
+    const m = st.misas.find((x) => x.id === id);
+    if (abierto && m && !conCambios) {
+      st.actual = structuredClone(m);
+      st.original = firma(st.actual);
+      mostrarCancionDelMomento();
+    } else if (conCambios) {
+      avisar("Este cancionero se guardó desde el editor. Guardá o descartá tus cambios para ver la versión nueva.", true);
+    }
+    pintarMisas();
+    pintarBiblioteca();
   });
 
   conectarNuevo();

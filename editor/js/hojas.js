@@ -372,7 +372,7 @@ async function sheetBytes(h) {
 }
 
 async function drawSheet(h, host, opts) {
-  const stale = () => $('#viewMode').dataset.sig !== opts.sig;
+  const stale = opts.stale || (() => $('#viewMode').dataset.sig !== opts.sig);
   const src = h.objectUrl || (h.kind === 'url' ? h.src : null);
   if (!src) { host.innerHTML = missingSheetHtml(h); return; }
   try {

@@ -1,6 +1,6 @@
 'use strict';
-// YouTube dentro de la app en teléfonos y tablets (sin servidor local): el reproductor oficial
-// va en una mini ventana flotante, así la app sigue a la vista mientras suena.
+// YouTube dentro de la app (sin servidor local): el reproductor oficial va en una mini ventana
+// flotante, así la letra sigue a la vista mientras suena.
 // Las reglas de YouTube piden que el video se vea, con al menos 200x200 px.
 
 function youtubeId(url) {
@@ -16,7 +16,7 @@ function youtubeId(url) {
 }
 
 // YouTube rechaza el reproductor insertado en páginas abiertas como archivo (file://)
-const youtubeEmbedOk = a => isMobileDevice() && location.protocol !== 'file:' && !a.noEmbed &&
+const youtubeEmbedOk = a => location.protocol !== 'file:' && !a.noEmbed &&
   !!youtubeId(audioPage(a) || '');
 
 const yt = { player: null, id: null, audioId: null, state: -1, big: false };
@@ -156,7 +156,12 @@ async function ytToggle(a) {
     playerVars: { playsinline: 1, rel: 0, autoplay: 1, origin: location.origin },
     events: {
       onReady: e => { ytApplySpeed(); e.target.playVideo(); ytUpdateButton(); },
-      onStateChange: e => { yt.state = e.data; if (e.data === 1) ytApplySpeed(); ytUpdateButton(); },
+      onStateChange: e => {
+        yt.state = e.data;
+        if (e.data === 1) ytApplySpeed();
+        ytUpdateButton();
+        document.dispatchEvent(new CustomEvent('mc-yt', { detail: e.data }));
+      },
       onError: e => {
         // 101/150: el dueño no permite verlo fuera de YouTube; 2/5/100/153: video o configuración inválidos
         const failed = currentAudio();
@@ -177,6 +182,7 @@ function ytClose() {
   yt.id = null;
   yt.audioId = null;
   yt.state = -1;
+  document.dispatchEvent(new CustomEvent('mc-yt', { detail: -1 }));
   ytMini.hidden = true;
   ytMini.querySelector('.yt-mini-video').replaceChildren(Object.assign(el('div'), { id: 'ytPlayer' }));
 }

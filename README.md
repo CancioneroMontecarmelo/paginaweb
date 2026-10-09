@@ -181,6 +181,46 @@ Después de la mudanza, el Drive queda como respaldo: el sitio ya no lo usa.
 
 En D1: tablas `actividades` (pública), `libro` y `visitantes` (privadas).
 
+## Editor: pantallas (estilo YouTube Music)
+
+El editor es oscuro y se parece a YouTube Music, con la música de la parroquia:
+
+- **Menú lateral** (abajo en el celular): **Inicio**, **Explorar**, **Biblioteca**, **Cancionero** y **Atril**,
+  más enlaces a Misas y al Reproductor. Arriba, el buscador lleva a la Biblioteca.
+- **Inicio**: el próximo domingo (con el color de su tiempo litúrgico, que tiñe toda la app), los cantos
+  sugeridos para cada momento, los cancioneros de misa, estanterías por tiempo, por momento, marianos,
+  recién agregadas y los cancioneros guardados en la nube. ▶ en una tarjeta abre la canción para escucharla y
+  ver su letra (vista previa: no entra al cancionero hasta tocar **Agregar**); **+** la agrega al cancionero.
+- **Explorar**: chips por momento, tiempo litúrgico, comunidad y etiqueta. **Biblioteca**: las 970 canciones
+  del sitio con buscador (título, etiqueta o una frase de la letra), comunidad y «solo con audio».
+- **Cancionero** (la cola, a la derecha): sus canciones en orden, cada una con su carátula, momento, tono y
+  cejilla; se reordenan arrastrando. Al abrir el editor por primera vez está vacío (ya no se abre el ejemplo:
+  queda en **Archivo → Abrir ejemplo**); la colección de archivos del equipo está en **Abrir → Colección de este equipo**.
+- **Centro**: la canción con su carátula, tono, **Cejilla**, **Velocidad** del audio y **Desplazar** (velocidad
+  del desplazamiento automático), y debajo la letra con los acordes. Mientras suena una canción siempre se ve
+  su letra con sus acordes (al darle ▶ desde otra pantalla vuelve aquí).
+- **Barra de reproducción**: anterior, ▶, siguiente, tiempo, la **carátula** (la imagen del audio, la de su
+  video de YouTube o una con las iniciales y el color del momento), velocidad, volumen y el botón de la cola.
+  Al terminar una canción sigue la siguiente con audio (salvo en el atril). Los videos de YouTube suenan en la
+  mini ventana también en el PC. Tecla **k**: reproducir o pausar.
+- **Atril** (Ctrl+Alt+D): pantalla completa en negro con los acordes en amarillo, pestañas **Letra y acordes**
+  y **Partituras** (las de la Biblioteca y las vinculadas en la canción). Solo tiene la velocidad del audio, la
+  del desplazamiento y un ▶ pequeño; ambas velocidades vienen de la canción. Tocar la letra (o la barra
+  espaciadora) la hace avanzar sola; deslizar el dedo a los lados o ← → cambia de canción; un pedal (Av Pág)
+  baja una pantalla y al final pasa a la siguiente. Esc o «atrás» lo cierra. La pantalla no se apaga.
+
+### Cancioneros de misa en el editor
+
+- En Misas, **✎ Editar en el editor** (`editor/?misa=<id>&foco=<momento>.<canción>`) abre el cancionero
+  completo en el editor, en la canción que se estaba mirando. También desde Inicio o **Archivo → Abrir →
+  Cancionero de misa…**.
+- Ahí se cambia el tono, la **cejilla** (por ejemplo de 1 a 3), la velocidad del audio y la del desplazamiento.
+  Las canciones cambiadas se marcan ● y **Guardar en la misa** (Ctrl+S) los guarda **solo en ese cancionero de
+  misa** (`guardarMisa`, campos `desplazamiento`, `capo`, `velocidad` y `scroll` de cada canción): la canción
+  de la Biblioteca no cambia. Misas se actualiza sola si está abierta en el mismo navegador
+  (`localStorage` `mc-misa-guardada`) y muestra «Capo N · 0,9×» en cada canción; el reproductor usa esa velocidad.
+- **▶ Atril** de Misas (`&atril=1`) abre el atril directo, sin guardar nada en el editor.
+
 ## Editor: menú Archivo
 
 - **Nuevo** ▸ Canción · Cancionero.
@@ -231,9 +271,8 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
 - **▶ Atril**: abre las canciones del cancionero, en orden y en el tono elegido, en el atril del editor
   (pestaña nueva, `editor/?atril=1&misa=<id>`), incluso con cambios todavía sin guardar. No toca las
   pestañas que cada uno tenga abiertas en el editor.
-- **Cancionero activo**: el que está abierto en Misas. En el editor, el botón **🎼 Atril** ofrece abrirlo
-  («Abrir … (activo en Misas)» o «Seguir con las pestañas abiertas»); si después cambia en Misas, el
-  editor avisa con **Actualizar**. Se comunica por `localStorage` (`mc-activo`), en el mismo navegador.
+- **Cancionero activo**: el que está abierto en Misas. En el editor, **Atril** con el cancionero vacío
+  ofrece abrirlo; si después cambia en Misas, el editor avisa con **Actualizar**. Se comunica por `localStorage` (`mc-activo`), en el mismo navegador.
 - **Panel izquierdo — Biblioteca**, con dos pestañas:
   - **Canciones**: al tocar un momento, lista primero las canciones con esa etiqueta y después, en otro
     grupo, las que no la tienen pero cuyo título o letra la sugieren (el nombre del momento, sus sinónimos

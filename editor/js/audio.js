@@ -149,7 +149,10 @@ function updateAudioBar() {
   const bar = $('#audioBar'), sel = $('#audioSelect'), player = $('#audioPlayer');
   if (!d || !d.audios.length) {
     ytSync(null);
-    bar.hidden = true;
+    bar.classList.add('sin-audio');
+    sel.hidden = true;
+    $('#relinkBtn').hidden = $('#pageBtn').hidden = true;
+    bar.classList.remove('page-mode', 'yt-mode');
     document.body.classList.remove('has-audio');
     if (player.dataset.src) {
       player.dataset.src = '';
@@ -158,7 +161,7 @@ function updateAudioBar() {
     }
     return;
   }
-  bar.hidden = false;
+  bar.classList.remove('sin-audio');
   document.body.classList.add('has-audio');
   if (!currentAudio(d)) d.currentAudioId = d.audios[0].id;
   sel.hidden = d.audios.length < 2;

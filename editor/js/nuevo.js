@@ -25,5 +25,5 @@ async function newBookDialog() {
   setActiveBook(name);
   setMode('atril');
   refresh();
-  openCollection();
+  openLocalCollection();
 }
