@@ -364,15 +364,11 @@ quedan como elegidas.
   se comprueba (cabecera MP4, canales y duración) antes de subirlo.
 - Suenan directo desde `/api/audio/<id>` (con `Range`: empiezan enseguida y se pueden adelantar), en
   Misas, el reproductor, el editor y las páginas `.html` publicadas.
-- **Pasar a .m4a los audios viejos** (solo el **administrador general**, en **Identificarse → Audios de
-  la Biblioteca**; los demás no lo ven): cuenta los archivos vinculados, los MP3 externos y los videos de
-  YouTube, y los audios que siguen en WebM u otro formato, y los convierte uno por uno en ese navegador,
-  reemplazando el contenido del **mismo archivo** (el enlace no cambia, así que los `.md` y los
-  cancioneros publicados siguen funcionando). Se puede **Pausar** y **Seguir**, o cerrar y continuar otro
-  día; los que fallan quedan listados con **Reintentar**. Conviene dejarlo en una computadora enchufada:
-  con ffmpeg.wasm tarda unos segundos por audio. Lo hace `js/convertir-audios.js` con la acción
-  `audiosAConvertir` y `PUT /api/subir?tipo=reemplazo`. La aplicación de escritorio hace lo mismo con
-  ffmpeg (**Convertir audios a .m4a**), más rápido.
+- **Pasar a .m4a los audios viejos** (ya se hizo con toda la Biblioteca): la aplicación de escritorio
+  (**Convertir audios a .m4a**, solo el administrador general) baja los que siguen en WebM u otro formato,
+  los convierte con ffmpeg y reemplaza el contenido del **mismo archivo** (el enlace no cambia, así que
+  los `.md` y los cancioneros publicados siguen funcionando). Usa la acción `audiosAConvertir` y
+  `PUT /api/subir?tipo=reemplazo`. El panel de Identificarse ya no tiene esta sección.
 
 ### Créditos (letra y música)
 

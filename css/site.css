@@ -847,24 +847,6 @@ a:hover {
   opacity: 0.55;
 }
 
-.aac-progreso {
-  display: block;
-  width: 100%;
-  height: 0.6rem;
-  margin: 0.75rem 0 0.25rem;
-  accent-color: #9a4f2e;
-}
-
-.aac-errores {
-  margin: 0.5rem 0 0;
-  padding-left: 1.1rem;
-  font-size: 0.9rem;
-}
-
-.aac-errores li {
-  margin-bottom: 0.35rem;
-}
-
 /* ============ Inicio: marquesina de actividades ============ */
 
 .marquesina {
