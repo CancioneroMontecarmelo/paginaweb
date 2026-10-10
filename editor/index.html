@@ -3,6 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <script src="../js/config.js?v=2"></script>
+<script>
+// Una copia vieja de config.js guardada en el navegador mandaba el editor a /editor/reproductor#pantalla (el servidor lo
+// devuelve a /editor/#pantalla) y se perdía ?misa=…: se recupera de la dirección de origen. El #pantalla se deja
+// porque esa copia vieja no desvía cuando la dirección tiene #.
+if (location.hash === '#pantalla' && !location.search) {
+  try {
+    var mcOrigen = new URL(document.referrer);
+    if (mcOrigen.origin === location.origin && mcOrigen.pathname === location.pathname && mcOrigen.search) {
+      history.replaceState(null, '', location.pathname + mcOrigen.search + location.hash);
+    }
+  } catch (_) {}
+}
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Editor de cancioneros — Monte Carmelo</title>
 <meta name="theme-color" content="#030303">
@@ -11,7 +24,7 @@
 <link rel="apple-touch-icon" href="icons/icono-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Cancionero">
+<meta name="apple-mobile-web-app-title" content="Editor">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a73e8'/%3E%3Ctext x='16' y='24' font-size='22' text-anchor='middle' fill='white'%3E%E2%99%AA%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/canciotras.css">

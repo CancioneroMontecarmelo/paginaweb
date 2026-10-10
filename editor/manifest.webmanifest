@@ -1,6 +1,6 @@
 {
-  "name": "Cancionero Monte Carmelo",
-  "short_name": "Cancionero MC",
+  "name": "Editor de cancioneros Monte Carmelo",
+  "short_name": "Editor MC",
   "description": "Editor y atril de cancioneros con acordes, transposición, audios y exportación",
   "lang": "es",
   "dir": "ltr",

@@ -1,2 +1,4 @@
 # Cloudflare Pages: al entrar al sitio se abre el Cancionero Litúrgico (el reproductor). El # se conserva.
 /  /reproductor  302
+# Una copia vieja de config.js (guardada en el navegador) mandaba el editor a esta dirección inexistente: vuelve al editor
+/editor/reproductor  /editor/  302
