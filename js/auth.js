@@ -9,7 +9,7 @@
  * admin (de una comunidad) · editor · colaborador. Los asignan los responsables desde login.html.
  */
 
-import "./config.js";
+import "./config.js?v=2";
 import { COMUNIDADES } from "./comunidades.js";
 
 export const CORREO_PARROQUIA = "cancionerolitugico@gmail.com";

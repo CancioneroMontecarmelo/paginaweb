@@ -62,11 +62,18 @@
 
   // Un Smart TV (o el equipo que ya se usó como pantalla) va directo al QR y el código para conectar el teléfono.
   // «mc-equipo»: "tv" lo recuerda; "normal" lo eligió quien no quiere el modo pantalla en este equipo.
+  // Un computador con mouse nunca se desvía (ahí se editan las misas y los audios): si quedó marcado como
+  // pantalla por una prueba, se olvida. Para usarlo como pantalla está la dirección /tv.
   var equipo = '';
   try { equipo = localStorage.getItem('mc-equipo') || ''; } catch (_) { /* sin almacenamiento */ }
   var esTv = /SmartTV|SMART-TV|Tizen|Web0S|webOS|NetCast|HbbTV|BRAVIA|Android TV|GoogleTV|AFT[A-Z]|VIDAA|PhilipsTV|Opera TV|AppleTV|Large Screen/i.test(navigator.userAgent);
+  var conMouse = !esTv && !!(window.matchMedia && matchMedia('(pointer: fine)').matches);
+  if (conMouse && equipo === 'tv') {
+    try { localStorage.removeItem('mc-equipo'); } catch (_) { /* sin almacenamiento */ }
+    equipo = '';
+  }
   var portada = /^\/(index\.html|reproductor(\.html)?)?$/.test(location.pathname) && !location.hash;
-  if (portada && (equipo === 'tv' || (esTv && equipo !== 'normal'))) {
+  if (portada && !conMouse && (equipo === 'tv' || (esTv && equipo !== 'normal'))) {
     location.replace(location.pathname.replace(/[^/]*$/, '') + 'reproductor#pantalla');
   }
 })();
