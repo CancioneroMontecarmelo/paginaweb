@@ -5,9 +5,14 @@ Misas, el reproductor y los cancioneros litúrgicos hechos con el editor **Canci
 El servidor de la parroquia es `/api` en el mismo sitio (Pages Functions, código en `servidor/`): los datos
 viven en una base **D1** y los archivos (audios, partituras, cancioneros publicados) en **R2**.
 
-- Página publicada: <https://montecarmelo-kxg.pages.dev/>
-- La dirección vieja (<https://cancioneromontecarmelo.github.io/paginaweb/>) lleva sola a la misma página
-  del sitio nuevo, con lo que el navegador tenía guardado (sesión, listas, preferencias).
+- Página publicada: <https://cancioneroliturgico.cl/> (`www.` lleva a la dirección sin www).
+- Las direcciones anteriores (<https://montecarmelo-kxg.pages.dev/> y
+  <https://cancioneromontecarmelo.github.io/paginaweb/>) llevan solas a la misma página del dominio, con lo
+  que el navegador tenía guardado (sesión, listas, preferencias). `/api` sigue respondiendo también en
+  pages.dev: hay canciones con enlaces de audio a esa dirección. Las vistas previas no se redirigen.
+- Dominio registrado en NIC Chile; sus servidores DNS son los de Cloudflare (`rosalyn` y `zac`
+  `.ns.cloudflare.com`). En Pages, el proyecto tiene como dominios propios `cancioneroliturgico.cl` y
+  `www.cancioneroliturgico.cl`.
 - Cada `git push` a `main` vuelve a publicar el sitio en 1–2 minutos.
 
 ## Autenticación (Identificarse)
@@ -31,8 +36,8 @@ Los usuarios viven en la tabla `usuarios` de D1 (privada).
 ### ID de cliente de Google (una sola vez)
 
 En <https://console.cloud.google.com/auth/clients> (proyecto de la cuenta de la parroquia), el cliente
-«Aplicación web» tiene que tener en **Orígenes autorizados de JavaScript**: `https://montecarmelo-kxg.pages.dev`,
-`http://localhost:8788` y `http://127.0.0.1:8788` (y la dirección de una vista previa, como
+«Aplicación web» tiene que tener en **Orígenes autorizados de JavaScript**: `https://cancioneroliturgico.cl`,
+`https://www.cancioneroliturgico.cl`, `https://montecarmelo-kxg.pages.dev`, `http://localhost:8788` y `http://127.0.0.1:8788` (y la dirección de una vista previa, como
 `https://cloudflare.montecarmelo-kxg.pages.dev`, si se quiere entrar con Google en ella). El ID
 (`….apps.googleusercontent.com`) va en `GOOGLE_CLIENT_ID` (`wrangler.toml`) y en `googleClientId`
 (`js/config.js`). En «Público», la app tiene que estar **publicada** (en producción) para que entre
@@ -85,8 +90,9 @@ Con la cuenta **cancionerolitugico@gmail.com**, desde la raíz del sitio:
 6. En el proyecto: **Configuración → Variables y secretos → Agregar → Secreto** `SECRETO` (para producción
    y vista previa). Su valor sale del Apps Script: en el editor de Apps Script ejecutá
    `verSecretoParaCloudflare` y copiá lo que muestra el registro.
-7. Cloudflare dio `montecarmelo-kxg.pages.dev` (`montecarmelo` ya estaba usado). Si alguna vez cambia, la
-   dirección está en `SITIO_URL` (`wrangler.toml`), `SITIO` (`js/config.js`) y `SITIO_URL` (`scripts/mc_biblioteca.py`).
+7. Cloudflare dio `montecarmelo-kxg.pages.dev` (`montecarmelo` ya estaba usado); la dirección pública es el
+   dominio `cancioneroliturgico.cl`. Si alguna vez cambia, está en `SITIO_URL` (`wrangler.toml`), `SITIO` y
+   las redirecciones (`js/config.js`) y `SITIO_URL` (`scripts/mc_biblioteca.py`).
 8. Sumá la dirección a los orígenes del cliente de Google (ver arriba).
 
 Cada rama distinta de `main` se publica como **vista previa** en `https://<rama>.montecarmelo-kxg.pages.dev`,

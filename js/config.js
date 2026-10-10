@@ -3,14 +3,26 @@
 // googleClientId: «ID de cliente» OAuth para el botón «Entrar con Google» (el mismo que GOOGLE_CLIENT_ID en
 // wrangler.toml).
 (function () {
-  var SITIO = 'https://montecarmelo-kxg.pages.dev/';
+  var SITIO = 'https://cancioneroliturgico.cl/';
   var VIEJO = { host: 'cancioneromontecarmelo.github.io', base: '/paginaweb/' };
+  // Solo la dirección principal de Pages: las vistas previas (<rama>.montecarmelo-kxg.pages.dev) quedan para pruebas
+  var PAGES = 'montecarmelo-kxg.pages.dev';
   var MIGRAR = '#mc-migrar=';
 
-  // El sitio viejo (GitHub Pages) lleva a la misma página del nuevo, con lo que el navegador tenía guardado
-  // (sesión, listas, preferencias): cada dirección tiene su propio almacenamiento
-  if (location.hostname === VIEJO.host && !window.MONTECARMELO_CONFIG) {
-    var ruta = location.pathname.indexOf(VIEJO.base) === 0 ? location.pathname.slice(VIEJO.base.length) : '';
+  if (location.hostname === 'www.cancioneroliturgico.cl') {
+    location.replace(SITIO + location.pathname.slice(1) + location.search + location.hash);
+    window.MONTECARMELO_CONFIG = {};
+    return;
+  }
+
+  // Las direcciones anteriores (GitHub Pages y pages.dev) llevan a la misma página del dominio, con lo que el
+  // navegador tenía guardado (sesión, listas, preferencias): cada dirección tiene su propio almacenamiento.
+  // Sin internet no se mueve: el reproductor guardado para usar sin conexión es el de esta dirección.
+  var desdeGithub = location.hostname === VIEJO.host;
+  var desdePages = location.hostname === PAGES && navigator.onLine !== false;
+  if ((desdeGithub || desdePages) && !window.MONTECARMELO_CONFIG) {
+    var ruta = desdePages ? location.pathname.slice(1)
+      : location.pathname.indexOf(VIEJO.base) === 0 ? location.pathname.slice(VIEJO.base.length) : '';
     // Va en la dirección (Chrome acepta ~2 MB): primero lo chico (sesión, listas, preferencias)
     var guardado = {}, total = 0, todo = [];
     try {
