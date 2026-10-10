@@ -65,7 +65,7 @@
   var equipo = '';
   try { equipo = localStorage.getItem('mc-equipo') || ''; } catch (_) { /* sin almacenamiento */ }
   var esTv = /SmartTV|SMART-TV|Tizen|Web0S|webOS|NetCast|HbbTV|BRAVIA|Android TV|GoogleTV|AFT[A-Z]|VIDAA|PhilipsTV|Opera TV|AppleTV|Large Screen/i.test(navigator.userAgent);
-  var portada = /\/(index\.html|inicio(\.html)?|reproductor(\.html)?)?$/.test(location.pathname) && !location.hash;
+  var portada = /^\/(index\.html|reproductor(\.html)?)?$/.test(location.pathname) && !location.hash;
   if (portada && (equipo === 'tv' || (esTv && equipo !== 'normal'))) {
     location.replace(location.pathname.replace(/[^/]*$/, '') + 'reproductor#pantalla');
   }

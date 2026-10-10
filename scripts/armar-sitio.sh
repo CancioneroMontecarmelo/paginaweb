@@ -8,7 +8,7 @@ rm -rf dist
 mkdir -p dist
 
 cp index.html inicio.html login.html misas.html noticias.html reproductor.html tv.html ver.html dist/
-cp reproductor.webmanifest sw-reproductor.js _headers _routes.json dist/
+cp reproductor.webmanifest sw-reproductor.js _headers _redirects _routes.json dist/
 cp -r css js icons Imagenes comunidades noticias editor dist/
 
 echo "dist/ listo: $(find dist -type f | wc -l) archivos"

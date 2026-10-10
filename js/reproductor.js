@@ -1021,7 +1021,7 @@ function sesionDeMedios(entrada, item) {
   if (!("mediaSession" in navigator)) return;
   navigator.mediaSession.metadata = new MediaMetadata({
     title: entrada.titulo || "Canción",
-    artist: item.momento || creditsText(normalizeCredits({ letra: entrada.letraDe, musica: entrada.musicaDe })) || "Monte Carmelo",
+    artist: item.momento || creditsText(normalizeCredits({ letra: entrada.letraDe, musica: entrada.musicaDe })) || "Cancionero Litúrgico",
     album: st.cola?.nombre || ""
   });
 }
@@ -1885,6 +1885,12 @@ function conectar() {
     const b = e.target.closest("[data-vista]");
     if (b) mostrarVista(b.dataset.vista);
   });
+  // La marca lleva al Inicio sin recargar: no corta lo que está sonando
+  $("#rp-marca").addEventListener("click", (e) => {
+    e.preventDefault();
+    mostrarVista("inicio");
+    scrollTo({ top: 0, behavior: "smooth" });
+  });
   let espera = 0;
   $("#rp-buscar").addEventListener("input", () => {
     clearTimeout(espera);
@@ -2111,12 +2117,7 @@ function conectar() {
 function prepararApp() {
   const app = document.body.classList.contains("rp-app");
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-reproductor.js", { scope: "./reproductor" }).catch(() => {});
-  if (app) {
-    // En la app la página de la parroquia se abre en el navegador, sin salir del reproductor
-    $("#rp-marca").target = "_blank";
-    $("#rp-marca").rel = "noopener";
-    return;
-  }
+  if (app) return;
   const botones = document.querySelectorAll(".rp-instalar");
   const mostrar = (si) => botones.forEach((b) => (b.hidden = !si));
   let pedido = null;
