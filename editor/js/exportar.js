@@ -155,7 +155,7 @@ function songExportData(d, n, latin, embedded, pos) {
       if (open) body += '</section>';
       open = false;
       if (vm.key !== 'unica') {
-        body += `<section class="voice-section" data-voice="${escapeHtml(vm.key)}" data-label="${escapeHtml(vm.label)}" style="--vc:${VOICES[vm.key]?.color || '#607d8b'}"><div class="voice-label">🎤 ${escapeHtml(vm.label)}</div>`;
+        body += `<section class="voice-section" data-voice="${escapeHtml(vm.key)}" data-label="${escapeHtml(vm.label)}" style="--vc:${VOICES[vm.key]?.color || '#607d8b'}"><div class="voice-label"><span class="voice-ico">🎤 </span>${escapeHtml(vm.label)}</div>`;
         open = true;
       }
       continue;
@@ -321,6 +321,7 @@ body.has-pos .chord { cursor: pointer; border-radius: 3px; }
 .strum-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; white-space: normal; margin: 6px 0; font-family: Arial, sans-serif; }
 .strum-name { font-size: .85em; font-weight: bold; color: #5f6368; }
 .strum-svg { display: block; flex-shrink: 0; }
+.strum-pre { display: none; }
 body.no-chords .chord-line, body.no-chords .keys, body.no-keys .keys { display: none; }
 body.no-comments .comment-line { display: none; }
 .foot { text-align: center; font-size: 12px; color: #80868b; margin: 24px 0; line-height: 2.4; }
@@ -378,6 +379,16 @@ body.no-comments .comment-line { display: none; }
   .index + .song, main > .song:first-child { break-before: auto; }
   .index { box-shadow: none; }
   .song-body { overflow: visible; }
+  /* Letra en negro y acordes en rojo: sin colores, recuadros, fondos ni diagramas; las voces solo con su nombre */
+  .line, .lyric-line, .voice-section .lyric-line, .section-heading, .song-meta, .song-credits, .comment-line, .strum-name, .voice-label { color: #000; }
+  .chord, .chord-line, .chord-extra { color: #c00; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .song-header { border-color: #000; }
+  .voice-section { border: none; background: none; border-radius: 0; box-shadow: none; opacity: 1; padding: 0 0 0 .8em; margin: .3em 0; }
+  .voice-label { display: block; background: none; padding: 0; border-radius: 0; margin: .2em 0 .1em -.8em; font-size: .9em; }
+  .voice-label::after { content: ':'; }
+  .comment-line { background: none; border: none; border-radius: 0; padding: 0; }
+  .strum-svg, .strum-ico, .voice-ico, .comment-ico { display: none; }
+  .strum-pre { display: inline; }
 }
 `;
 

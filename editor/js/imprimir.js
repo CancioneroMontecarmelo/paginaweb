@@ -17,7 +17,8 @@ const TRIPTYCH_PAD = { x: 8, y: 9 };
 const PRINT_OPTS_KEY = 'canciotras.impresion';
 const PRINT_DEFAULTS = {
   papel: 'carta', orientacion: 'vertical', acordes: true, unaHoja: true, columnas: 'auto', letra: 12,
-  comentarios: true, portada: true, titulo: '', subtitulo: '', hojas: 0, portadaTriptico: false, secciones: true
+  comentarios: true, portada: true, titulo: '', subtitulo: '', hojas: 0, portadaTriptico: false, secciones: true,
+  tinta: 'color'
 };
 
 function loadPrintOpts() {
@@ -38,7 +39,7 @@ function printBlocks(text, { chords, comments, headings }) {
   const flush = () => { if (units.length) blocks.push({ units, line: units[0].line }); units = []; };
   const addPre = (l, i) => { if (preStart < 0) preStart = i; pre.push(l); };
   const addUnit = (ls, i) => {
-    units.push({ lines: pre.concat(ls), voice, voiceStart, line: preStart >= 0 ? preStart : i });
+    units.push({ lines: pre.concat(ls), preN: pre.length, voice, voiceStart, line: preStart >= 0 ? preStart : i });
     pre = []; preStart = -1; voiceStart = false;
   };
   for (let i = 0; i < lines.length; i++) {
@@ -90,7 +91,10 @@ function songItems(d, o, lyricsOnly) {
     { id: d.id + ':t', doc: d.id, line: 0, keepNext: true, units: [{ html: head }] },
     ...blocks.map((b, i) => ({
       id: d.id + ':' + i, doc: d.id, line: b.line,
-      units: b.units.map(u => ({ html: u.lines.map(renderLine).join(''), voice: u.voice, voiceStart: u.voiceStart }))
+      units: b.units.map(u => ({
+        head: u.lines.slice(0, u.preN || 0).map(renderLine).join(''),
+        html: u.lines.slice(u.preN || 0).map(renderLine).join(''), voice: u.voice, voiceStart: u.voiceStart
+      }))
     }))
   ];
 }
@@ -102,11 +106,12 @@ function itemHtml(it, from = 0, to = it.units.length) {
     const v = u.voice?.key || null;
     if (v !== open) {
       if (open) html += '</section>';
-      if (v) html += `<section class="voice-section" style="--vc:${VOICES[v]?.color || '#607d8b'}">` +
-        (u.voiceStart ? `<div class="voice-label">🎤 ${escapeHtml(u.voice.label)}</div>` : '');
+      if (v) html += '<section class="voice-section">';
       open = v;
     }
-    html += `<div class="pv-unit">${u.html}</div>`;
+    // El nombre de la voz va después de los títulos y el rasgueo que la preceden
+    const label = v && u.voiceStart ? `<div class="voice-label">${escapeHtml(u.voice.label)}</div>` : '';
+    html += `<div class="pv-unit">${u.head || ''}${label}${u.html}</div>`;
   }
   if (open) html += '</section>';
   return html;
@@ -388,7 +393,9 @@ const paperSelect = o => `<select data-opt="papel">${Object.entries(PAPERS).map(
 function pvSideHtml() {
   const o = pv.opts, m = pv.mode, tri = m === 'triptico';
   let h = `<h2>🖨️ Imprimir</h2>
-    <div class="pv-group"><b>Qué imprimir</b>${seg('pvMode', m, [['cancion', 'Canción'], ['cancionero', 'Cancionero'], ['triptico', 'Tríptico']])}</div>`;
+    <div class="pv-group"><b>Qué imprimir</b>${seg('pvMode', m, [['cancion', 'Canción'], ['cancionero', 'Cancionero'], ['triptico', 'Tríptico']])}</div>
+    <div class="pv-group"><b>Tinta</b>${seg('tinta', o.tinta, [['color', 'A color'], ['bn', 'Blanco y negro']])}
+      <span class="hint">${o.tinta === 'bn' ? 'Todo en negro.' : 'Letra en negro y acordes en rojo.'}</span></div>`;
   if (!tri) {
     h += `<div class="pv-group pv-question"><b>¿Cada canción en una sola hoja?</b>
         ${seg('unaHoja', o.unaHoja, [[true, 'Sí, en una hoja'], [false, 'No, seguida']])}
@@ -488,8 +495,18 @@ function buildPreview() {
 function setPrintOpt(opt, v, rebuildSide, delay = 0) {
   pv.opts[opt] = v;
   try { localStorage.setItem(PRINT_OPTS_KEY, JSON.stringify(pv.opts)); } catch (_) {}
+  if (opt === 'tinta') aplicarTinta();
   pvRefresh(rebuildSide, delay);
 }
+
+// «Blanco y negro»: también vale para imprimir la canción con Ctrl+P, sin la vista previa
+function aplicarTinta() {
+  const bn = pv.opts.tinta === 'bn';
+  document.body.classList.toggle('print-bn', bn);
+  document.getElementById('pvSheets')?.classList.toggle('tinta-bn', bn);
+  document.getElementById('printAll')?.classList.toggle('tinta-bn', bn);
+}
+if (document.body) aplicarTinta(); else document.addEventListener('DOMContentLoaded', aplicarTinta);
 
 function pvRefresh(rebuildSide = false, delay = 0) {
   clearTimeout(pv.timer);
@@ -562,6 +579,7 @@ function openPrintPreview(mode = 'cancion') {
   for (const b of [...pv.breaks]) if (!ids.has(b.split(':')[0])) pv.breaks.delete(b);
   pv.el.hidden = false;
   document.body.classList.add('pv-open');
+  aplicarTinta();
   pvRefresh(true);
   $('#pvSide').querySelector('.btn.primary')?.focus();
 }
@@ -577,6 +595,7 @@ function closePrintPreview() {
 function printFromPreview() {
   if (!pv.html) { toast('No hay nada que imprimir'); return; }
   $('#printAll').innerHTML = pv.html;
+  aplicarTinta();
   let st = $('#pvPageCss');
   if (!st) { st = el('style'); st.id = 'pvPageCss'; document.head.appendChild(st); }
   st.textContent = `@page { size: ${pv.pageW}mm ${pv.pageH}mm; margin: 0; }`;

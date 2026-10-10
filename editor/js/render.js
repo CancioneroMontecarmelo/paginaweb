@@ -12,7 +12,7 @@ function chordLineHtml(line, latin = isLatin()) {
 function renderLine(line) {
   if (!line.trim()) return '<div class="line blank">&nbsp;</div>';
   let m;
-  if ((m = line.match(COMMENT_RE))) return `<div class="line comment-line">💬 ${inlineMd(m[1])}</div>`;
+  if ((m = line.match(COMMENT_RE))) return `<div class="line comment-line"><span class="comment-ico">💬 </span>${inlineMd(m[1])}</div>`;
   if ((m = line.match(HEADING_RE))) return `<div class="line section-heading h${Math.min(m[1].length, 3)}">${inlineMd(m[2])}</div>`;
   const strum = parseStrumMarker(line);
   if (strum) return strumLineHtml(strum);
@@ -46,7 +46,7 @@ function renderSong(title, text, key) {
         const color = VOICES[vm.key]?.color || '#607d8b';
         const hl = state.highlight;
         const cls = hl === 'todas' ? '' : (hl === vm.key ? ' focus' : ' dim');
-        html += `<section class="voice-section${cls}" style="--vc:${color}"><div class="voice-label">🎤 ${escapeHtml(vm.label)}</div>`;
+        html += `<section class="voice-section${cls}" style="--vc:${color}"><div class="voice-label"><span class="voice-ico">🎤 </span>${escapeHtml(vm.label)}</div>`;
         open = true;
       }
       continue;

@@ -116,7 +116,7 @@ function ytmIrA(v, { buscar = null } = {}) {
   ytmVista = v;
   for (const x of YTM_VISTAS) $('#vista-' + x).hidden = x !== v;
   document.body.dataset.vista = v;
-  document.querySelectorAll('[data-vista]').forEach(b => b.classList.toggle('activo', b.dataset.vista === v));
+  document.querySelectorAll('[data-vista]:not(body)').forEach(b => b.classList.toggle('activo', b.dataset.vista === v));
   ytmCerrarCola();
   if (v === 'inicio') ytmPintarInicio();
   else if (v === 'explorar') ytmPintarExplorar();
@@ -638,7 +638,8 @@ function ytmInit() {
   if (localStorage.getItem('mc-cola-oculta') === '1') document.body.classList.add('cola-oculta');
 
   document.addEventListener('click', e => {
-    const t = e.target.closest('[data-vista], [data-bib], [data-misa-abrir], [data-nube], [data-explorar], [data-filtro], [data-desliza], [data-reintentar], [data-bib-mas], [data-explorar-mas]');
+    // body también lleva data-vista (la vista actual, para el CSS): no es un botón
+    const t = e.target.closest('[data-vista]:not(body), [data-bib], [data-misa-abrir], [data-nube], [data-explorar], [data-filtro], [data-desliza], [data-reintentar], [data-bib-mas], [data-explorar-mas]');
     if (!t || t.closest('dialog')) return;
     if (t.dataset.vista) {
       e.preventDefault();

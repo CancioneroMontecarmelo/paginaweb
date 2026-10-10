@@ -114,9 +114,12 @@ function strumSvg(bars, compas = '') {
 
 const strumTitle = r => [r.nombre, r.compas].filter(Boolean).join(' ') || 'Rasgueo';
 
+// Al imprimir solo queda el texto: «Rasgueo: nombre», sin el emoji ni el diagrama
 function strumLineHtml(r) {
-  if (!r.bars[0]?.length) return `<div class="line strum-line"><span class="strum-name">🎸 ${escapeHtml(strumTitle(r))}</span></div>`;
-  return `<div class="line strum-line"><span class="strum-name">🎸 ${escapeHtml(strumTitle(r))}</span>${strumSvg(r.bars, r.compas)}</div>`;
+  const nombre = `<span class="strum-name"><span class="strum-ico">🎸 </span>` +
+    `${r.nombre || r.compas ? '<span class="strum-pre">Rasgueo: </span>' : ''}${escapeHtml(strumTitle(r))}</span>`;
+  if (!r.bars[0]?.length) return `<div class="line strum-line">${nombre}</div>`;
+  return `<div class="line strum-line">${nombre}${strumSvg(r.bars, r.compas)}</div>`;
 }
 
 // ============ EDITOR (Insertar > Rasgueo…) ============

@@ -1111,20 +1111,50 @@ body.pv-open { overflow: hidden; }
   .atril .sheet-note { background: #1a1a1a; color: #e0e0e0; }
 }
 
+/* ============ TINTA AL IMPRIMIR ============ */
+/* Letra en negro y acordes en rojo (todo negro con «Blanco y negro»): sin colores, recuadros, fondos ni diagramas.
+   .pv-col es la vista previa (y lo que se mide para armar las páginas); .song-render, la canción con Ctrl+P. */
+.strum-pre { display: none; }
+.pv-col .lyric-line, .pv-col .voice-section .lyric-line, .pv-col .section-heading, .pv-col .song-title, .pv-col .song-meta,
+.pv-col .song-credits, .pv-col .comment-line, .pv-col .strum-name, .pv-col .voice-label { color: #000; }
+.pv-col .chord, .pv-col .chord-line { color: #c00; font-weight: bold; }
+.pv-col .chord-extra { color: #c00; font-weight: normal; }
+:is(.tinta-bn, .print-bn) .pv-col :is(.chord, .chord-line, .chord-extra) { color: #000; }
+.pv-col .song-header { border-color: #000; }
+.pv-col .voice-section { border: none; background: none; border-radius: 0; box-shadow: none; opacity: 1; padding: 0 0 0 .8em; margin: .3em 0; }
+.pv-col .voice-label { display: block; background: none; padding: 0; border-radius: 0; margin: .2em 0 .1em -.8em; font-size: .9em; }
+.pv-col .comment-line { background: none; border: none; border-radius: 0; padding: 0; }
+.pv-col .strum-svg, .pv-col .strum-ico, .pv-col .voice-ico, .pv-col .comment-ico { display: none; }
+.pv-col .voice-label::after { content: ':'; }
+.pv-col .voice-section .section-heading, .pv-col .voice-section .strum-line { margin-left: -.8em; }
+.pv-col .strum-pre { display: inline; }
+.pv-song-title { border-color: #000; }
+.pv-page, .pv-cover-sub, .pv-foot, .pv-lyrics .section-heading, .pv-book-cover li::before { color: #000; }
+.pv-book-cover li i { border-color: #000; }
+
 /* ============ IMPRESIÓN ============ */
 .print-all { display: none; }
 @media print {
+  .song-render .lyric-line, .song-render .voice-section .lyric-line, .song-render .section-heading, .song-render .song-title, .song-render .song-meta,
+  .song-render .song-credits, .song-render .comment-line, .song-render .strum-name, .song-render .voice-label { color: #000; }
+  .song-render .chord, .song-render .chord-line { color: #c00; font-weight: bold; }
+  .song-render .chord-extra { color: #c00; font-weight: normal; }
+  :is(.tinta-bn, .print-bn) .song-render :is(.chord, .chord-line, .chord-extra) { color: #000; }
+  .song-render .song-header { border-color: #000; }
+  .song-render .voice-section { border: none; background: none; border-radius: 0; box-shadow: none; opacity: 1; padding: 0 0 0 .8em; margin: .3em 0; }
+  .song-render .voice-label { display: block; background: none; padding: 0; border-radius: 0; margin: .2em 0 .1em -.8em; font-size: .9em; }
+  .song-render .voice-label::after { content: ':'; }
+  .song-render .comment-line { background: none; border: none; border-radius: 0; padding: 0; }
+  .song-render .strum-svg, .song-render .strum-ico, .song-render .voice-ico, .song-render .comment-ico { display: none; }
+  .song-render .strum-pre { display: inline; }
   .chrome, .info-banner, .audio-bar, .atril-controls, .toast, #editorPane, .side-panel, .sheet-bar, .sheet-note,
   .drawer, .sheet-backdrop, .install-hint, .key-sheet, .yt-mini, .book-picker { display: none !important; }
-  .strum-line svg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { background: white; padding: 0 !important; }
   .doc-area { padding: 0; }
   .workspace { display: block !important; }
   #viewPane { display: block !important; box-shadow: none; padding: 0; min-height: 0; }
   .song-render { overflow: visible; }
-  .chord, .chord-line, .voice-label, .voice-section, .comment-line {
-    -webkit-print-color-adjust: exact; print-color-adjust: exact;
-  }
+  .chord, .chord-line, .chord-extra { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .voice-section.dim { opacity: 1; }
 
   body.printing-all > *:not(#printAll) { display: none !important; }
