@@ -189,7 +189,8 @@ En D1: tablas `actividades` (pública), `libro` y `visitantes` (privadas).
 
 ## Editor: pantallas (estilo YouTube Music)
 
-El editor es oscuro y se parece a YouTube Music, con la música de la parroquia:
+El editor tiene la distribución de YouTube Music y los colores claros de Google Docs (la canción se edita en una
+hoja blanca); solo el Atril es oscuro. Con la música de la parroquia:
 
 - **Menú lateral** (abajo en el celular): **Inicio**, **Explorar**, **Biblioteca**, **Cancionero** y **Atril**,
   más enlaces a Misas y al Reproductor. Arriba, el buscador lleva a la Biblioteca.
