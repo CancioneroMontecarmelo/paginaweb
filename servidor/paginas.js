@@ -137,13 +137,14 @@ function manifestEditor(p) {
   }, null, 2), { headers: { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-cache' } });
 }
 
-// La app instalada antes de que hubiera parroquias tenía su service worker en /sw-reproductor.js: este lo
-// reemplaza, borra lo guardado y se da de baja; la próxima vez el reproductor se abre desde /<parroquia>/.
-const SW_RETIRO = `self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (e) => e.waitUntil(caches.keys()
-  .then((k) => Promise.all(k.filter((n) => n.startsWith('mc-reproductor-')).map((n) => caches.delete(n))))
-  .then(() => self.registration.unregister())));
-`;
+// El service worker del reproductor: el mismo archivo en /<parroquia>/sw-reproductor.js y en /sw-reproductor.js
+// (este último, el de la app instalada antes de que hubiera parroquias)
+async function swReproductor(env, url) {
+  const sw = await env.ASSETS.fetch(new URL('/sw-reproductor.js', url.origin).toString());
+  const r = new Response(sw.body, sw);
+  r.headers.set('Cache-Control', 'no-cache');
+  return r;
+}
 
 async function pagina(ctx, c, p, nombre, propia = null) {
   const url = new URL(ctx.request.url);
@@ -180,9 +181,16 @@ export async function atenderPagina(ctx) {
     return ctx.next();
   }
 
-  if (ruta === '/sw-reproductor.js') {
-    return new Response(SW_RETIRO, { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' } });
+  if (ruta === '/sw-reproductor.js') return swReproductor(env, url);
+  // La app instalada antes de que hubiera parroquias abre /reproductor (su «scope» es /reproductor): se le sirve
+  // ahí mismo el de la parroquia del equipo. Redirigida a /<parroquia>/ quedaría fuera de su scope y el teléfono la
+  // mostraría como pestaña del navegador, con barra de dirección, en vez de como app.
+  if (ruta === '/reproductor') {
+    const p = await leerParroquia(c, await parroquiaDelEquipo(c, request));
+    if (p) return pagina(ctx, c, p, 'reproductor');
   }
+  const iconoRaiz = ruta.match(/^\/icono-(180|192|512)\.png$/);
+  if (iconoRaiz) return respuestaIcono(c, await parroquiaDelEquipo(c, request), iconoRaiz[1], env.ASSETS, url);
   if (ruta === '/elegir') return elegirParroquia(c);
   if (ruta === '/') {
     const s = cookieParroquia(request);
@@ -221,12 +229,7 @@ export async function atenderPagina(ctx) {
   if (propia) return paginaPropia(ctx, c, p, propia[1]);
   if (resto === '/reproductor.webmanifest') return manifest(p);
   if (resto === '/editor.webmanifest') return manifestEditor(p);
-  if (resto === '/sw-reproductor.js') {
-    const sw = await env.ASSETS.fetch(new URL('/sw-reproductor.js', url.origin).toString());
-    const r = new Response(sw.body, sw);
-    r.headers.set('Cache-Control', 'no-cache');
-    return r;
-  }
+  if (resto === '/sw-reproductor.js') return swReproductor(env, url);
   const icono = resto.match(/^\/icono-(180|192|512)\.png$/);
   if (icono) return respuestaIcono(c, slug, icono[1], env.ASSETS, url);
   if (resto === '/editor' || resto.startsWith('/editor/')) {

@@ -4,8 +4,9 @@
 // Cloudflare Pages sirve las páginas sin «.html» (reproductor.html redirige a reproductor): se guarda esa dirección.
 // Cada parroquia tiene el suyo en /<parroquia>/sw-reproductor.js (lo sirve functions/_middleware.js desde este
 // archivo): lo relativo (la página, el manifest y el logo) es de la parroquia; CSS y JS son comunes (/css, /js).
+// La app instalada antes de que hubiera parroquias usa este mismo archivo en /sw-reproductor.js, para /reproductor.
 
-const CACHE = 'mc-reproductor-17';
+const CACHE = 'mc-reproductor-18';
 const NET_TIMEOUT = 3000;
 const SHELL = [
   'reproductor', 'reproductor.webmanifest', '/js/config.js?v=2',
@@ -16,9 +17,13 @@ const SHELL = [
   ...['acordes', 'markdown', 'etiquetas', 'buscar', 'instrumentos', 'rasgueos', 'render', 'caratula'].map((n) => `/editor/js/${n}.js`)
 ];
 
+// Sin cache.add: en Chrome, un archivo que falla (404) hace fallar la instalación entera aunque se atrape el error.
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE)
-    .then((c) => Promise.all(SHELL.map((u) => c.add(new Request(u, { cache: 'reload' })).catch(() => {}))))
+    .then((c) => Promise.all(SHELL.map((u) => fetch(u, { cache: 'reload' })
+      .then((res) => (res.ok && !res.redirected ? c.put(u, res) : undefined))
+      .catch(() => {}))))
+    .catch(() => {})
     .then(() => self.skipWaiting()));
 });
 
