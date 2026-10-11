@@ -152,12 +152,13 @@ function renderTabs() {
     t.dataset.id = d.id;
     t.draggable = true;
     t.setAttribute('role', 'listitem');
-    t.title = d.title + (isDirty(d) ? ' (cambios sin guardar)' : '');
+    t.title = d.title + (isDirty(d) ? ' (cambios sin guardar)' : '') +
+      (d.mc ? `\nDoble clic: cambiarla por otra canción de «${d.mc.momento}»` : '');
     const cambio = d.mc ? mcCambio(d) : isDirty(d) && !isBlank(d);
     t.innerHTML = `<span class="tab-num">${num}</span>${caraHtml(caraInfoDoc(d), 'chica')}
       <span class="tab-texto"><span class="tab-title">${escapeHtml(d.title.trim() || (isBlank(d) ? 'Canción nueva' : 'Sin título'))}</span>
       <small>${escapeHtml(colaSub(d))}</small></span>
-      ${cambio ? `<span class="tab-dirty" title="${d.mc ? 'Cambió el tono, la cejilla o las velocidades: falta guardarlo en la misa' : 'Cambios sin guardar'}">●</span>` : ''}
+      ${cambio ? `<span class="tab-dirty" title="${d.mc ? 'Cambió la canción, el tono, la cejilla o las velocidades: falta guardarlo en la misa' : 'Cambios sin guardar'}">●</span>` : ''}
       <button type="button" class="tab-close" title="Quitar del cancionero">×</button>`;
     bar.appendChild(t);
   }
@@ -184,6 +185,11 @@ function bindTabs() {
       switchTab(t.dataset.id);
       ytmIrA('cancionero');
     }
+  });
+  bar.addEventListener('dblclick', e => {
+    const t = e.target.closest('.tab');
+    if (!t || e.target.closest('.tab-close')) return;
+    if (docs.find(d => d.id === t.dataset.id)?.mc) { e.preventDefault(); mcCambiarCancion(t.dataset.id); }
   });
   bar.addEventListener('auxclick', e => {
     const t = e.target.closest('.tab');

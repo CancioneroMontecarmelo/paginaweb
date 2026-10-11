@@ -236,6 +236,11 @@ hoja blanca); solo el Atril es oscuro. Con la música de la parroquia:
   misa** (`guardarMisa`, campos `desplazamiento`, `capo`, `velocidad` y `scroll` de cada canción): la canción
   de la Biblioteca no cambia. Misas se actualiza sola si está abierta en el mismo navegador
   (`localStorage` `mc-misa-guardada`) y muestra «Capo N · 0,9×» en cada canción; el reproductor usa esa velocidad.
+- **Cambiar una canción**: doble clic en una canción del cancionero de misa (en la cola de la derecha) abre la
+  Biblioteca con las canciones de ese momento (por etiqueta y por letra; con **Toda la Biblioteca** y el buscador
+  se elige cualquiera). La elegida reemplaza a la anterior en el mismo lugar, queda marcada ● y **Guardar en la
+  misa** la deja en el mismo cancionero (`mcCambiarCancion` en `editor/js/nube.js`). Si el cancionero ya estaba
+  publicado, su página se actualiza al volver a **Publicar** en Misas.
 - **▶ Atril** de Misas (`&atril=1`) abre el atril directo, sin guardar nada en el editor.
 
 ## Editor: menú Archivo
@@ -484,7 +489,8 @@ scripts/video-a-webm.py ensayo.mov --sin-subir --salida ~/Música/m4a      # sol
 - **Necesita** Python 3 y `ffmpeg` (`sudo apt install ffmpeg`). Para los enlaces usa `yt-dlp`; si el de
   la distribución está viejo y YouTube lo rechaza, el script baja y usa su propia copia al día
   (`~/.local/share/montecarmelo/yt-dlp`).
-- **Clave**: la primera vez la pide. Se copia en el sitio, **Identificarse → Copiar clave para el script**
+- **Clave**: la primera vez la pide. Se copia en el sitio abriendo **`login#clave`** (Identificarse) y tocando
+  **Copiar clave para el script**; el botón solo aparece en esa dirección, para no confundir a nadie más
   (la misma sesión, dura 90 días y da tus mismos permisos), y queda en `~/.config/montecarmelo/sesion.json`.
   `--olvidar-clave` la borra.
 - Con `--cancion`, todos los videos son audios de esa canción (`--voz` y `--nombre` se repiten, uno por

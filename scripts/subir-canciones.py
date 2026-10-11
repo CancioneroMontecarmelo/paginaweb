@@ -121,8 +121,8 @@ class Ventana(Gtk.ApplicationWindow):
         self.lbl_sesion = Gtk.Label(xalign=0)
         fila.pack_start(self.lbl_sesion, True, True, 0)
         conseguir = Gtk.Button(label="Conseguir la clave en el sitio")
-        conseguir.set_tooltip_text("Abre Identificarse: entrá con tu cuenta y tocá «Copiar clave para el script»")
-        conseguir.connect("clicked", lambda *_: webbrowser.open(mc.SITIO_URL + "login"))
+        conseguir.set_tooltip_text("Abre Identificarse (login#clave): entrá con tu cuenta y tocá «Copiar clave para el script»")
+        conseguir.connect("clicked", lambda *_: webbrowser.open(mc.SITIO_URL + "login#clave"))
         fila.pack_start(conseguir, False, False, 0)
         pegar = Gtk.Button(label="Pegar la clave…")
         pegar.connect("clicked", lambda *_: self.pedir_clave())
@@ -208,7 +208,7 @@ class Ventana(Gtk.ApplicationWindow):
             self.lbl_sesion.set_markup(f"Sesión: <b>{GLib.markup_escape_text(d['email'])}</b> · la clave vence el {vence}")
         else:
             self.lbl_sesion.set_markup("<b>Sin clave:</b> podés revisar, pero para subir hace falta tu clave del sitio "
-                                       "(Identificarse → «Copiar clave para el script»).")
+                                       "(abrí login#clave en el sitio y tocá «Copiar clave para el script»).")
         return token
 
     def pedir_clave(self):
@@ -220,7 +220,7 @@ class Ventana(Gtk.ApplicationWindow):
         area.set_border_width(14)
         texto = Gtk.Label(xalign=0, wrap=True, max_width_chars=60)
         texto.set_markup("1. Tocá <b>Conseguir la clave en el sitio</b> y entrá con tu cuenta de Google.\n"
-                         "2. En Identificarse tocá <b>Copiar clave para el script</b>.\n"
+                         "2. En esa página (Identificarse, login#clave) tocá <b>Copiar clave para el script</b>.\n"
                          "3. Pegala aquí. Dura 90 días y da tus mismos permisos: no la compartas.")
         area.add(texto)
         entrada = Gtk.Entry(visibility=False, activates_default=True, placeholder_text="Pegá la clave aquí")

@@ -698,7 +698,7 @@ document.addEventListener('keydown', e => {
     act = { z: 'undo', y: 'redo', o: 'open', s: 'saveSongBib', p: 'print', e: 'toggleMode',
             b: 'bold', i: 'italic', u: 'underline', '\\': 'clearFormat' }[k] || null;
     if (k === 'a' && state.mode === 'atril' && !inOtherField) act = 'selectAll';
-    // En un cancionero de misa, Ctrl+S guarda el tono, la cejilla y las velocidades en la misa
+    // En un cancionero de misa, Ctrl+S guarda en la misa las canciones cambiadas, el tono, la cejilla y las velocidades
     if (act === 'saveSongBib' && state.mcMisa && cur().mc) act = 'guardarMisa';
   }
   if (!act) return;

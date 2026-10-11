@@ -463,7 +463,7 @@ function ytmPintarCola() {
   for (const b of document.querySelectorAll('.btn-guardar-misa')) {
     b.hidden = !m;
     b.disabled = !cambios;
-    b.title = cambios ? `Guardar el tono, la cejilla y las velocidades de ${cambios === 1 ? 'una canción' : cambios + ' canciones'} en la misa (Ctrl+S)`
+    b.title = cambios ? `Guardar en la misa los cambios de ${cambios === 1 ? 'una canción' : cambios + ' canciones'}: canción elegida, tono, cejilla y velocidades (Ctrl+S)`
       : 'No hay cambios para guardar en la misa';
   }
   $('#heroGuardarMisa').hidden = !m || !cambios;

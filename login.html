@@ -57,7 +57,7 @@
         <a class="btn btn-primario" href="./noticias.html">Ir a noticias</a>
         <a class="btn btn-secundario" href="./editor/" id="sesion-editor" hidden>Abrir el editor</a>
         <button type="button" class="btn btn-secundario" data-coros hidden>Coros de la comunidad</button>
-        <button type="button" class="btn btn-secundario" data-clave hidden title="Para el comando scripts/video-a-webm.py, que sube audios a la Biblioteca desde tu computadora">Copiar clave para el script</button>
+        <button type="button" class="btn btn-secundario" data-clave hidden>Copiar clave para el script</button>
         <button type="button" class="btn btn-secundario" data-salir>Cerrar sesión</button>
       </div>
       <p class="msg-ok" data-clave-msg hidden></p>
@@ -70,7 +70,7 @@
         <button type="button" class="btn btn-primario" id="btn-admins">Administradores y permisos</button>
         <button type="button" class="btn btn-secundario" data-coros>Coros de la comunidad</button>
         <a class="btn btn-secundario" href="./editor/">Abrir el editor</a>
-        <button type="button" class="btn btn-secundario" data-clave title="Para el comando scripts/video-a-webm.py, que sube audios a la Biblioteca desde tu computadora">Copiar clave para el script</button>
+        <button type="button" class="btn btn-secundario" data-clave hidden>Copiar clave para el script</button>
         <button type="button" class="btn btn-secundario" data-salir>Cerrar sesión</button>
       </div>
       <p class="msg-ok" data-clave-msg hidden></p>
@@ -192,6 +192,7 @@
           " (" + NOMBRES_ROL[s.rol] + ") · " + s.email);
         refrescarAuditoria();
         refrescarVisitantes();
+        mostrarClave(s);
         return;
       }
       mostrar("panel-sesion");
@@ -200,10 +201,17 @@
         " · " + (NOMBRES_ROL[s.rol] || s.rol) + (s.comunidad && s.rol !== "visitante" ? " · " + nombreComunidad(s.comunidad) : ""));
       mensaje("sesion-aviso", aviso || "");
       $("sesion-editor").hidden = !puedeEditar();
-      $("panel-sesion").querySelector("[data-clave]").hidden = !puedeEditar();
+      mostrarClave(s);
     }
 
-    // La misma sesión del sitio (dura 90 días) sirve para subir audios con scripts/video-a-webm.py
+    // La misma sesión del sitio (dura 90 días) sirve para los scripts de escritorio (video-a-webm.py,
+    // subir-canciones.py). El botón solo aparece en login#clave, la dirección que dan esos scripts.
+    function mostrarClave(s) {
+      const ver = location.hash === "#clave" && !!s.token && (esResponsableSitio(s) || puedeEditar());
+      document.querySelectorAll("[data-clave]").forEach((b) => (b.hidden = !ver));
+    }
+    window.addEventListener("hashchange", () => sesionActual() && mostrarClave(sesionActual()));
+
     document.querySelectorAll("[data-clave]").forEach((b) =>
       b.addEventListener("click", async () => {
         const msg = b.closest("section").querySelector("[data-clave-msg]");

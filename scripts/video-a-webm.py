@@ -14,8 +14,8 @@ Con --cancion, todos los videos son audios de esa canción (por ejemplo, una voz
 Si la canción ya está en la Biblioteca, el audio se le suma; su letra solo se reemplaza si se da --letra
 (y se pregunta antes). Las etiquetas nuevas se agregan a las que tenía.
 
-Necesita ffmpeg y, para los enlaces, yt-dlp. La clave se copia en el sitio: Identificarse → «Copiar clave
-para el script». Se guarda en ~/.config/montecarmelo/sesion.json.
+Necesita ffmpeg y, para los enlaces, yt-dlp. La clave se copia en el sitio: abrí login#clave y tocá «Copiar
+clave para el script» (el botón solo aparece en esa dirección). Se guarda en ~/.config/montecarmelo/sesion.json.
 """
 
 import argparse
@@ -36,14 +36,14 @@ from mc_biblioteca import (  # noqa: E402
 def obtener_clave(dada):
     if dada:
         if not clave_vigente(dada):
-            raise Error("La clave dada no sirve o venció. Copiá una nueva en el sitio: Identificarse → «Copiar clave para el script».")
+            raise Error("La clave dada no sirve o venció. Copiá una nueva en el sitio: login#clave → «Copiar clave para el script».")
         guardar_clave(dada)
         return dada
     token = clave_guardada()
     if token:
         return token
     aviso("\nPara subir a la Biblioteca hace falta tu clave del sitio (dura 90 días).")
-    aviso(f"Entrá a {SITIO_URL}login con tu cuenta y tocá «Copiar clave para el script».")
+    aviso(f"Entrá a {SITIO_URL}login#clave con tu cuenta y tocá «Copiar clave para el script».")
     if not sys.stdin.isatty():
         raise Error("No hay clave guardada: corré el script en una terminal para pegarla, o usá --clave.")
     token = getpass.getpass("Pegá la clave aquí (no se ve al pegar) y apretá Enter: ").strip()
@@ -126,7 +126,7 @@ def argumentos():
     p.add_argument("-o", "--salida", default=".", help="carpeta donde quedan el .m4a y el .md (por defecto, la actual)")
     p.add_argument("--sin-subir", action="store_true", help="solo convertir y armar el .md, sin subir nada")
     p.add_argument("--si", action="store_true", help="responder que sí a las preguntas (reemplazar la letra de una canción existente)")
-    p.add_argument("--clave", help="clave del sitio (Identificarse → «Copiar clave para el script»); queda guardada")
+    p.add_argument("--clave", help="clave del sitio (login#clave → «Copiar clave para el script»); queda guardada")
     p.add_argument("--olvidar-clave", action="store_true", help="borra la clave guardada en esta computadora")
     p.add_argument("--api", default=None, help=f"dirección del servidor (por defecto, {SITIO_URL}api o la variable MC_API)")
     return p.parse_args()
