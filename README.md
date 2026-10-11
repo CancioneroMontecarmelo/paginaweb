@@ -25,6 +25,16 @@ Sin claves:
 - **Administradores y permisos** (panel de Identificarse): lista de quienes entraron, con un check para darles
   privilegios (responsable del sitio, sacerdote, administrador de comunidad, editor o colaborador) y la
   comunidad; desde ahí también se invita: **WhatsApp** o **Copiar invitación** (el sitio no manda correos).
+- **Coros de la comunidad** (Identificarse y botón **Coro** de Misas): crear coros y cargar sus integrantes,
+  con su **rol en el coro** (Director, Subdirector, Integrante; un solo director) y, si tienen correo de
+  Google, sus **permisos en el sitio** para la comunidad del coro (Colaborador o Editor).
+  - Los manejan del todo los responsables, el sacerdote y el administrador de esa comunidad (o de la
+    parroquia). El **director** (reconocido por su correo, aunque no tenga rol en el sitio) ve el botón y
+    cambia los integrantes y subdirectores de su coro, pero no quién dirige, la comunidad ni los permisos.
+    Los demás con permisos en la comunidad solo los ven (Misas los usa para la asistencia a ensayos).
+  - Los permisos del coro solo tocan a visitantes y a editores o colaboradores de esa misma comunidad:
+    nunca a administradores, sacerdotes, responsables ni a quien tiene permisos en otra comunidad (eso se
+    cambia en «Administradores y permisos»). Cada cambio queda en el registro como `permisos`, con el coro.
 - La sesión se renueva sola mientras se usa el sitio (también al volver del reposo) y solo vence tras
   90 días sin usarlo. Si vence mientras se guarda algo, aparece «Entrar con Google» encima y el guardado
   se completa sin perder nada. Cada entrada queda en el registro del panel.
@@ -303,8 +313,9 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
   para verla, compartirla y **editarla en el editor**. Publicar de nuevo reemplaza la misma página.
 - **Guardar** («Fechas y ensayos…»): nombre, fecha de uso, tiempo litúrgico, coro, fechas posibles de
   ensayo y ensayos realizados con quiénes asistieron.
-- **Coro**: nombre del coro e integrantes (comunidad, fecha de incorporación, voz, instrumentos,
-  lectura de partitura, nivel).
+- **Coro**: abre el mismo diálogo «Coros de la comunidad» de Identificarse (`js/coros.js`, `css/coros.css`):
+  nombre del coro e integrantes (correo, rol en el coro, permisos en el sitio, comunidad, fecha de
+  incorporación, voz, instrumentos, lectura de partitura, nivel). Ver «Coros de la comunidad» más arriba.
 - **Canciones y audios**: agrega canciones `.md` nuevas con sus audios, o audios a una canción que ya
   está en la Biblioteca (también con el botón **+ Audio** debajo de la canción del centro). También se
   agregan solas las canciones de cada cancionero guardado desde el editor.

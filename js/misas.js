@@ -12,11 +12,12 @@
  * más js/misas-shim.js. Los datos viven en la nube a través de /api (servidor/ en Cloudflare).
  */
 
-import { llamarApi, subirBinario, sesionActual, puedeEditar, initNavSitio, comunidadesOpciones, ROLES } from "./auth.js";
+import { llamarApi, subirBinario, sesionActual, puedeEditar, initNavSitio, ROLES } from "./auth.js";
 import { COMUNIDADES } from "./comunidades.js";
 import { aM4a, esAudio, esM4a, grabador } from "./audio-aac.js";
 import { leerEtiquetasAudio } from "./etiquetas-audio.js";
 import { activarPosturas } from "./posturas.js";
+import { abrirCoros } from "./coros.js";
 import { botonesPartituras } from "./partituras.js";
 import { crearMezclador, pistasDeVoces } from "./voces.js";
 import { crearReproductorYT, esYoutube } from "./youtube-embed.js";
@@ -32,8 +33,6 @@ const token = () => (sesionActual() || {}).token || "";
 const movil = () => matchMedia("(max-width: 960px)").matches;
 
 const VOCES = { soprano: "Soprano", contralto: "Contralto", tenor: "Tenor", bajo: "Bajo" };
-const NIVELES = { basico: "Básico", intermedio: "Intermedio", avanzado: "Avanzado" };
-
 const st = {
   sesion: sesionActual(),
   comunidad: "",
@@ -1650,160 +1649,20 @@ function conectarGuardar() {
   });
 }
 
-// ============ DIÁLOGO: CORO E INTEGRANTES ============
-
-let coroEd = null;
-let coroFirma = "";
-
-const integranteVacio = (comunidad) => ({
-  nombre: "", comunidad, fechaIncorporacion: hoyIso(), voz: "", instrumentos: "",
-  leePartitura: false, nivel: "", notas: "", activo: true
-});
-
-function comunidadesCoro() {
-  return comunidadesOpciones().filter((c) => puedeEditar(c.slug));
-}
-
-function leerFormCoro() {
-  coroEd.nombre = $("#c-nombre").value.trim();
-  coroEd.comunidad = $("#c-comunidad").value;
-}
-
-function pintarListaCoros() {
-  const lista = st.coros || [];
-  $("#c-lista").innerHTML = opciones([...lista.map((c) => [c.id, `${c.nombre} · ${nombreComunidad(c.comunidad)}`]), ["", "— Coro nuevo —"]],
-    coroEd?.id || "");
-}
-
-function elegirCoro(id) {
-  const c = (st.coros || []).find((x) => x.id === id);
-  const editables = comunidadesCoro();
-  const porDefecto = editables.some((x) => x.slug === st.comunidad) ? st.comunidad : editables[0]?.slug || "";
-  coroEd = c ? structuredClone(c) : { nombre: "", comunidad: porDefecto, integrantes: [] };
-  coroFirma = JSON.stringify(coroEd);
-  $("#c-nombre").value = coroEd.nombre;
-  $("#c-comunidad").innerHTML = opciones(editables.map((x) => [x.slug, x.nombre]), coroEd.comunidad);
-  $("#c-borrar").hidden = !coroEd.id;
-  mostrarError("#c-error", "");
-  $("#c-ok").hidden = true;
-  pintarListaCoros();
-  pintarIntegrantes();
-}
-
-function pintarIntegrantes() {
-  const comunidades = comunidadesOpciones().map((c) => [c.slug, c.nombre]);
-  $("#c-integrantes").innerHTML = coroEd.integrantes.map((p, i) => `<tr data-i="${i}">
-      <td data-et="Nombre"><input type="text" class="i-nombre" data-campo="nombre" value="${esc(p.nombre)}" maxlength="100" aria-label="Nombre"></td>
-      <td data-et="Comunidad"><select data-campo="comunidad" aria-label="Comunidad">${opciones(comunidades, p.comunidad || coroEd.comunidad)}</select></td>
-      <td data-et="Incorporación"><input type="date" data-campo="fechaIncorporacion" value="${esc(p.fechaIncorporacion)}" aria-label="Fecha de incorporación"></td>
-      <td data-et="Voz"><select data-campo="voz" aria-label="Voz">${opciones([["", "—"], ...Object.entries(VOCES)], p.voz || "")}</select></td>
-      <td data-et="Instrumentos"><input type="text" class="i-instr" data-campo="instrumentos" value="${esc(p.instrumentos)}" placeholder="guitarra, flauta…" maxlength="200" aria-label="Instrumentos"></td>
-      <td data-et="Lee partitura" class="centro"><input type="checkbox" data-campo="leePartitura"${p.leePartitura ? " checked" : ""} aria-label="Lee partitura"></td>
-      <td data-et="Nivel"><select data-campo="nivel" aria-label="Nivel musical">${opciones([["", "—"], ...Object.entries(NIVELES)], p.nivel || "")}</select></td>
-      <td data-et="Notas"><input type="text" class="i-notas" data-campo="notas" value="${esc(p.notas)}" maxlength="500" aria-label="Notas"></td>
-      <td data-et="Activo" class="centro"><input type="checkbox" data-campo="activo"${p.activo !== false ? " checked" : ""} aria-label="Activo"></td>
-      <td><button type="button" class="quitar" data-quitar="${i}" title="Quitar integrante">×</button></td>
-    </tr>`).join("") || '<tr><td colspan="10" class="aviso">Todavía no hay integrantes.</td></tr>';
-}
-
-async function abrirCoros() {
-  const dlg = $("#dlg-coro");
-  $("#c-integrantes").innerHTML = '<tr><td colspan="10" class="aviso">Cargando…</td></tr>';
-  mostrarError("#c-error", "");
-  if (!dlg.open) dlg.showModal();
-  try {
-    await cargarCoros(true);
-  } catch (e) {
-    st.coros = st.coros || [];
-    mostrarError("#c-error", e.message);
-  }
-  const propio = st.coros.find((c) => c.comunidad === st.comunidad) || st.coros[0];
-  elegirCoro(propio?.id || "");
-}
-
-async function guardarCoro(e) {
-  e.preventDefault();
-  leerFormCoro();
-  if (!coroEd.nombre) return mostrarError("#c-error", "Escribí el nombre del coro.");
-  if (!coroEd.comunidad) return mostrarError("#c-error", "Elegí la comunidad del coro.");
-  const boton = $("#c-guardar");
-  boton.disabled = true;
-  mostrarError("#c-error", "");
-  try {
-    const r = await llamarApi("guardarCoro", { token: token(), coro: coroEd });
-    st.coros = [...(st.coros || []).filter((c) => c.id !== r.coro.id), r.coro];
-    elegirCoro(r.coro.id);
-    $("#c-ok").textContent = `Se guardó «${r.coro.nombre}» con ${r.coro.integrantes.length} integrante${r.coro.integrantes.length === 1 ? "" : "s"}.`;
-    $("#c-ok").hidden = false;
-    if ($("#dlg-guardar").open) {
-      pintarCoroSelect();
-      pintarEnsayos();
-    }
-  } catch (err) {
-    mostrarError("#c-error", err.message);
-  } finally {
-    boton.disabled = false;
-  }
-}
-
-async function borrarCoro() {
-  if (!coroEd?.id || !confirm(`¿Borrar el coro «${coroEd.nombre}» y sus integrantes?`)) return;
-  try {
-    await llamarApi("borrarCoro", { token: token(), id: coroEd.id });
-    st.coros = st.coros.filter((c) => c.id !== coroEd.id);
-    elegirCoro(st.coros[0]?.id || "");
-  } catch (err) {
-    mostrarError("#c-error", err.message);
-  }
-}
-
-function cambiosEnCoro() {
-  leerFormCoro();
-  return JSON.stringify(coroEd) !== coroFirma;
-}
+// ============ DIÁLOGO: CORO E INTEGRANTES (js/coros.js) ============
 
 function conectarCoro() {
-  $("#btn-coro").addEventListener("click", abrirCoros);
-  $("#form-coro").addEventListener("submit", guardarCoro);
-  $("#c-borrar").addEventListener("click", borrarCoro);
-  $("#c-lista").addEventListener("change", (e) => {
-    if (cambiosEnCoro() && !confirm("Hay cambios sin guardar en este coro. ¿Descartarlos?")) {
-      e.target.value = coroEd.id || "";
-      return;
-    }
-    elegirCoro(e.target.value);
-  });
-  $("#c-nuevo").addEventListener("click", () => {
-    if (cambiosEnCoro() && !confirm("Hay cambios sin guardar en este coro. ¿Descartarlos?")) return;
-    elegirCoro("");
-    $("#c-nombre").focus();
-  });
-  $("#c-agregar").addEventListener("click", () => {
-    leerFormCoro();
-    coroEd.integrantes.push(integranteVacio(coroEd.comunidad));
-    pintarIntegrantes();
-    $("#c-integrantes").querySelector("tr:last-child .i-nombre")?.focus();
-  });
-  const tabla = $("#c-integrantes");
-  const actualizar = (e) => {
-    const fila = e.target.closest("tr[data-i]");
-    const campo = e.target.dataset.campo;
-    if (!fila || !campo) return;
-    coroEd.integrantes[+fila.dataset.i][campo] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-  };
-  tabla.addEventListener("input", actualizar);
-  tabla.addEventListener("change", actualizar);
-  tabla.addEventListener("click", (e) => {
-    const q = e.target.closest("[data-quitar]");
-    if (!q) return;
-    const p = coroEd.integrantes[+q.dataset.quitar];
-    if (p.nombre && !confirm(`¿Quitar a ${p.nombre} del coro?`)) return;
-    coroEd.integrantes.splice(+q.dataset.quitar, 1);
-    pintarIntegrantes();
-  });
-  $("#dlg-coro").addEventListener("cancel", (e) => {
-    if (cambiosEnCoro() && !confirm("Hay cambios sin guardar en este coro. ¿Cerrar igual?")) e.preventDefault();
-  });
+  $("#btn-coro").addEventListener("click", () =>
+    abrirCoros({
+      comunidad: st.comunidad,
+      alGuardar: (coros) => {
+        st.coros = coros;
+        if ($("#dlg-guardar").open) {
+          pintarCoroSelect();
+          pintarEnsayos();
+        }
+      }
+    }));
 }
 
 // ============ DIÁLOGO: CANCIONES Y AUDIOS ============
@@ -2443,7 +2302,6 @@ function conectarEventos() {
   document.querySelectorAll("dialog [data-cerrar]").forEach((b) =>
     b.addEventListener("click", () => {
       const dlg = b.closest("dialog");
-      if (dlg.id === "dlg-coro" && cambiosEnCoro() && !confirm("Hay cambios sin guardar en este coro. ¿Cerrar igual?")) return;
       dlg.close();
     }));
 

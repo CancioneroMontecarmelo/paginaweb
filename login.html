@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/site.css">
+  <link rel="stylesheet" href="./css/coros.css">
 </head>
 <body>
   <nav class="nav-sitio" aria-label="Principal">
@@ -55,6 +56,7 @@
       <div class="acciones-form">
         <a class="btn btn-primario" href="./noticias.html">Ir a noticias</a>
         <a class="btn btn-secundario" href="./editor/" id="sesion-editor" hidden>Abrir el editor</a>
+        <button type="button" class="btn btn-secundario" data-coros hidden>Coros de la comunidad</button>
         <button type="button" class="btn btn-secundario" data-clave hidden title="Para el comando scripts/video-a-webm.py, que sube audios a la Biblioteca desde tu computadora">Copiar clave para el script</button>
         <button type="button" class="btn btn-secundario" data-salir>Cerrar sesión</button>
       </div>
@@ -66,6 +68,7 @@
       <p class="sesion-bar" id="panel-quien"></p>
       <div class="acciones-form">
         <button type="button" class="btn btn-primario" id="btn-admins">Administradores y permisos</button>
+        <button type="button" class="btn btn-secundario" data-coros>Coros de la comunidad</button>
         <a class="btn btn-secundario" href="./editor/">Abrir el editor</a>
         <button type="button" class="btn btn-secundario" data-clave title="Para el comando scripts/video-a-webm.py, que sube audios a la Biblioteca desde tu computadora">Copiar clave para el script</button>
         <button type="button" class="btn btn-secundario" data-salir>Cerrar sesión</button>
@@ -146,6 +149,7 @@
       CORREO_PARROQUIA,
       ROLES
     } from "./js/auth.js";
+    import { abrirCoros, listarCoros, gestionaCoros } from "./js/coros.js";
 
     initNavSitio();
     const $ = (id) => document.getElementById(id);
@@ -162,8 +166,25 @@
       $(id).textContent = texto || "";
     }
 
+    // «Coros de la comunidad»: para quien administra coros y para el director de un coro (aunque no tenga rol)
+    async function mostrarCoros(s) {
+      const botones = document.querySelectorAll("[data-coros]");
+      let ver = comunidadesOpciones().some((c) => gestionaCoros(c.slug, s));
+      botones.forEach((b) => (b.hidden = !ver));
+      if (ver || !s.token) return;
+      try {
+        ver = (await listarCoros({ reingreso: false })).some((c) => c.gestion === "director");
+      } catch (_) {}
+      botones.forEach((b) => (b.hidden = !ver));
+    }
+
+    document.querySelectorAll("[data-coros]").forEach((b) =>
+      b.addEventListener("click", () => abrirCoros({ comunidad: sesionActual()?.comunidad || "" }))
+    );
+
     function trasEntrar(s, aviso) {
       initNavSitio();
+      mostrarCoros(s);
       if (esResponsableSitio(s)) {
         mostrar("panel-panel");
         $("panel-quien").innerHTML = "";

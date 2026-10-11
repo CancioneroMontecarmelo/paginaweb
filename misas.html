@@ -10,7 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/site.css">
-  <link rel="stylesheet" href="./css/misas.css">
+  <link rel="stylesheet" href="./css/misas.css?v=2">
+  <link rel="stylesheet" href="./css/coros.css">
   <link rel="stylesheet" href="./css/posturas.css">
   <link rel="stylesheet" href="./css/partituras.css">
   <link rel="stylesheet" href="./css/voces.css">
@@ -247,53 +248,6 @@
     </form>
   </dialog>
 
-  <!-- Coro e integrantes -->
-  <dialog class="dlg-misas dlg-ancho" id="dlg-coro">
-    <form method="dialog" id="form-coro">
-      <div class="dlg-cabeza">
-        <h2>Coro e integrantes</h2>
-        <button type="button" class="btn-chico" data-cerrar>Cerrar</button>
-      </div>
-      <div class="dlg-cuerpo">
-        <div class="coro-elegir">
-          <label>Coro
-            <select id="c-lista"></select>
-          </label>
-          <button type="button" class="btn-chico" id="c-nuevo">+ Nuevo coro</button>
-        </div>
-        <div class="form-grilla">
-          <label>Nombre del coro
-            <input type="text" id="c-nombre" required maxlength="100">
-          </label>
-          <label>Comunidad
-            <select id="c-comunidad" required></select>
-          </label>
-        </div>
-        <h3 class="dlg-h3">Integrantes</h3>
-        <div class="tabla-scroll">
-          <table class="tabla-integrantes">
-            <thead>
-              <tr>
-                <th>Nombre</th><th>Comunidad</th><th>Incorporación</th><th>Voz</th><th>Instrumentos</th>
-                <th>Lee partitura</th><th>Nivel</th><th>Notas</th><th>Activo</th><th></th>
-              </tr>
-            </thead>
-            <tbody id="c-integrantes"></tbody>
-          </table>
-        </div>
-        <button type="button" class="btn-chico" id="c-agregar">+ Agregar integrante</button>
-        <p class="msg-error" id="c-error" hidden></p>
-        <p class="msg-ok" id="c-ok" hidden></p>
-        <div class="dlg-acciones">
-          <button type="button" class="btn-chico peligro" id="c-borrar" hidden>Borrar coro</button>
-          <span class="espacio"></span>
-          <button type="button" class="btn btn-secundario" data-cerrar>Cerrar</button>
-          <button type="submit" class="btn btn-primario" id="c-guardar">Guardar coro</button>
-        </div>
-      </div>
-    </form>
-  </dialog>
-
   <!-- Canciones y audios de la Biblioteca -->
   <dialog class="dlg-misas" id="dlg-subir">
     <form method="dialog" id="form-subir">
@@ -352,6 +306,6 @@
   <script src="./editor/js/instrumentos.js"></script>
   <script src="./editor/js/rasgueos.js"></script>
   <script src="./editor/js/render.js"></script>
-  <script type="module" src="./js/misas.js"></script>
+  <script type="module" src="./js/misas.js?v=2"></script>
 </body>
 </html>

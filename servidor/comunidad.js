@@ -2,21 +2,44 @@
 // (sistema/libro.json, sistema/visitantes.json).
 import { Buffer } from 'node:buffer';
 import { ErrorApi, ROLES, COMUNIDADES, ahora, fecha as fechaValida, texto, hoyChile, fechaEn, comunidadValida, normEmail, emailValido, parsear, idNuevo } from './util.js';
-import { usuarioDeToken, conPrivilegios, puedeEditar, exigirResponsable, auditar, todosLosUsuarios } from './auth.js';
+import { usuarioDeToken, conPrivilegios, puedeEditar, exigirResponsable, auditar, todosLosUsuarios, esResponsable, buscarUsuario, guardarUsuario } from './auth.js';
 
 // ==================== COROS ====================
+// Los coros los gestionan del todo los responsables, el sacerdote y el administrador de la comunidad (o de la
+// parroquia). El director de cada coro (por su correo, aunque no tenga rol en el sitio) maneja los integrantes
+// de su coro, pero no cambia quién dirige, la comunidad ni los permisos del sitio.
 const VOCES_CORO = ['soprano', 'contralto', 'tenor', 'bajo'];
 const NIVELES_CORO = ['basico', 'intermedio', 'avanzado'];
+const ROLES_CORO = ['director', 'subdirector', 'integrante'];
+const PERMISOS_CORO = ['', 'colaborador', 'editor'];
 
 function exigirComunidad(u, comunidad) {
   if (!puedeEditar(u, comunidad)) throw new ErrorApi('Solo quienes tienen permisos en esta comunidad pueden ver estos datos.');
 }
 
+export function gestionaCoros(u, comunidad) {
+  if (!u || u.activo === false || !ROLES[u.rol]) return false;
+  if (esResponsable(u) || u.rol === 'sacerdote') return true;
+  return u.rol === 'admin' && (u.comunidad === comunidad || u.comunidad === 'parroquia');
+}
+
+const directorDe = (coro) => ((coro && coro.integrantes) || []).find((i) => i.rolCoro === 'director') || null;
+
+function dirige(u, coro) {
+  const d = directorDe(coro);
+  return !!(u && u.activo !== false && d && d.email && d.email === normEmail(u.email));
+}
+
+const gestionDe = (u, coro) => (gestionaCoros(u, coro.comunidad) ? 'total' : dirige(u, coro) ? 'director' : '');
+
 function limpiarIntegrante(i, comunidadCoro) {
   i = i || {};
+  const email = normEmail(i.email);
   return {
     id: /^i-[\w-]{1,40}$/.test(String(i.id || '')) ? i.id : idNuevo('i-', 8),
     nombre: texto(i.nombre, 100),
+    email: emailValido(email) ? email : '',
+    rolCoro: ROLES_CORO.includes(i.rolCoro) ? i.rolCoro : 'integrante',
     comunidad: comunidadValida(i.comunidad) ? i.comunidad : comunidadCoro,
     fechaIncorporacion: fechaValida(i.fechaIncorporacion),
     voz: VOCES_CORO.includes(i.voz) ? i.voz : '',
@@ -28,41 +51,111 @@ function limpiarIntegrante(i, comunidadCoro) {
   };
 }
 
+// Un solo director por coro: queda el primero de la lista
+function unSoloDirector(integrantes) {
+  let hay = false;
+  for (const i of integrantes) {
+    if (i.rolCoro !== 'director') continue;
+    if (hay) i.rolCoro = 'integrante';
+    hay = true;
+  }
+}
+
+// Lo que el coro puede cambiar del permiso en el sitio de un integrante: solo visitantes y editores o colaboradores
+// de la misma comunidad. A los demás se les muestra su rol, sin poder tocarlo.
+function permisoDe(x, comunidad) {
+  if (!x || !ROLES[x.rol]) return { permisoActual: '', permisoFijo: x && x.activo === false ? 'Cuenta bloqueada' : '' };
+  if ((x.rol === 'editor' || x.rol === 'colaborador') && x.comunidad === comunidad && x.activo !== false) return { permisoActual: x.rol, permisoFijo: '' };
+  return {
+    permisoActual: x.rol,
+    permisoFijo: x.activo === false ? 'Cuenta bloqueada' : ROLES[x.rol] + ' · ' + (COMUNIDADES[x.comunidad] || 'Parroquia')
+  };
+}
+
+function coroConGestion(u, coro, usuarios) {
+  const gestion = gestionDe(u, coro);
+  const integrantes = (coro.integrantes || []).map((i) => (i.email ? { ...i, ...permisoDe(usuarios.get(i.email), coro.comunidad) } : i));
+  return { ...coro, integrantes, gestion };
+}
+
+async function mapaUsuarios(c) {
+  return new Map((await todosLosUsuarios(c)).map((x) => [normEmail(x.email), x]));
+}
+
 async function listarCoros(c, d) {
-  const u = conPrivilegios(await usuarioDeToken(c, d.token));
+  const u = await usuarioDeToken(c, d.token);
   const { results } = await c.db.prepare('SELECT datos FROM coros ORDER BY rowid').all();
-  return { coros: results.map((r) => parsear(r.datos)).filter((x) => x && puedeEditar(u, x.comunidad)) };
+  const visibles = results.map((r) => parsear(r.datos)).filter((x) => x && (puedeEditar(u, x.comunidad) || dirige(u, x)));
+  const usuarios = visibles.length ? await mapaUsuarios(c) : new Map();
+  return { coros: visibles.map((x) => coroConGestion(u, x, usuarios)) };
+}
+
+async function aplicarPermisoCoro(c, yo, i, comunidad, pedido, coroNombre) {
+  let x = await buscarUsuario(c, i.email);
+  if (x && x.activo === false) return null;
+  const actual = x && ROLES[x.rol] ? x.rol : '';
+  const tocable = !actual || ((actual === 'editor' || actual === 'colaborador') && x.comunidad === comunidad);
+  if (!tocable || actual === pedido) return null;
+  if (!x) x = { id: idNuevo('u-', 12), email: i.email, nombre: i.nombre || i.email, creado: ahora() };
+  else if (!x.verificado && i.nombre) x.nombre = i.nombre;
+  x.rol = pedido || 'visitante';
+  x.comunidad = pedido ? comunidad : '';
+  x.activo = true;
+  x.modificadoPor = yo.email;
+  await guardarUsuario(c, x);
+  await auditar(c, { tipo: 'permisos', email: x.email, nombre: x.nombre, rol: x.rol, comunidad: x.comunidad, por: yo.email, coro: coroNombre });
+  return { email: x.email, nombre: x.nombre, rol: x.rol };
 }
 
 async function guardarCoro(c, d) {
-  const u = conPrivilegios(await usuarioDeToken(c, d.token));
+  const u = await usuarioDeToken(c, d.token);
   const x = d.coro || {};
-  const comunidad = String(x.comunidad || '');
-  if (!comunidadValida(comunidad)) throw new ErrorApi('Elegí la comunidad del coro');
-  exigirComunidad(u, comunidad);
-  const nombre = texto(x.nombre, 100);
-  if (!nombre) throw new ErrorApi('Escribí el nombre del coro');
   const fila = x.id ? await c.db.prepare('SELECT datos FROM coros WHERE id = ?').bind(String(x.id)).first() : null;
   const previo = fila && parsear(fila.datos);
-  if (previo) exigirComunidad(u, previo.comunidad);
+  let comunidad = String(x.comunidad || '');
+  const gestion = previo ? gestionDe(u, previo) : (comunidadValida(comunidad) && gestionaCoros(u, comunidad) ? 'total' : '');
+  if (!gestion) throw new ErrorApi('Solo los responsables, el sacerdote, el administrador de la comunidad o el director del coro pueden cambiar los coros.');
+  if (gestion === 'director') comunidad = previo.comunidad;
+  if (!comunidadValida(comunidad)) throw new ErrorApi('Elegí la comunidad del coro');
+  if (!gestionaCoros(u, comunidad) && gestion === 'total') throw new ErrorApi('No podés pasar el coro a una comunidad que no administrás.');
+  const nombre = texto(x.nombre, 100);
+  if (!nombre) throw new ErrorApi('Escribí el nombre del coro');
+  const pedidos = Array.isArray(x.integrantes) ? x.integrantes.slice(0, 200) : [];
+  const integrantes = pedidos.map((i) => limpiarIntegrante(i, comunidad)).filter((i) => i.nombre);
+  if (gestion === 'director') {
+    // El director sigue siendo el mismo, con su correo, aunque lo hayan quitado de la lista
+    const dir = limpiarIntegrante(directorDe(previo), comunidad);
+    const suyo = integrantes.find((i) => i.id === dir.id);
+    if (suyo) Object.assign(suyo, { email: dir.email, rolCoro: 'director' });
+    else integrantes.unshift(dir);
+    for (const i of integrantes) if (i.rolCoro === 'director' && i.id !== dir.id) i.rolCoro = 'subdirector';
+  }
+  unSoloDirector(integrantes);
   const coro = {
     id: previo ? previo.id : 'coro-' + Date.now(),
-    nombre, comunidad,
-    integrantes: (Array.isArray(x.integrantes) ? x.integrantes : []).slice(0, 200)
-      .map((i) => limpiarIntegrante(i, comunidad)).filter((i) => i.nombre),
+    nombre, comunidad, integrantes,
     creado: previo ? previo.creado : ahora(), actualizado: ahora(), modificadoPor: u.email
   };
   await c.db.prepare(previo ? 'UPDATE coros SET comunidad = ?, datos = ? WHERE id = ?' : 'INSERT INTO coros (comunidad, datos, id) VALUES (?, ?, ?)')
     .bind(comunidad, JSON.stringify(coro), coro.id).run();
   await auditar(c, { tipo: 'coro_guardado', email: u.email, nombre: u.nombre, titulo: coro.nombre, comunidad });
-  return { coro };
+  const permisos = [];
+  if (gestion === 'total') {
+    const pedidoDe = new Map(pedidos.filter((p) => p && PERMISOS_CORO.includes(p.permiso)).map((p) => [normEmail(p.email), p.permiso]));
+    for (const i of integrantes) {
+      if (!i.email || !pedidoDe.has(i.email)) continue;
+      const r = await aplicarPermisoCoro(c, u, i, comunidad, pedidoDe.get(i.email), coro.nombre);
+      if (r) permisos.push(r);
+    }
+  }
+  return { coro: coroConGestion(u, coro, await mapaUsuarios(c)), permisos };
 }
 
 async function borrarCoro(c, d) {
-  const u = conPrivilegios(await usuarioDeToken(c, d.token));
+  const u = await usuarioDeToken(c, d.token);
   const fila = await c.db.prepare('SELECT datos FROM coros WHERE id = ?').bind(String(d.id || '')).first();
   if (fila) {
-    exigirComunidad(u, parsear(fila.datos, {}).comunidad);
+    if (!gestionaCoros(u, parsear(fila.datos, {}).comunidad)) throw new ErrorApi('Solo los responsables, el sacerdote o el administrador de la comunidad pueden borrar un coro.');
     await c.db.prepare('DELETE FROM coros WHERE id = ?').bind(String(d.id)).run();
   }
   await auditar(c, { tipo: 'coro_borrado', email: u.email, nombre: u.nombre, id: d.id });

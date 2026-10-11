@@ -1,0 +1,285 @@
+/* Diálogo «Coros de la comunidad» (js/coros.js), en Misas e Identificarse */
+
+.dlg-coros {
+  width: min(80rem, 97vw);
+  max-height: 92vh;
+  padding: 0;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--crema-clara);
+  color: var(--texto);
+  box-shadow: 0 1.5rem 4rem var(--sombra);
+}
+
+.dlg-coros::backdrop {
+  background: rgba(42, 36, 28, 0.45);
+}
+
+.dlg-coros [hidden] {
+  display: none !important;
+}
+
+.dlg-coros .co-cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.2rem;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.22);
+  position: sticky;
+  top: 0;
+  background: var(--crema-clara);
+  z-index: 1;
+}
+
+.dlg-coros h2 {
+  font-family: var(--fuente-display);
+  color: var(--verde);
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.dlg-coros .co-cuerpo {
+  padding: 1rem 1.2rem 1.2rem;
+}
+
+.co-h3 {
+  font-family: var(--fuente-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--verde);
+  margin: 1.2rem 0 0.3rem;
+}
+
+.co-elegir {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+.co-elegir select {
+  min-width: 14rem;
+}
+
+.co-director {
+  font-family: var(--fuente-display);
+  font-size: 1.3rem;
+  color: var(--verde);
+  margin: 0.2rem 0 0.6rem;
+}
+
+.co-director span,
+.co-director em {
+  font-family: "Outfit", system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+}
+
+.co-nota {
+  font-size: 0.88rem;
+  background: rgba(47, 74, 56, 0.08);
+  border-left: 3px solid var(--verde);
+  padding: 0.45rem 0.7rem;
+  margin: 0 0 0.7rem;
+}
+
+.co-ayuda,
+.co-tenue {
+  font-size: 0.82rem;
+  color: var(--texto-suave);
+  margin: 0 0 0.5rem;
+}
+
+.co-ok {
+  white-space: pre-line;
+}
+
+.co-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.65rem 0.9rem;
+}
+
+.co-grilla label,
+.co-elegir label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.dlg-coros input[type="text"],
+.dlg-coros input[type="email"],
+.dlg-coros input[type="date"],
+.dlg-coros select {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid rgba(154, 79, 46, 0.35);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  color: var(--texto);
+  min-width: 0;
+}
+
+.dlg-coros :is(input, select):disabled {
+  background: transparent;
+  border-color: rgba(154, 79, 46, 0.15);
+  color: var(--texto);
+  opacity: 1;
+}
+
+.dlg-coros input[type="checkbox"] {
+  accent-color: var(--terracota);
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.co-scroll {
+  overflow-x: auto;
+  margin-bottom: 0.5rem;
+}
+
+.co-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.co-tabla th {
+  text-align: left;
+  font-size: 0.74rem;
+  font-weight: 560;
+  color: var(--texto-suave);
+  padding: 0.3rem;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.3);
+  white-space: nowrap;
+}
+
+.co-tabla td {
+  padding: 0.3rem;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.12);
+  vertical-align: middle;
+}
+
+.co-tabla :is(input[type="text"], input[type="email"], input[type="date"], select) {
+  width: 100%;
+  font-size: 0.82rem;
+  padding: 0.3rem;
+}
+
+.co-tabla tr.co-es-director td {
+  background: rgba(47, 74, 56, 0.07);
+}
+
+.co-tabla td.co-centro {
+  text-align: center;
+}
+
+.co-tabla td[data-et="Nombre"] { min-width: 10rem; }
+.co-tabla td[data-et="Correo"] { min-width: 12rem; }
+.co-tabla td[data-et="Rol en el coro"] { min-width: 7.5rem; }
+.co-tabla td[data-et="Permisos en el sitio"] { min-width: 9rem; }
+.co-tabla td[data-et="Comunidad"] { min-width: 9.5rem; }
+.co-tabla td[data-et="Incorporación"] { min-width: 8.5rem; }
+.co-tabla td[data-et="Voz"] { min-width: 6.5rem; }
+.co-tabla td[data-et="Instrumentos"] { min-width: 8rem; }
+.co-tabla td[data-et="Nivel"] { min-width: 7rem; }
+.co-tabla td[data-et="Notas"] { min-width: 9rem; }
+
+.co-fijo {
+  font-size: 0.78rem;
+  color: var(--verde);
+}
+
+.co-quitar {
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.3rem 0.4rem;
+  border: none;
+  background: none;
+  color: var(--texto-suave);
+  cursor: pointer;
+  border-radius: var(--radio);
+}
+
+.co-quitar:hover {
+  color: #8b1e1e;
+  background: rgba(139, 30, 30, 0.08);
+}
+
+.co-acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.2rem;
+}
+
+.co-espacio {
+  flex: 1;
+}
+
+.btn-chico.co-peligro {
+  color: #8b1e1e;
+}
+
+.btn-chico.co-peligro:hover {
+  border-color: #8b1e1e;
+  background: rgba(139, 30, 30, 0.06);
+}
+
+/* Teléfono: cada integrante es una tarjeta */
+@media (max-width: 40rem) {
+  .dlg-coros .co-cuerpo {
+    padding: 0.8rem 0.8rem 1rem;
+  }
+
+  .co-director {
+    font-size: 1.1rem;
+  }
+
+  .co-tabla thead {
+    display: none;
+  }
+
+  .co-tabla tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.3rem 0.5rem;
+    padding: 0.6rem 0.3rem;
+    border-bottom: 1px solid rgba(154, 79, 46, 0.25);
+  }
+
+  .co-tabla tr.co-es-director {
+    background: rgba(47, 74, 56, 0.07);
+  }
+
+  .co-tabla tr.co-es-director td {
+    background: none;
+  }
+
+  .co-tabla td {
+    border: none;
+    padding: 0;
+  }
+
+  .co-tabla td[data-et="Nombre"],
+  .co-tabla td[data-et="Correo"] {
+    grid-column: 1 / -1;
+  }
+
+  .co-tabla td[data-et]::before {
+    content: attr(data-et);
+    display: block;
+    font-size: 0.7rem;
+    color: var(--texto-suave);
+  }
+
+  .co-tabla td.co-centro {
+    text-align: left;
+  }
+}
