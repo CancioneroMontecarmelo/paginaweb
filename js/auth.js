@@ -1,30 +1,33 @@
 /**
- * auth.js — Identificación en el sitio Monte Carmelo (sin claves)
+ * auth.js — Identificación en el Cancionero Litúrgico (sin claves)
  *
  *  - «Entrar con Google»: el servidor (servidor/auth.js) verifica la cuenta con Google y devuelve
- *    un token firmado. cancionerolitugico@gmail.com es siempre el administrador general.
- *  - Visitante: solo el correo, sin verificar; nunca recibe privilegios.
+ *    un token firmado. cancionerolitugico@gmail.com es siempre el administrador general (en todas las parroquias).
+ *  - Visitante: solo el correo, sin verificar; nunca recibe privilegios. Queda en la lista de invitados de la parroquia.
  *
- * Roles con privilegios: admin_general · admin_segundo (responsable del sitio) · sacerdote ·
+ * Roles con privilegios, por parroquia: admin_segundo (responsable de la parroquia) · sacerdote ·
  * admin (de una comunidad) · editor · colaborador. Los asignan los responsables desde login.html.
  */
 
 import "./config.js?v=2";
-import { COMUNIDADES } from "./comunidades.js";
+import { COMUNIDADES, PARROQUIA } from "./comunidades.js";
 
 export const CORREO_PARROQUIA = "cancionerolitugico@gmail.com";
 
 export const ROLES = {
-  admin_segundo: "Responsable del sitio",
+  admin_segundo: "Responsable de la parroquia",
   sacerdote: "Sacerdote",
   admin: "Administrador de comunidad",
   editor: "Editor",
   colaborador: "Colaborador"
 };
 
-const CLAVE_SESION = "montecarmelo.sesion";
-
 const config = () => window.MONTECARMELO_CONFIG || {};
+
+// La sesión es de cada parroquia (el rol y la comunidad cambian); la de Monte Carmelo conserva la clave de antes
+const PREFIJO_SESION = "mc-sesion:";
+const claveSesion = (slug) => (slug === "montecarmelo" ? "montecarmelo.sesion" : PREFIJO_SESION + slug);
+const CLAVE_SESION = claveSesion(config().parroquia || "montecarmelo");
 const apiUrl = () => config().apiUrl || "";
 export const usaBackend = () => !!apiUrl();
 
@@ -171,7 +174,7 @@ function pedirReingreso() {
 
 export function rutaBaseAuth() {
   const path = location.pathname.replace(/\\/g, "/");
-  if (path.includes("/comunidades/") || path.includes("/editor/")) return "../";
+  if (path.includes("/comunidades/") || path.includes("/editor/")) return config().base || "../";
   return "./";
 }
 
@@ -195,9 +198,53 @@ function guardarSesion(sesion) {
   localStorage.setItem(CLAVE_SESION, JSON.stringify({ ...sesion, desde: Date.now() }));
 }
 
+function clavesDeSesion() {
+  const claves = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k === "montecarmelo.sesion" || (k && k.startsWith(PREFIJO_SESION))) claves.push(k);
+    }
+  } catch (_) { /* sin almacenamiento */ }
+  return claves;
+}
+
+/** «Salir» cierra la cuenta en todas las parroquias de este equipo. */
 export function cerrarSesion() {
-  localStorage.removeItem(CLAVE_SESION);
+  for (const k of clavesDeSesion()) localStorage.removeItem(k);
   if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
+}
+
+/**
+ * Primera vez en esta parroquia con la cuenta abierta en otra: con Google se pide el rol que tiene acá (con el mismo
+ * token); quien entró solo con el correo queda anotado como invitado de esta parroquia. Si tiene permisos, la página
+ * se vuelve a cargar para mostrarlos.
+ */
+let traida = null;
+export function traerSesionDeOtraParroquia() {
+  if (traida) return traida;
+  traida = (async () => {
+    if (sesionActual() || !usaBackend()) return null;
+    let otra = null;
+    for (const k of clavesDeSesion()) {
+      try {
+        const s = JSON.parse(localStorage.getItem(k));
+        if (s && s.email && (!otra || (s.token && !otra.token) || (!!s.token === !!otra.token && (s.desde || 0) > (otra.desde || 0)))) otra = s;
+      } catch (_) { /* clave dañada */ }
+    }
+    if (!otra) return null;
+    if (otra.token) {
+      const r = await llamarApi("sesion", { token: otra.token, entrada: true }, { reingreso: false });
+      guardarSesion({ ...r.sesion, token: r.token || otra.token });
+      pintarNavSesion();
+      if (r.sesion && r.sesion.rol !== "visitante") location.reload();
+      return sesionActual();
+    }
+    const v = await entrarVisitante(otra.email, otra.nombre);
+    pintarNavSesion();
+    return v.sesion;
+  })().catch(() => null);
+  return traida;
 }
 
 export function esResponsableSitio(s) {
@@ -286,7 +333,7 @@ export async function leerAuditoria(limite) {
 
 export function comunidadesOpciones() {
   return [
-    { slug: "parroquia", nombre: "Parroquia (todas)" },
+    { slug: "parroquia", nombre: (PARROQUIA.nombreCorto || "Parroquia") + " (todas las comunidades)" },
     ...COMUNIDADES.map((c) => ({ slug: c.slug, nombre: c.nombre }))
   ];
 }
@@ -326,4 +373,5 @@ export function initNavSitio() {
   }
   pintarNavSesion();
   mantenerSesionViva();
+  traerSesionDeOtraParroquia();
 }

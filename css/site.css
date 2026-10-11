@@ -96,6 +96,60 @@ a:hover {
   color: var(--terracota);
 }
 
+/* «Cancionero Litúrgico» y, debajo, la parroquia */
+.nav-marca-textos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.12;
+}
+
+.nav-marca-app,
+.nav-marca-parroquia {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-marca-parroquia {
+  font-family: var(--fuente-cuerpo);
+  font-size: 0.68em;
+  font-weight: 500;
+  letter-spacing: 0;
+  opacity: 0.78;
+}
+
+/* Raíz del sitio: elegir la parroquia */
+.lista-elegir {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.elegir-parroquia {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 18px var(--sombra);
+  color: var(--verde);
+  text-decoration: none;
+}
+
+.elegir-parroquia img {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  flex: none;
+}
+
+.elegir-parroquia:hover {
+  color: var(--terracota);
+}
+
 .nav-links {
   display: flex;
   align-items: center;
@@ -185,7 +239,7 @@ a:hover {
       rgba(42, 36, 28, 0.25) 45%,
       rgba(42, 36, 28, 0.15) 100%
     ),
-    url("../Imagenes/Parroquia%20MonteCarmelo.jpeg") center / cover no-repeat;
+    var(--portada, linear-gradient(135deg, #3f5b45 0%, #8a5a3c 100%)) center / cover no-repeat;
   transform: scale(1.04);
   animation: hero-ken 18s ease-out forwards;
 }
@@ -788,6 +842,72 @@ a:hover {
   white-space: nowrap;
 }
 
+/* Ventanas «Datos de la parroquia» y «Parroquias» */
+.campo-admin {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.fila-imagen {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.vista-logo {
+  width: 5rem;
+  height: 5rem;
+  object-fit: contain;
+  border-radius: 1rem;
+  background: var(--blanco);
+  border: 1px solid rgba(154, 79, 46, 0.25);
+}
+
+.vista-logo:not([src]),
+.vista-logo[src=""] {
+  visibility: hidden;
+}
+
+.vista-portada {
+  width: 12rem;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radio);
+  background: linear-gradient(135deg, #3f5b45, #8a5a3c) center / cover no-repeat;
+}
+
+.lista-comunidades-admin {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.lista-comunidades-admin li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.lista-comunidades-admin input {
+  flex: 1 1 14rem;
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(154, 79, 46, 0.35);
+  border-radius: var(--radio);
+  background: var(--blanco);
+}
+
+.icono-parroquia {
+  width: 1.5rem;
+  height: 1.5rem;
+  vertical-align: middle;
+  border-radius: 0.35rem;
+}
+
 .btn-chico {
   font: inherit;
   font-size: 0.8rem;
@@ -1128,6 +1248,98 @@ a:hover {
   .lit-dtit {
     display: none;
   }
+}
+
+.lit-otra {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.lit-otra input {
+  font: inherit;
+  color: var(--texto);
+  padding: 0.3rem 0.45rem;
+  background: var(--blanco);
+  border: 1px solid rgba(154, 79, 46, 0.3);
+  border-radius: 0.35rem;
+}
+
+/* Cantos para la misa del día elegido */
+
+.lit-cantos {
+  margin-top: 1rem;
+  padding: 1.1rem 1.35rem 1.25rem;
+  background: var(--blanco);
+  border: 1px solid rgba(47, 74, 56, 0.3);
+  border-radius: 0.5rem;
+}
+
+.lit-cantos > .lit-cargando {
+  margin: 0;
+}
+
+.lit-cantos h3 {
+  margin: 0 0 0.5rem;
+  font-family: var(--fuente-display);
+  font-size: 1.2rem;
+  color: var(--verde);
+}
+
+.lit-evangelio,
+.lit-temas {
+  margin: 0 0 0.35rem;
+  font-size: 0.92rem;
+}
+
+.lit-temas {
+  color: var(--terracota);
+  font-weight: 500;
+}
+
+.lit-cantos-lista {
+  list-style: none;
+  margin: 0.75rem 0 0.9rem;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.lit-cantos-lista li {
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid rgba(154, 79, 46, 0.12);
+}
+
+.lit-cantos-lista li > span {
+  display: inline-block;
+  min-width: 8rem;
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+}
+
+.lit-cantos-lista b {
+  font-weight: 500;
+}
+
+.lit-cantos-lista li.destacado {
+  background: rgba(47, 74, 56, 0.07);
+  border-left: 3px solid var(--verde);
+  border-radius: 0.25rem;
+}
+
+.lit-cantos-lista li.destacado b {
+  font-weight: 600;
+  color: var(--verde);
+}
+
+.lit-cantos-lista small {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.78rem;
+  color: var(--texto-suave);
 }
 
 /* ============ Inicio: próximo domingo ============ */

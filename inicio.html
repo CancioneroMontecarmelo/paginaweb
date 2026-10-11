@@ -2,34 +2,34 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <script src="./js/config.js?v=2"></script>
+  <script src="/js/config.js?v=2"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Parroquia Nuestra Señora del Monte Carmelo: noticias, cancioneros y música litúrgica.">
-  <title>Nuestra Señora del Monte Carmelo</title>
+  <meta name="description" content="Noticias, cancioneros y música litúrgica de la parroquia.">
+  <title>Cancionero Litúrgico</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/site.css">
+  <link rel="stylesheet" href="/css/site.css">
 </head>
 <body>
   <nav class="nav-sitio" aria-label="Principal">
-    <a class="nav-marca" href="./inicio.html">Monte Carmelo</a>
+    <a class="nav-marca" href="./inicio.html">Cancionero Litúrgico</a>
     <button type="button" class="nav-toggle" aria-label="Menú">Menú</button>
     <ul class="nav-links">
       <li><a href="./inicio.html" aria-current="page">Parroquia</a></li>
       <li><a href="./misas.html">Misas</a></li>
       <li><a href="./reproductor.html">Cancionero Litúrgico</a></li>
-      <li><a href="./editor/">Editor</a></li>
+      <li><a href="/editor/">Editor</a></li>
       <li><a href="./noticias.html">Noticias</a></li>
       <li><a href="./login.html" data-nav-sesion>Identificarse</a></li>
     </ul>
   </nav>
 
   <header class="hero">
-    <div class="hero-fondo" role="img" aria-label="Fachada de la Parroquia Nuestra Señora del Monte Carmelo"></div>
+    <div class="hero-fondo" role="img" aria-label="Foto de la parroquia" data-parroquia="portada"></div>
     <div class="hero-contenido">
-      <h1 class="hero-marca">Nuestra Señora del Monte Carmelo</h1>
-      <p class="hero-lead">Cancioneros, noticias y música para cada celebración de nuestra parroquia.</p>
+      <h1 class="hero-marca" data-parroquia="nombre">Parroquia</h1>
+      <p class="hero-lead" id="parroquia-lema">Cancioneros, noticias y música para cada celebración de nuestra parroquia.</p>
       <div class="hero-ctas">
         <a class="btn btn-primario" href="#comunidades">Comunidades</a>
         <a class="btn btn-fantasma" href="#proximo-domingo">Próximo domingo</a>
@@ -50,6 +50,8 @@
     <p class="lead">El día de hoy y la semana, según las lecturas de <a href="https://www.eucaristiadiaria.cl" target="_blank" rel="noopener">eucaristiadiaria.cl</a>.</p>
     <div class="lit-hoy" id="lit-hoy" aria-live="polite"><p class="lit-cargando">Cargando el calendario…</p></div>
     <ol class="lit-semana" id="lit-semana" aria-label="Los próximos siete días"></ol>
+    <p class="lit-otra"><label for="lit-fecha">Ver otra fecha</label> <input type="date" id="lit-fecha"></p>
+    <div class="lit-cantos" id="lit-cantos" aria-live="polite" hidden></div>
   </section>
 
   <section class="seccion" id="proximo-domingo" aria-labelledby="domingo-titulo">
@@ -58,50 +60,15 @@
     <div class="domingo-grilla" id="domingo-grilla"><p class="lit-cargando">Buscando los cancioneros…</p></div>
   </section>
 
-  <section class="seccion reseña" id="reseña">
+  <section class="seccion reseña" id="reseña" hidden>
     <h2>Nuestra parroquia</h2>
-    <p class="lead">Una comunidad viva en el barrio, con cuatro capillas unidas en la fe y en el canto.</p>
-    <p>
-      La Parroquia Nuestra Señora del Monte Carmelo acompaña a las familias de nuestras
-      comunidades en la liturgia, la catequesis y la vida cotidiana. Desde este sitio
-      los coros y directores pueden preparar y compartir lo que se cantará en las próximas misas.
-    </p>
-    <p>
-      Aquí editamos y creamos cancioneros para los distintos momentos litúrgicos:
-      entradas, salmos, ofertorios, comuniones y cantos propios de cada fiesta.
-      Los audios viven en la carpeta compartida; la letra y los acordes se cuidan en el editor.
-    </p>
+    <div id="parroquia-descripcion"></div>
   </section>
 
   <section class="seccion" id="comunidades">
     <h2>Comunidades</h2>
     <p class="lead">Noticias, encargos litúrgicos y cancioneros de cada comunidad.</p>
-    <ul class="lista-comunidades">
-      <li>
-        <a href="./comunidades/maria-de-nazaret.html">
-          Capilla María de Nazaret
-          <span class="flecha">Ver →</span>
-        </a>
-      </li>
-      <li>
-        <a href="./comunidades/san-pablo-apostol.html">
-          San Pablo Apóstol
-          <span class="flecha">Ver →</span>
-        </a>
-      </li>
-      <li>
-        <a href="./comunidades/sagrada-familia.html">
-          Sagrada Familia
-          <span class="flecha">Ver →</span>
-        </a>
-      </li>
-      <li>
-        <a href="./comunidades/monte-carmelo.html">
-          Nuestra Señora del Monte Carmelo
-          <span class="flecha">Ver →</span>
-        </a>
-      </li>
-    </ul>
+    <ul class="lista-comunidades" id="lista-comunidades"></ul>
   </section>
 
   <section class="seccion" id="visitas" aria-labelledby="visitas-titulo">
@@ -156,7 +123,7 @@
   </section>
 
   <footer class="pie">
-    <p>Parroquia Nuestra Señora del Monte Carmelo · <a href="./editor/">Abrir editor de cancioneros</a></p>
+    <p><span data-parroquia="nombre"></span> · <a href="/editor/">Abrir editor de cancioneros</a> · <a href="/elegir">Otra parroquia</a></p>
   </footer>
 
   <dialog class="dlg-admins dlg-actividad" id="dlg-actividad" aria-labelledby="act-titulo-dlg">
@@ -190,8 +157,8 @@
     </div>
   </dialog>
 
-  <script src="./editor/js/etiquetas.js"></script>
-  <script src="./editor/js/buscar.js"></script>
-  <script type="module" src="./js/inicio.js"></script>
+  <script src="/editor/js/etiquetas.js"></script>
+  <script src="/editor/js/buscar.js"></script>
+  <script type="module" src="/js/inicio.js"></script>
 </body>
 </html>

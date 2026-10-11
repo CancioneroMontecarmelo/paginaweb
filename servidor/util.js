@@ -1,16 +1,10 @@
 // Constantes y utilidades comunes de la API (antes al principio de backend/Code.gs).
+// Las comunidades son de cada parroquia: están en D1 (ver parroquias.js).
 
-export const COMUNIDADES = {
-  'maria-de-nazaret': 'Capilla María de Nazaret',
-  'san-pablo-apostol': 'San Pablo Apóstol',
-  'sagrada-familia': 'Sagrada Familia',
-  'monte-carmelo': 'Nuestra Señora del Monte Carmelo'
-};
-
-// Roles con privilegios. Cualquier otra cuenta es «visitante».
+// Roles con privilegios. Cualquier otra cuenta es «visitante». El rol va por parroquia, salvo admin_general.
 export const ROLES = {
   admin_general: 'Administrador general',
-  admin_segundo: 'Responsable del sitio',
+  admin_segundo: 'Responsable de la parroquia',
   sacerdote: 'Sacerdote',
   admin: 'Administrador de comunidad',
   editor: 'Editor',
@@ -57,10 +51,6 @@ export function idNuevo(prefijo = 'r-', largo = 24) {
   let s = '';
   for (const x of b) s += LETRAS[x % LETRAS.length];
   return prefijo + s;
-}
-
-export function comunidadValida(c) {
-  return c === 'parroquia' || !!COMUNIDADES[c];
 }
 
 export function parsear(t, defecto = null) {

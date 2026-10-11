@@ -24,7 +24,7 @@ import { crearReproductorYT, esYoutube } from "./youtube-embed.js";
 import {
   MOMENTOS_MISA, TIEMPOS, claveMomento, esDelMomento, momentoPorLetra, ordenMomento, hoyIso, proximoDomingo, fechaLarga,
   tituloLiturgico, tiempoPorFecha, momentosDeMisa, sugerirCantos as sugerirDeLaBiblioteca,
-  fechaEscrita, calendarioLiturgico, nombreDelDia
+  fechaEscrita, calendarioLiturgico, nombreDelDia, evitadosDelMes
 } from "./liturgia.js";
 
 const $ = (s) => document.querySelector(s);
@@ -290,8 +290,9 @@ function descartarCambios() {
   pintarBiblioteca();
 }
 
-// Borrador con los momentos de la misa y un canto sugerido en cada uno (lecturas: null si no están)
-function crearBorrador({ nombre, fecha, comunidad, lecturas }) {
+// Borrador con los momentos de la misa y un canto sugerido en cada uno (lecturas: null si no están;
+// evitar: los cantos sugeridos para los domingos anteriores del mes)
+function crearBorrador({ nombre, fecha, comunidad, lecturas, evitar }) {
   const s = st.sesion || {};
   const { tiempo, momentos } = momentosDeMisa(fecha, lecturas);
   st.actual = {
@@ -306,7 +307,7 @@ function crearBorrador({ nombre, fecha, comunidad, lecturas }) {
     autorNombre: s.nombre || s.email || ""
   };
   st.original = "";
-  const sugeridos = sugerirCantos(st.actual, lecturas);
+  const sugeridos = sugerirCantos(st.actual, lecturas, { evitar });
   st.momento = 0;
   st.indice = 0;
   cambiarPestana("lecturas");
@@ -384,7 +385,9 @@ function ajustesDe(c) {
 
 // El cancionero abierto aquí es el «activo»: el botón Atril del editor lo ofrece (editor/js/nube.js, mcAtrilActivo).
 // «t» cambia solo cuando cambia el contenido, para que el editor sepa si ya lo tiene cargado.
-const MC_ACTIVO = "mc-activo";
+// Uno por parroquia (el editor lee la misma clave: editor/js/nube.js)
+const MC_ACTIVO = (window.MONTECARMELO_CONFIG || {}).parroquia === "montecarmelo" || !(window.MONTECARMELO_CONFIG || {}).parroquia
+  ? "mc-activo" : "mc-activo:" + window.MONTECARMELO_CONFIG.parroquia;
 let activoFirma = "";
 function guardarActivo() {
   const a = st.actual;
@@ -858,13 +861,19 @@ function cambiarFechaLecturas(fecha) {
 const sugerirCantos = (misa, lecturas, opciones = {}) =>
   sugerirDeLaBiblioteca(misa, lecturas, { ...opciones, biblioteca: st.biblioteca, misas: st.misas });
 
+// En un domingo: los cantos sugeridos para los domingos anteriores del mes (la misma cadena que publican
+// el reproductor e Inicio), para no repetirlos
+const evitadosDe = (fecha) => evitadosDelMes(fecha, (f) => cargarLecturas(f).then((l) => l?.disponible ? l : null),
+  { biblioteca: st.biblioteca, misas: st.misas });
+
 async function volverASugerir() {
   const a = st.actual;
   if (!a || !editable()) return;
-  let l = null;
+  let l = null, evitar = new Set();
   try { l = await lecturasDe(a); } catch (_) { /* se sugiere solo con el tiempo litúrgico */ }
+  try { evitar = await evitadosDe(a.fechaUso); } catch (_) { /* se sugiere sin mirar los otros domingos */ }
   if (st.actual !== a) return;
-  const n = sugerirCantos(a, l?.disponible ? l : null, { reemplazar: true });
+  const n = sugerirCantos(a, l?.disponible ? l : null, { reemplazar: true, evitar });
   st.indice = 0;
   mostrarCancionDelMomento();
   pintarMisas();
@@ -1279,10 +1288,15 @@ async function enviarNuevo(e) {
   const boton = $("#n-seguir");
   boton.disabled = true;
   boton.textContent = "Preparando…";
-  let l = null;
+  let l = null, evitar = new Set();
   try {
     l = await Promise.race([cargarLecturas(fecha), new Promise((r) => setTimeout(r, 15000, null))]);
   } catch (_) { /* se arma igual, sin lecturas */ }
+  if (!nuevo.editar) {
+    try {
+      evitar = await Promise.race([evitadosDe(fecha), new Promise((r) => setTimeout(r, 15000, new Set()))]);
+    } catch (_) { /* se sugiere sin mirar los otros domingos */ }
+  }
   boton.disabled = false;
   $("#dlg-nuevo").close();
   const lecturas = l?.disponible ? l : null;
@@ -1293,7 +1307,7 @@ async function enviarNuevo(e) {
     pintarTodo();
     return publicarCancionero();
   }
-  crearBorrador({ nombre, fecha, comunidad, lecturas });
+  crearBorrador({ nombre, fecha, comunidad, lecturas, evitar });
 }
 
 function conectarNuevo() {
@@ -1373,7 +1387,7 @@ function publicarPagina(id) {
     iframe.className = "publicador";
     iframe.title = "Armando la página del cancionero";
     iframe.setAttribute("aria-hidden", "true");
-    iframe.src = `./editor/?misa=${encodeURIComponent(id)}&publicar=1`;
+    iframe.src = `/editor/?misa=${encodeURIComponent(id)}&publicar=1`;
     let reloj = 0;
     const vigilar = () => {
       clearTimeout(reloj);

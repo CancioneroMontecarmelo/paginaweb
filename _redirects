@@ -1,4 +1,4 @@
-# Cloudflare Pages: al entrar al sitio se abre el Cancionero Litúrgico (el reproductor). El # se conserva.
-/  /reproductor  302
+# Cloudflare Pages. La raíz y las direcciones sin parroquia (/reproductor, /inicio…) las resuelve
+# functions/_middleware.js: este archivo solo vale para lo que no pasa por Functions (ver _routes.json).
 # Una copia vieja de config.js (guardada en el navegador) mandaba el editor a esta dirección inexistente: vuelve al editor
 /editor/reproductor  /editor/  302

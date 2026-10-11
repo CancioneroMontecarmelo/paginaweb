@@ -28,9 +28,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mc_biblioteca import (  # noqa: E402
-    COMUNIDADES, CONFIG, EXT_VIDEO_AUDIO, SITIO_URL, URL_AUDIO, VOCES, Api, Error, a_m4a, api_de_config, armar_md, aviso,
-    bajar_enlace, cambiar_etiquetas_md, clave_guardada, clave_vigente, datos_clave, es_enlace, etiquetas_de,
-    guardar_clave, leer_letra, momentos_en_misas, nombre_archivo, slug, unir_etiquetas, vocabulario_etiquetas)
+    COMUNIDADES, CONFIG, EXT_VIDEO_AUDIO, PARROQUIA, URL_AUDIO, VOCES, Api, Error, a_m4a, api_de_config, armar_md, aviso,
+    bajar_enlace, cambiar_etiquetas_md, cargar_parroquia, clave_guardada, clave_vigente, datos_clave, es_enlace, etiquetas_de,
+    guardar_clave, leer_letra, momentos_en_misas, nombre_archivo, sitio_parroquia, slug, unir_etiquetas, usar_parroquia,
+    vocabulario_etiquetas)
 
 
 def obtener_clave(dada):
@@ -43,7 +44,7 @@ def obtener_clave(dada):
     if token:
         return token
     aviso("\nPara subir a la Biblioteca hace falta tu clave del sitio (dura 90 días).")
-    aviso(f"Entrá a {SITIO_URL}login#clave con tu cuenta y tocá «Copiar clave para el script».")
+    aviso(f"Entrá a {sitio_parroquia()}login#clave con tu cuenta y tocá «Copiar clave para el script».")
     if not sys.stdin.isatty():
         raise Error("No hay clave guardada: corré el script en una terminal para pegarla, o usá --clave.")
     token = getpass.getpass("Pegá la clave aquí (no se ve al pegar) y apretá Enter: ").strip()
@@ -120,7 +121,9 @@ def argumentos():
     p.add_argument("-l", "--letra", help="archivo con la letra y acordes (.txt, ChordPro o un .md del editor)")
     p.add_argument("-v", "--voz", action="append", choices=list(VOCES), help="voz del audio; repetila para dar una por video, en orden")
     p.add_argument("-n", "--nombre", action="append", help="nombre del audio (por defecto, el título del video); repetible")
-    p.add_argument("--comunidad", choices=list(COMUNIDADES), help="comunidad dueña de la canción nueva (por defecto, la tuya)")
+    p.add_argument("--parroquia", default=PARROQUIA,
+                   help=f"parroquia (la de cancioneroliturgico.cl/<parroquia>/; por defecto, {PARROQUIA} o la variable MC_PARROQUIA)")
+    p.add_argument("--comunidad", help="comunidad dueña de la canción nueva, p. ej. " + ", ".join(COMUNIDADES) + " (por defecto, la tuya)")
     p.add_argument("--tono", default="", help='tono de la canción, por ejemplo "Sol mayor" (el editor lo calcula solo si falta)')
     p.add_argument("--autor", default="", help="autor o intérprete")
     p.add_argument("-o", "--salida", default=".", help="carpeta donde quedan el .m4a y el .md (por defecto, la actual)")
@@ -128,7 +131,7 @@ def argumentos():
     p.add_argument("--si", action="store_true", help="responder que sí a las preguntas (reemplazar la letra de una canción existente)")
     p.add_argument("--clave", help="clave del sitio (login#clave → «Copiar clave para el script»); queda guardada")
     p.add_argument("--olvidar-clave", action="store_true", help="borra la clave guardada en esta computadora")
-    p.add_argument("--api", default=None, help=f"dirección del servidor (por defecto, {SITIO_URL}api o la variable MC_API)")
+    p.add_argument("--api", default=None, help="dirección del servidor (por defecto, la de la parroquia o la variable MC_API)")
     return p.parse_args()
 
 
@@ -144,6 +147,12 @@ def por_indice(lista, i, total):
 
 def main():
     args = argumentos()
+    usar_parroquia(args.parroquia)
+    parroquia = cargar_parroquia(Api(args.api or api_de_config(), ""))
+    if parroquia:
+        aviso(f"Parroquia: {parroquia.get('nombre') or args.parroquia}")
+    if args.comunidad and args.comunidad not in COMUNIDADES:
+        raise Error(f"La comunidad «{args.comunidad}» no es de esta parroquia. Elegí una de: {', '.join(COMUNIDADES) or '(no tiene)'}")
     if args.olvidar_clave and CONFIG.exists():
         CONFIG.unlink()
         aviso(f"Clave borrada de {CONFIG}")
@@ -217,7 +226,7 @@ def main():
         momentos = momentos_en_misas(api, e["id"])
         if momentos:
             aviso("  Aparece en Misas: " + "; ".join(momentos))
-        aviso(f"  Para completar la letra y los acordes: {SITIO_URL}editor/ → Archivo → Abrir → Canción de la Biblioteca")
+        aviso(f"  Para completar la letra y los acordes: {sitio_parroquia()}editor/ → Archivo → Abrir → Canción de la Biblioteca")
 
 
 if __name__ == "__main__":

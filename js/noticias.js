@@ -1,35 +1,32 @@
 /**
- * Noticias tipo blog: lectura de JSON, DnD de .txt, publicación (descarga / FS).
+ * Noticias tipo blog de la parroquia y de cada comunidad: se leen y se publican en el servidor
+ * (acciones noticias, guardarNoticia y borrarNoticia). Quien puede editar en la comunidad las publica,
+ * cambia o quita desde la misma página.
  */
 
-import { puedeEditar, sesionActual } from "./auth.js";
+import { llamarApi, puedeEditar, sesionActual } from "./auth.js";
 import { COMUNIDADES, PARROQUIA, comunidadPorSlug, rutaBase } from "./comunidades.js";
 
-export function noticiasVacias(comunidad) {
-  return {
-    comunidad: comunidad || "parroquia",
-    actualizado: new Date().toISOString(),
-    items: []
-  };
-}
+const config = () => window.MONTECARMELO_CONFIG || {};
+const token = () => (sesionActual() || {}).token || "";
 
-export async function cargarNoticias(archivo) {
-  const url = rutaBase() + "noticias/" + archivo;
+export async function cargarNoticias(comunidad) {
+  const api = config().apiUrl;
+  if (!api) throw new Error("El servidor de la parroquia todavía no está conectado.");
+  let r;
   try {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return noticiasVacias();
-    const data = await res.json();
-    if (!data || !Array.isArray(data.items)) return noticiasVacias(data && data.comunidad);
-    return data;
+    r = await (await fetch(api + "?" + new URLSearchParams({ accion: "noticias", comunidad: comunidad || "" }), { cache: "no-store" })).json();
   } catch (_) {
-    return noticiasVacias();
+    throw new Error("No se pudo consultar el servidor de la parroquia. Probá recargar la página.");
   }
+  if (!r.ok) throw new Error(r.error || "El servidor de la parroquia no respondió");
+  return r.noticias || [];
 }
 
-export function pintarNoticias(contenedor, data) {
+/** `acciones`: { alCambiar(noticia), alQuitar(noticia) } para mostrar los botones a quien puede editar. */
+export function pintarNoticias(contenedor, items, acciones) {
   if (!contenedor) return;
   contenedor.replaceChildren();
-  const items = (data && data.items) || [];
   if (!items.length) {
     const p = document.createElement("p");
     p.className = "subtitulo";
@@ -37,8 +34,7 @@ export function pintarNoticias(contenedor, data) {
     contenedor.appendChild(p);
     return;
   }
-  const orden = items.slice().sort((a, b) => String(b.fecha || "").localeCompare(String(a.fecha || "")));
-  orden.forEach((it, i) => {
+  items.forEach((it, i) => {
     const art = document.createElement("article");
     art.className = "noticia";
     art.style.animationDelay = i * 0.05 + "s";
@@ -46,8 +42,7 @@ export function pintarNoticias(contenedor, data) {
     h.textContent = it.titulo || "Sin título";
     const meta = document.createElement("p");
     meta.className = "noticia-meta";
-    const tags = Array.isArray(it.etiquetas) ? it.etiquetas : [];
-    tags.forEach((t) => {
+    (Array.isArray(it.etiquetas) ? it.etiquetas : []).forEach((t) => {
       const span = document.createElement("span");
       span.className = "etiqueta";
       span.textContent = t;
@@ -59,156 +54,144 @@ export function pintarNoticias(contenedor, data) {
     cuerpo.className = "noticia-cuerpo";
     cuerpo.textContent = it.cuerpo || "";
     art.append(h, meta, cuerpo);
+    if (acciones && puedeEditar(it.comunidad)) {
+      const botones = document.createElement("div");
+      botones.className = "acciones-form";
+      const cambiar = document.createElement("button");
+      cambiar.type = "button";
+      cambiar.className = "btn btn-secundario";
+      cambiar.textContent = "Cambiar";
+      cambiar.addEventListener("click", () => acciones.alCambiar(it));
+      const quitar = document.createElement("button");
+      quitar.type = "button";
+      quitar.className = "btn btn-secundario";
+      quitar.textContent = "Quitar";
+      quitar.addEventListener("click", () => acciones.alQuitar(it));
+      botones.append(cambiar, quitar);
+      art.appendChild(botones);
+    }
     contenedor.appendChild(art);
   });
 }
 
-function descargarJson(nombre, objeto) {
-  const blob = new Blob([JSON.stringify(objeto, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
-
-async function guardarConPicker(nombre, objeto) {
-  if (typeof window.showSaveFilePicker !== "function") {
-    descargarJson(nombre, objeto);
-    return "descarga";
-  }
-  try {
-    const handle = await window.showSaveFilePicker({
-      suggestedName: nombre,
-      id: "montecarmelo-noticias"
-    });
-    const writable = await handle.createWritable();
-    await writable.write(JSON.stringify(objeto, null, 2));
-    await writable.close();
-    return "archivo";
-  } catch (e) {
-    if (e && e.name === "AbortError") throw e;
-    descargarJson(nombre, objeto);
-    return "descarga";
-  }
-}
-
 /**
- * Inicializa lista + panel de edición en una página de comunidad o noticias parroquiales.
- * @param {{ slug: string, archivo: string, nombreArchivo?: string }} opts
+ * Lista + panel de edición en la página de una comunidad o en las noticias de la parroquia.
+ * @param {{ slug: string }} opts  slug de la comunidad, o "parroquia"
  */
 export async function iniciarPaginaNoticias(opts) {
   const slug = opts.slug;
-  const archivo = opts.archivo;
   const listaEl = document.getElementById("lista-noticias");
   const panel = document.getElementById("panel-edicion");
   const sesionBar = document.getElementById("sesion-bar");
   const form = document.getElementById("form-noticia");
   const drop = document.getElementById("zona-drop-noticia");
   const msg = document.getElementById("msg-publicar");
+  const boton = form && form.querySelector('button[type="submit"]');
+  const campo = (id) => document.getElementById(id);
+  const editable = puedeEditar(slug) && !!token();
+  let enEdicion = null;
+  let items = [];
 
-  let data = await cargarNoticias(archivo);
-  pintarNoticias(listaEl, data);
+  const avisar = (texto, error) => {
+    if (!msg) return;
+    msg.hidden = !texto;
+    msg.className = error ? "msg-error" : "msg-ok";
+    msg.textContent = texto || "";
+  };
 
-  const editable = puedeEditar(slug === "parroquia" ? "parroquia" : slug);
+  const limpiar = () => {
+    enEdicion = null;
+    if (!form) return;
+    form.reset();
+    campo("campo-fecha").value = new Date().toISOString().slice(0, 10);
+    if (boton) boton.textContent = "Publicar";
+  };
+
+  const acciones = editable ? {
+    alCambiar(n) {
+      enEdicion = n;
+      campo("campo-titulo").value = n.titulo || "";
+      campo("campo-fecha").value = n.fecha || "";
+      campo("campo-etiquetas").value = (n.etiquetas || []).join(", ");
+      campo("campo-cuerpo").value = n.cuerpo || "";
+      if (boton) boton.textContent = "Guardar cambios";
+      avisar("");
+      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      campo("campo-titulo").focus();
+    },
+    async alQuitar(n) {
+      if (!confirm(`¿Quitar la noticia «${n.titulo}»?`)) return;
+      try {
+        await llamarApi("borrarNoticia", { token: token(), id: n.id });
+        items = items.filter((x) => x.id !== n.id);
+        pintarNoticias(listaEl, items, acciones);
+        if (enEdicion && enEdicion.id === n.id) limpiar();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  } : null;
+
+  try {
+    items = await cargarNoticias(slug);
+    pintarNoticias(listaEl, items, acciones);
+  } catch (err) {
+    if (listaEl) listaEl.innerHTML = `<p class="subtitulo"></p>`;
+    if (listaEl) listaEl.firstChild.textContent = err.message;
+  }
+
   if (sesionBar) {
     const s = sesionActual();
+    sesionBar.hidden = false;
     if (s) {
-      sesionBar.hidden = false;
-      sesionBar.innerHTML =
-        "Sesión: <strong>" +
-        (s.nombre || s.usuario) +
-        "</strong> (" +
-        s.rol +
-        ")" +
-        (editable ? " · podés publicar aquí" : " · sin permiso de edición en esta página");
+      sesionBar.innerHTML = "Sesión: <strong></strong> (" + s.rol + ")" +
+        (editable ? " · podés publicar aquí" : " · sin permiso para publicar en esta página");
+      sesionBar.querySelector("strong").textContent = s.nombre || s.email;
     } else {
-      sesionBar.hidden = false;
-      sesionBar.innerHTML =
-        'Para publicar noticias, <a href="' + rutaBase() + 'login.html">identificate</a>.';
+      sesionBar.innerHTML = 'Para publicar noticias, <a href="' + rutaBase() + 'login.html">identificate</a>.';
     }
   }
   if (panel) panel.hidden = !editable;
   if (!editable || !form) return;
+  limpiar();
 
-  const campoCuerpo = document.getElementById("campo-cuerpo");
-
+  const campoCuerpo = campo("campo-cuerpo");
   if (drop && campoCuerpo) {
-    ["dragenter", "dragover"].forEach((ev) => {
-      drop.addEventListener(ev, (e) => {
-        e.preventDefault();
-        drop.classList.add("sobre");
-      });
-    });
-    ["dragleave", "drop"].forEach((ev) => {
-      drop.addEventListener(ev, (e) => {
-        e.preventDefault();
-        drop.classList.remove("sobre");
-      });
-    });
+    ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("sobre"); }));
+    ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("sobre"); }));
     drop.addEventListener("drop", async (e) => {
       const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if (!file) return;
-      const texto = await file.text();
-      campoCuerpo.value = texto;
-      const titulo = document.getElementById("campo-titulo");
-      if (titulo && !titulo.value.trim()) {
-        titulo.value = file.name.replace(/\.txt$/i, "").replace(/[_-]+/g, " ");
-      }
+      campoCuerpo.value = await file.text();
+      const titulo = campo("campo-titulo");
+      if (titulo && !titulo.value.trim()) titulo.value = file.name.replace(/\.txt$/i, "").replace(/[_-]+/g, " ");
     });
   }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (msg) {
-      msg.hidden = true;
-      msg.className = "msg-ok";
-    }
-    const s = sesionActual();
-    const item = {
-      id: "n-" + Date.now(),
-      titulo: (document.getElementById("campo-titulo").value || "").trim(),
-      fecha: document.getElementById("campo-fecha").value || new Date().toISOString().slice(0, 10),
-      etiquetas: String(document.getElementById("campo-etiquetas").value || "")
-        .split(/[,;]+/)
-        .map((x) => x.trim())
-        .filter(Boolean),
-      cuerpo: (campoCuerpo && campoCuerpo.value) || "",
-      autor: (s && (s.nombre || s.usuario)) || ""
+    avisar("");
+    const noticia = {
+      id: enEdicion ? enEdicion.id : undefined,
+      comunidad: slug,
+      titulo: (campo("campo-titulo").value || "").trim(),
+      fecha: campo("campo-fecha").value || new Date().toISOString().slice(0, 10),
+      etiquetas: String(campo("campo-etiquetas").value || "").split(/[,;]+/).map((x) => x.trim()).filter(Boolean),
+      cuerpo: (campoCuerpo && campoCuerpo.value) || ""
     };
-    if (!item.titulo) {
-      if (msg) {
-        msg.hidden = false;
-        msg.className = "msg-error";
-        msg.textContent = "Falta el título";
-      }
-      return;
-    }
-    data.items = data.items || [];
-    data.items.unshift(item);
-    data.actualizado = new Date().toISOString();
-    data.comunidad = slug;
-    const nombre = opts.nombreArchivo || archivo;
+    if (!noticia.titulo) return avisar("Falta el título", true);
+    if (boton) boton.disabled = true;
     try {
-      const modo = await guardarConPicker(nombre, data);
-      pintarNoticias(listaEl, data);
-      form.reset();
-      if (msg) {
-        msg.hidden = false;
-        msg.className = "msg-ok";
-        msg.textContent =
-          modo === "archivo"
-            ? "Guardado. Asegurate de reemplazar noticias/" + nombre + " en el proyecto."
-            : "Se descargó " + nombre + ". Copialo a la carpeta noticias/ y volvé a publicar el sitio.";
-      }
+      const r = await llamarApi("guardarNoticia", { token: token(), noticia });
+      items = [r.noticia, ...items.filter((x) => x.id !== r.noticia.id)]
+        .sort((a, b) => String(b.fecha || "").localeCompare(String(a.fecha || "")));
+      pintarNoticias(listaEl, items, acciones);
+      avisar(enEdicion ? "Cambios guardados." : "Publicada.");
+      limpiar();
     } catch (err) {
-      if (err && err.name === "AbortError") return;
-      if (msg) {
-        msg.hidden = false;
-        msg.className = "msg-error";
-        msg.textContent = err.message || "No se pudo publicar";
-      }
+      avisar(err.message || "No se pudo publicar", true);
+    } finally {
+      if (boton) boton.disabled = false;
     }
   });
 }
@@ -218,7 +201,7 @@ export async function iniciarListaCancioneros(opts) {
   if (!el) return;
   const comu = comunidadPorSlug(opts.slug);
   if (!comu) return;
-  const api = (window.MONTECARMELO_CONFIG || {}).apiUrl;
+  const api = config().apiUrl;
   let entradas = [];
   let aviso = "Aún no hay cancioneros publicados. Los directores los guardan desde el editor con «Guardar en la nube».";
   if (!api) {
@@ -245,7 +228,7 @@ export async function iniciarListaCancioneros(opts) {
   entradas.forEach((c) => {
     const li = document.createElement("li");
     const a = document.createElement("a");
-    a.href = rutaBase() + "ver.html?id=" + encodeURIComponent(c.htmlId);
+    a.href = rutaBase() + "ver?id=" + encodeURIComponent(c.htmlId);
     a.textContent = c.titulo || "Cancionero";
     const meta = document.createElement("span");
     meta.className = "meta";
@@ -256,7 +239,7 @@ export async function iniciarListaCancioneros(opts) {
       const ed = document.createElement("a");
       ed.className = "btn btn-secundario";
       ed.style.marginTop = "0.35rem";
-      ed.href = rutaBase() + "editor/?drive=" + encodeURIComponent(c.folderId);
+      ed.href = "/editor/?drive=" + encodeURIComponent(c.folderId);
       ed.textContent = "Editar";
       li.appendChild(ed);
     }
@@ -268,8 +251,8 @@ export async function iniciarListaCancioneros(opts) {
 export async function iniciarListaMisas(opts) {
   const el = document.getElementById("lista-misas");
   if (!el) return;
-  const api = (window.MONTECARMELO_CONFIG || {}).apiUrl;
-  const base = rutaBase() + "misas.html?comunidad=" + encodeURIComponent(opts.slug);
+  const api = config().apiUrl;
+  const base = rutaBase() + "misas?comunidad=" + encodeURIComponent(opts.slug);
   let misas = [];
   let aviso = "Todavía no hay cancioneros de misa para esta comunidad.";
   if (!api) {
@@ -310,6 +293,19 @@ export async function iniciarListaMisas(opts) {
     ul.appendChild(li);
   });
   el.appendChild(ul);
+}
+
+/** Enlaces a las páginas de las comunidades (en Noticias). */
+export function pintarEnlacesComunidades(contenedor) {
+  if (!contenedor) return;
+  contenedor.replaceChildren();
+  COMUNIDADES.forEach((c, i) => {
+    if (i) contenedor.appendChild(document.createTextNode(" · "));
+    const a = document.createElement("a");
+    a.href = "./comunidad?c=" + encodeURIComponent(c.slug);
+    a.textContent = c.nombre;
+    contenedor.appendChild(a);
+  });
 }
 
 export { COMUNIDADES, PARROQUIA };

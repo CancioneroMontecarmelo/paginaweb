@@ -348,6 +348,154 @@ function hashTexto(s) {
   return h >>> 0;
 }
 
+// ============ EL EVANGELIO DEL DÍA ============
+
+// El primer Evangelio de las lecturas (no el «O bien más breve»): { cita: «Juan 10, 11-18», resumen, texto }
+export function evangelioDe(lecturas) {
+  const bloques = (lecturas?.secciones || []).filter((s) => s.id === "liturgia" || s.id === "evangelio").flatMap((s) => s.bloques);
+  const k = bloques.findIndex((b) => /evangelio de nuestro se[ñn]or jesucristo/i.test(b.x));
+  if (k < 0) return null;
+  const fin = bloques.findIndex((b, j) => j > k && /^palabra del se[ñn]or/i.test(b.x));
+  const antes = bloques[k - 1];
+  return {
+    cita: (bloques[k].x.match(/seg[uú]n\s+(?:san\s+)?(.+)$/i)?.[1] || bloques[k].x.replace(/^\+\s*/, "")).trim(),
+    resumen: antes && antes.t !== "p" && !/aclamaci/i.test(antes.x) ? antes.x : "",
+    texto: bloques.slice(k + 1, fin < 0 ? undefined : fin).map((b) => b.x).join(" ")
+  };
+}
+
+// Temas frecuentes del Evangelio. lectura: palabras sin tildes que lo reconocen en el Evangelio (con «*», también
+// las que empiezan así); canto: frases que lo reconocen en el título o la letra de un canto (palabras enteras)
+const TEMAS_EVANGELIO = [
+  { nombre: "el Buen Pastor", lectura: ["pastor*", "oveja*", "rebano*", "redil", "aprisco"],
+    canto: ["el señor es mi pastor", "buen pastor", "pastor", "pastores", "oveja", "ovejas", "rebaño", "nada me falta"] },
+  { nombre: "el banquete del Reino", lectura: ["banquete*", "boda*", "invitado*", "convidado*", "nupcial"],
+    canto: ["banquete", "bodas", "invitados", "invitas", "mesa", "cena", "fiesta"] },
+  { nombre: "el pan de vida", lectura: ["pan", "panes", "pan de vida", "multiplic*", "mana", "mi carne"],
+    canto: ["pan de vida", "pan del cielo", "partir el pan", "pan", "multiplicar"] },
+  { nombre: "la luz", lectura: ["luz", "ciego*", "tiniebla*", "ilumin*"], canto: ["tu luz", "luz", "ilumina", "ciego", "ver"] },
+  { nombre: "el agua viva", lectura: ["agua viva", "samaritana", "sed", "pozo", "manantial"], canto: ["agua viva", "sed", "fuente", "manantial", "agua"] },
+  { nombre: "la tormenta y la barca", lectura: ["tempestad", "tormenta", "viento*", "barca", "olas", "mar", "agua*", "hundi*"],
+    canto: ["tormenta", "tempestad", "barca", "mar", "olas", "no temas", "no tengas miedo"] },
+  { nombre: "el sembrador y la semilla", lectura: ["sembrador", "semilla*", "sembr*", "mostaza", "cizana", "trigo", "cosecha*", "grano*"],
+    canto: ["semilla", "sembrar", "sembrador", "trigo", "grano", "cosecha"] },
+  { nombre: "la vid y los sarmientos", lectura: ["vid", "sarmiento*", "vinador", "permanezc*", "fruto*"],
+    canto: ["vid", "sarmiento", "sarmientos", "fruto", "frutos", "permaneced"] },
+  { nombre: "el perdón y la misericordia", lectura: ["perdon*", "misericordi*", "prodigo", "pecador*", "setenta veces", "deuda*"],
+    canto: ["perdón", "perdona", "perdóname", "misericordia", "padre bueno", "volver", "vuelvo"] },
+  { nombre: "el amor al prójimo", lectura: ["amense", "amar*", "amor", "projimo", "mandamiento*", "samaritano", "amaos"],
+    canto: ["amor", "amar", "ámense", "amaos", "hermano", "hermanos", "prójimo"] },
+  { nombre: "el llamado a seguir a Jesús", lectura: ["sigueme", "siganme", "pescador*", "redes", "seguir*", "lo siguieron"],
+    canto: ["sígueme", "pescador", "pescadores", "redes", "me has mirado", "seguirte", "te seguiré"] },
+  { nombre: "la resurrección", lectura: ["resucit*", "resurreccion", "sepulcro", "tumba", "vivo"],
+    canto: ["resucitó", "resucitado", "resurrección", "está vivo", "vive"] },
+  { nombre: "el Espíritu Santo", lectura: ["espiritu santo", "paraclito", "defensor", "soplo"], canto: ["espíritu santo", "ven espíritu", "espíritu"] },
+  { nombre: "la misión", lectura: ["vayan", "envio", "enviado*", "anuncien", "proclamen", "bauticen", "mies"],
+    canto: ["id por el mundo", "enviados", "anunciar", "anunciad", "misión", "misioneros", "mies"] },
+  { nombre: "el servicio", lectura: ["servidor*", "servir", "sirve", "lavar los pies", "esclavo", "ultimo*", "humild*"],
+    canto: ["servir", "servidor", "lavar los pies", "humilde"] },
+  { nombre: "las bienaventuranzas", lectura: ["felices", "bienaventurado*", "dichoso*"], canto: ["bienaventurados", "felices", "dichosos"] },
+  { nombre: "la vigilancia y la espera", lectura: ["velen", "vigil*", "lampara*", "virgenes", "preparados", "la hora"],
+    canto: ["velad", "vigilantes", "lámpara", "esperamos", "ven señor", "maranatha", "despierta"] },
+  { nombre: "la cruz", lectura: ["cruz", "crucific*"], canto: ["cruz", "crucificado"] },
+  { nombre: "la oración", lectura: ["oren", "orar", "oracion", "pidan", "padre nuestro"], canto: ["oración", "orar", "padre nuestro", "escúchame"] },
+  { nombre: "la fe y la confianza", lectura: ["fe", "no teman", "no temas", "confianza", "crean", "creer", "cree"],
+    canto: ["fe", "confianza", "confío", "creo", "no temas"] },
+  { nombre: "el Reino de Dios", lectura: ["reino de los cielos", "reino de dios", "tesoro", "perla", "levadura"], canto: ["reino", "tesoro", "perla"] },
+  { nombre: "los pobres y la riqueza", lectura: ["rico*", "riqueza*", "pobre*", "dinero", "graneros"], canto: ["pobres", "pobre", "compartir", "justicia"] },
+  { nombre: "el bautismo", lectura: ["bautiz*", "jordan", "bautismo"], canto: ["bautismo", "jordán"] },
+  { nombre: "los talentos", lectura: ["talento*"], canto: ["talentos", "dones"] }
+];
+
+const reLectura = (w) => new RegExp("\\b" + w.replace("*", "") + (w.endsWith("*") ? "" : "\\b"), "g");
+
+// Los temas que trata el Evangelio, del más nombrado al menos (hasta 3); la frase resumen vale doble
+export function temasDelEvangelio(lecturas) {
+  const ev = evangelioDe(lecturas);
+  if (!ev) return [];
+  const texto = sinTildes([ev.resumen, ev.resumen, ev.texto].join(" ")).toLowerCase();
+  return TEMAS_EVANGELIO.map((t) => ({ t, n: t.lectura.reduce((s, w) => s + (texto.match(reLectura(w)) || []).length, 0) }))
+    .filter((x) => x.n >= 2).sort((a, b) => b.n - a.n).slice(0, 3).map((x) => x.t);
+}
+
+// El primer tema (en ese orden) que nombra el canto: { tema, frase } o null
+function temaDelCanto(c, temas) {
+  for (const tema of temas) {
+    const frase = tema.canto.find((f) => fraseEnCancion(c, f));
+    if (frase) return { tema, frase };
+  }
+  return null;
+}
+
+// Las partes fijas de la misa no van en otro momento aunque nombren el tema
+const PARTES_FIJAS = ["Gloria", "Salmo responsorial", "Aleluya", "Santo", "Cordero de Dios", "Acto penitencial", "Padre Nuestro"];
+const esParteFija = (c) => PARTES_FIJAS.some((x) => esDelMomento(c, x) || momentoPorLetra(c, x)?.como === "titulo");
+
+// ============ EL SALMO DEL DÍA ============
+// La Biblioteca tiene un salmo por domingo y ciclo («Salmo domingo 29 ciclo A», «Salmo cuarto domingo de
+// pascua, ciclo A») y por fiesta («Salmo Todos los santos», «Salmo Corpus Christi ciclo A»).
+
+const ORDINALES = { primer: 1, primero: 1, segundo: 2, tercer: 3, tercero: 3, cuarto: 4, quinto: 5, sexto: 6, septimo: 7 };
+const TIEMPOS_SALMO = ["adviento", "cuaresma", "pascua"];
+const PALABRAS_FIESTA_COMUNES = new Set(["domingo", "senor", "ciclo", "nuestro", "nuestra", "solemnidad", "fiesta", "memoria",
+  "tiempo", "ordinario", "salmo", "misa", "santa", "santo", "virgen", "maria", "jesus", "cristo", "jesucristo", "semana",
+  "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"]);
+const ROMANO_VALOR = { i: 1, v: 5, x: 10, l: 50, c: 100 };
+const deRomano = (r) => [...r].reduce((s, ch, i, a) => s + (ROMANO_VALOR[ch] < (ROMANO_VALOR[a[i + 1]] || 0) ? -1 : 1) * ROMANO_VALOR[ch], 0);
+const textoSalmo = (s) => sinTildes(s).toLowerCase().replace(/cueresma/g, "cuaresma")
+  .replace(/\b(primero?|segundo|tercero?|cuarto|quinto|sexto|septimo)\b/g, (w) => String(ORDINALES[w]));
+const palabrasFiesta = (t) => new Set(t.split(/[^a-z]+/).filter((w) => w.length >= 4 && !/^[ivxlc]+$/.test(w) && !PALABRAS_FIESTA_COMUNES.has(w)));
+const esSalmo = (c) => esDelMomento(c, "Salmo responsorial") || /^salmo\b/.test(textoSalmo(c.titulo));
+// Un salmo propio de otro día (domingo o ciclo) solo va si no hay otro
+const salmoPropio = (c) => /\b(domingo|ciclo)\b/.test(textoSalmo(c.titulo));
+
+// Los salmos de la Biblioteca que corresponden al día: { ids, nombre } (ids vacío si no hay)
+export function salmosDelDia(fecha, lecturas, biblioteca) {
+  const calculado = calendarioLiturgico(fecha, 1)[0]?.nombre || "";
+  const nombre = (lecturas?.titulo ? tituloLiturgico(lecturas.titulo) : calculado.replace(/\s*·\s*ciclo \w$/, "")) || "";
+  const t = textoSalmo(nombre + " " + calculado);
+  const ciclo = /^\d{4}-\d{2}-\d{2}$/.test(fecha || "") ? cicloDe(fechaMedioDia(fecha)).toLowerCase() : "";
+  const nro = t.match(/\b([ivxl]+) domingo\b/);
+  let numero = nro ? deRomano(nro[1]) : 0, tiempo = TIEMPOS_SALMO.find((x) => t.includes(x)) || "";
+  if (/rey del universo|cristo rey/.test(t)) [numero, tiempo] = [34, ""];
+  const fiesta = palabrasFiesta(t);
+  let mejor = 0, ids = new Set();
+  for (const c of biblioteca) {
+    if (!esSalmo(c)) continue;
+    const s = textoSalmo(c.titulo), cicloS = s.match(/\bciclo ([abc])\b/)?.[1];
+    if (cicloS && cicloS !== ciclo) continue;
+    let p = 0;
+    if (numero && /\bdomingo\b/.test(s) && !/navidad|ramos/.test(s)) {
+      const n = +(s.match(/\b(\d+)\b/)?.[1] || 0), tiempoS = TIEMPOS_SALMO.find((x) => s.includes(x)) || "";
+      if (n === numero && tiempoS === tiempo) p = 10;
+    } else if (!numero) {
+      const propias = palabrasFiesta(s), comunes = [...propias].filter((w) => fiesta.has(w)).length;
+      if (comunes && comunes >= Math.min(2, fiesta.size, propias.size)) p = comunes;
+    }
+    if (p > mejor) [mejor, ids] = [p, new Set([c.id])];
+    else if (p && p === mejor) ids.add(c.id);
+  }
+  return { ids, nombre: nombre + (ciclo && numero ? ", ciclo " + ciclo.toUpperCase() : "") };
+}
+
+// La misma canción puede estar dos veces en la Biblioteca, con el momento delante («Entrada: Aclaró»)
+const NOMBRES_MOMENTO = new Set(TODOS_LOS_NOMBRES.map(claveMomento));
+function tituloClave(c) {
+  const prefijo = String(c.titulo || "").match(/^([^:]{2,30}):\s*(.+)$/);
+  const t = prefijo && NOMBRES_MOMENTO.has(claveMomento(prefijo[1])) ? prefijo[2] : c.titulo;
+  return buscarClaves(buscarPlano(t || "")).join(" ");
+}
+// cancionId → los id de la misma canción (ella incluida)
+function gemelasDe(biblioteca) {
+  const porTitulo = new Map();
+  const claves = new Map(biblioteca.map((c) => [c.id, tituloClave(c) || c.id]));
+  for (const [id, k] of claves) {
+    if (!porTitulo.has(k)) porTitulo.set(k, []);
+    porTitulo.get(k).push(id);
+  }
+  return new Map([...claves].map(([id, k]) => [id, porTitulo.get(k)]));
+}
+
 // Cantos de las últimas 3 misas de la comunidad: se evitan para no repetir siempre los mismos
 function recientesDeComunidad(misa, misas) {
   return new Set((misas || []).filter((m) => m.id !== misa.id && m.comunidad === misa.comunidad)
@@ -378,7 +526,10 @@ export function puntajeCanto(c, ctx) {
 // Pone un canto sugerido en cada momento sin cantos elegidos a mano. Con reemplazar, también cambia
 // los que ya eran sugerencias. `biblioteca`: canciones donde elegir; `misas`: cancioneros ya hechos
 // (para no repetir los de las últimas misas de la comunidad). Devuelve cuántos momentos quedaron con canto.
-export function sugerirCantos(misa, lecturas, { reemplazar = false, biblioteca = [], misas = [] } = {}) {
+// En Post evangelio y Comunión va primero un canto del tema del Evangelio, y en el Salmo el del día; con
+// `motivos` (un Map), anota momento → { texto, corto } (aparte, para no guardar nada nuevo en el cancionero).
+// `evitar`: cancionId que no se sugieren (los de los domingos anteriores del mes).
+export function sugerirCantos(misa, lecturas, { reemplazar = false, biblioteca = [], misas = [], motivos = null, evitar = null } = {}) {
   const tiempo = misa.tiempoLiturgico || tiempoPorFecha(misa.fechaUso);
   const dia = etiquetasDelDia(lecturas?.titulo);
   const ctx = {
@@ -390,28 +541,113 @@ export function sugerirCantos(misa, lecturas, { reemplazar = false, biblioteca =
     marianas: new Set(["Mariano", "Canto a María", "Mes de María"].map(tagNorm)),
     sinAleluya: TIEMPOS_SIN_ALELUYA.includes(tiempo),
     recientes: recientesDeComunidad(misa, misas),
-    palabras: palabrasDe(textoLecturas(lecturas))
+    palabras: palabrasDe(textoLecturas(lecturas)),
+    temas: temasDelEvangelio(lecturas)
   };
-  const usadas = new Set(misa.momentos.flatMap((m) => m.canciones.filter((c) => !c.sugerida).map((c) => c.cancionId)));
+  const gemelas = gemelasDe(biblioteca), usadas = new Set();
+  const usar = (id) => (gemelas.get(id) || [id]).forEach((x) => usadas.add(x));
+  [...(evitar || []), ...misa.momentos.flatMap((m) => m.canciones.filter((c) => !c.sugerida).map((c) => c.cancionId))].forEach(usar);
+  const temaDe = new Map();
+  const temaDeCanto = (c) => {
+    if (!temaDe.has(c.id)) temaDe.set(c.id, temaDelCanto(c, ctx.temas));
+    return temaDe.get(c.id);
+  };
+  const pesoTema = (c) => 12 * (ctx.temas.length - ctx.temas.indexOf(temaDeCanto(c).tema));
+  const elegir = (filtro, extra = () => 0) => {
+    let mejor = null, mejorP = -Infinity, mejorH = 0;
+    for (const c of biblioteca) {
+      if (usadas.has(c.id) || !filtro(c)) continue;
+      const p = puntajeCanto(c, ctx) + extra(c);
+      const h = hashTexto((misa.fechaUso || "") + "|" + (misa.comunidad || "") + "|" + c.id);
+      if (p > mejorP || (p === mejorP && h < mejorH)) [mejor, mejorP, mejorH] = [c, p, h];
+    }
+    return mejor;
+  };
+  const motivoTema = (c) => {
+    const { tema, frase } = temaDeCanto(c);
+    return { texto: `Tema: ${tema.nombre} · el canto dice «${frase}»`, corto: tema.nombre };
+  };
+  const claveComunion = claveMomento("Comunión"), clavePost = claveMomento("Post evangelio"), claveSalmo = claveMomento("Salmo responsorial");
   let sugeridos = 0;
   for (const m of misa.momentos) {
     if (m.canciones.some((c) => !c.sugerida) || (m.canciones.length && !reemplazar)) continue;
-    let mejor = null, mejorP = -Infinity, mejorH = 0;
-    // Primero las que tienen la etiqueta del momento; si no hay, las que lo sugieren por el título o la letra
-    for (const delMomento of [(c) => esDelMomento(c, m.momento), (c) => !!momentoPorLetra(c, m.momento)]) {
-      for (const c of biblioteca) {
-        if (usadas.has(c.id) || !delMomento(c)) continue;
-        const p = puntajeCanto(c, ctx);
-        const h = hashTexto((misa.fechaUso || "") + "|" + (misa.comunidad || "") + "|" + c.id);
-        if (p > mejorP || (p === mejorP && h < mejorH)) [mejor, mejorP, mejorH] = [c, p, h];
-      }
-      if (mejor) break;
+    const k = claveMomento(m.momento), delMomento = (c) => esDelMomento(c, m.momento) || !!momentoPorLetra(c, m.momento);
+    let mejor = null, motivo = null;
+    if (ctx.temas.length && k === clavePost) {
+      mejor = elegir((c) => temaDeCanto(c) && !esParteFija(c), (c) => pesoTema(c) + (esDelMomento(c, m.momento) ? 2 : 0));
+      if (mejor) motivo = motivoTema(mejor);
+    } else if (ctx.temas.length && k === claveComunion) {
+      mejor = elegir((c) => temaDeCanto(c) && delMomento(c), pesoTema) || elegir((c) => temaDeCanto(c) && !esParteFija(c), pesoTema);
+      if (mejor) motivo = motivoTema(mejor);
+    } else if (k === claveSalmo) {
+      const delDia = salmosDelDia(misa.fechaUso, lecturas, biblioteca);
+      mejor = delDia.ids.size ? elegir((c) => delDia.ids.has(c.id)) : null;
+      if (mejor) motivo = { texto: `El salmo del día (${delDia.nombre})`, corto: "del día" };
+      // Si no está el del día, mejor uno que no sea propio de otro domingo
+      else mejor = elegir((c) => esDelMomento(c, m.momento) || esSalmo(c), (c) => salmoPropio(c) ? -20 : 0);
+    }
+    if (motivo) motivos?.set(m.momento, motivo);
+    else if (!mejor) {
+      // Primero las que tienen la etiqueta del momento; si no hay, las que lo sugieren por el título o la letra
+      mejor = elegir((c) => esDelMomento(c, m.momento)) || elegir((c) => !!momentoPorLetra(c, m.momento));
     }
     m.canciones = mejor ? [{ cancionId: mejor.id, desplazamiento: 0, sugerida: true }] : [];
     if (mejor) {
-      usadas.add(mejor.id);
+      usar(mejor.id);
       sugeridos++;
     }
   }
   return sugeridos;
+}
+
+// ============ LOS DOMINGOS DEL MES ============
+// Los domingos se sugieren en cadena desde el primero del mes: ninguna canción se repite en el mes. La cadena
+// no depende de la comunidad, así el reproductor, Inicio y Misas sugieren lo mismo para cada domingo.
+
+const primerDomingoDelMes = (iso) => {
+  const d = new Date(+iso.slice(0, 4), +iso.slice(5, 7) - 1, 1, 12);
+  return sumarDias(d, (7 - d.getDay()) % 7);
+};
+
+// Los domingos del mes de «fecha» hasta esa fecha (inclusive)
+export function domingosDelMes(fecha) {
+  const fin = fechaMedioDia(fecha), lista = [];
+  for (let d = primerDomingoDelMes(fecha); d <= fin; d = sumarDias(d, 7)) lista.push(isoDe(d));
+  return lista;
+}
+
+// domingos: [{ fecha, lecturas }] en orden → [{ fecha, lecturas, misa, motivos, evitados }]
+export function sugerirDomingos(domingos, { biblioteca = [], misas = [] } = {}) {
+  const porMes = new Map();
+  return domingos.map(({ fecha, lecturas }) => {
+    const mes = fecha.slice(0, 7);
+    if (!porMes.has(mes)) porMes.set(mes, new Set());
+    const usadas = porMes.get(mes), evitados = new Set(usadas);
+    const { tiempo, momentos } = momentosDeMisa(fecha, lecturas);
+    const misa = { id: "domingo-" + fecha, comunidad: "", fechaUso: fecha, tiempoLiturgico: tiempo, momentos };
+    const motivos = new Map();
+    sugerirCantos(misa, lecturas, { biblioteca, misas, motivos, evitar: evitados });
+    for (const m of momentos) for (const c of m.canciones) usadas.add(c.cancionId);
+    return { fecha, lecturas, misa, motivos, evitados };
+  });
+}
+
+// Los cantos sugeridos para los domingos anteriores del mes de «fecha» (para no repetirlos en esa misa).
+// leerLecturas(fecha) → lecturas publicadas o null.
+const conLecturas = (fechas, leerLecturas) => Promise.all(fechas.map((f) =>
+  Promise.resolve().then(() => leerLecturas(f)).catch(() => null).then((lecturas) => ({ fecha: f, lecturas: lecturas || null }))));
+
+export async function evitadosDelMes(fecha, leerLecturas, opciones) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || "") || fechaMedioDia(fecha).getDay() !== 0) return new Set();
+  return sugerirDomingos(await conLecturas(domingosDelMes(fecha), leerLecturas), opciones).at(-1).evitados;
+}
+
+// Para el Inicio del reproductor: desde el primer domingo del mes del próximo domingo, ese domingo (aunque no
+// tenga lecturas) y los siguientes que ya están publicados en eucaristiadiaria.cl, hasta «semanas» más adelante
+export async function domingosPublicados(leerLecturas, semanas = 8) {
+  const proximo = proximoDomingo(), fin = sumarDias(fechaMedioDia(proximo), 7 * semanas), fechas = [];
+  for (let d = primerDomingoDelMes(proximo); d <= fin; d = sumarDias(d, 7)) fechas.push(isoDe(d));
+  const todas = await conLecturas(fechas, leerLecturas);
+  const corte = todas.findIndex((d) => d.fecha > proximo && !d.lecturas);
+  return corte < 0 ? todas : todas.slice(0, corte);
 }

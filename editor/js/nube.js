@@ -4,17 +4,58 @@
 //   cancionero.m3u8 · canciones/*.md · audios/* · <Título>.html (página con los audios adentro)
 // Sin apiUrl en js/config.js solo funcionan las carpetas del equipo.
 
-const MC_API = (window.MONTECARMELO_CONFIG || {}).apiUrl || '';
-const MC_SESION = 'montecarmelo.sesion';
+// La parroquia es la última que se abrió en este equipo (js/config.js): sus comunidades, su sesión y su API.
+const MC_CONFIG = window.MONTECARMELO_CONFIG || {};
+const MC_API = MC_CONFIG.apiUrl || '';
+const MC_PARROQUIA = MC_CONFIG.parroquia || 'montecarmelo';
+const MC_BASE = MC_CONFIG.base || '../';
+const MC_SESION = MC_PARROQUIA === 'montecarmelo' ? 'montecarmelo.sesion' : 'mc-sesion:' + MC_PARROQUIA;
 const MC_MAX_ARCHIVO = 30 * 1024 * 1024;
-const MC_COMUNIDADES = {
-  'maria-de-nazaret': 'Capilla María de Nazaret',
-  'san-pablo-apostol': 'San Pablo Apóstol',
-  'sagrada-familia': 'Sagrada Familia',
-  'monte-carmelo': 'Nuestra Señora del Monte Carmelo'
-};
+// slug → nombre. Primero lo guardado en el equipo (js/comunidades.js), después lo del servidor.
+const MC_COMUNIDADES = {};
+let MC_DATOS_PARROQUIA = null;
 const MC_ROLES_TODAS = ['admin_general', 'admin_segundo', 'sacerdote'];
-const mcVerUrl = htmlId => new URL('../ver.html?id=' + encodeURIComponent(htmlId), location.href).href;
+const mcVerUrl = htmlId => new URL(MC_BASE + 'ver?id=' + encodeURIComponent(htmlId), location.href).href;
+
+// La pestaña y la app instalada llevan el logo de la parroquia (/<parroquia>/icono-*.png, servidor/paginas.js)
+function mcPonerIcono(rel, href, sizes) {
+  document.querySelectorAll(`link[rel="${rel}"]`).forEach((l) => l.remove());
+  const l = document.createElement('link');
+  l.rel = rel;
+  l.href = href;
+  if (sizes) l.sizes = sizes;
+  document.head.append(l);
+}
+if (MC_CONFIG.parroquia) {
+  document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/' + MC_PARROQUIA + '/editor.webmanifest');
+}
+
+function mcPonerParroquia(p) {
+  if (!p || !p.slug) return;
+  MC_DATOS_PARROQUIA = p;
+  for (const k of Object.keys(MC_COMUNIDADES)) delete MC_COMUNIDADES[k];
+  for (const c of p.comunidades || []) MC_COMUNIDADES[c.slug] = c.nombre;
+  const corto = p.nombreCorto || p.nombre || '';
+  document.querySelectorAll('.brand small').forEach((el) => { el.textContent = corto; });
+  document.title = 'Editor de cancioneros — ' + corto;
+  if (p.iconos?.['192']) mcPonerIcono('icon', p.iconos['192'], '192x192');
+  if (p.iconos?.['180']) mcPonerIcono('apple-touch-icon', p.iconos['180']);
+}
+
+try {
+  mcPonerParroquia(JSON.parse(localStorage.getItem('mc-parroquia-datos:' + MC_PARROQUIA) || 'null'));
+} catch (_) { /* sin almacenamiento */ }
+if (MC_API) {
+  fetch(MC_API + '?accion=parroquia', { cache: 'no-store' }).then((r) => r.json()).then((r) => {
+    if (!r.ok) return;
+    try { localStorage.setItem('mc-parroquia-datos:' + MC_PARROQUIA, JSON.stringify(r.parroquia)); } catch (_) { /* sin almacenamiento */ }
+    mcPonerParroquia(r.parroquia);
+  }).catch(() => {});
+}
+// Los enlaces al sitio (../inicio.html, ../misas.html…) van a las páginas de la parroquia
+document.querySelectorAll('a[href^="../"]').forEach((a) => {
+  a.href = MC_BASE + a.getAttribute('href').slice(3).replace(/\.html(?=$|[?#])/, '');
+});
 
 // ============ SESIÓN (la misma del sitio: js/auth.js) ============
 function mcDatosToken(token) {
@@ -192,6 +233,13 @@ async function driveSaveDialog() {
   const prev = state.mcDrive;
   const todas = MC_ROLES_TODAS.includes(s.rol) || !MC_COMUNIDADES[s.comunidad];
   const opciones = Object.entries(MC_COMUNIDADES).filter(([slug]) => todas || slug === s.comunidad);
+  if (!opciones.length) {
+    showModal({
+      title: 'Nube de la parroquia',
+      body: '<p>La parroquia todavía no tiene comunidades. Un responsable las agrega en <b>Identificarse → Datos de la parroquia</b>.</p>'
+    });
+    return;
+  }
   const elegida = prev?.comunidad && opciones.some(([slug]) => slug === prev.comunidad) ? prev.comunidad
     : MC_COMUNIDADES[s.comunidad] ? s.comunidad : opciones[0][0];
   const conAudios = songs.some(d => d.audios.some(canEmbed));
@@ -918,7 +966,7 @@ async function mcGuardarEnMisa() {
 
 // Atril del editor con el cancionero vacío: ofrece el cancionero abierto en la pantalla Misas, que lo deja
 // en «mc-activo» (js/misas.js, guardarActivo). «t» es su versión: cambia solo cuando cambia el contenido.
-const MC_ACTIVO_KEY = 'mc-activo';
+const MC_ACTIVO_KEY = MC_PARROQUIA === 'montecarmelo' ? 'mc-activo' : 'mc-activo:' + MC_PARROQUIA;
 const MC_ACTIVO_VISTO = 'mc-activo-visto';
 
 function mcLeerActivo() {

@@ -672,6 +672,14 @@ body.en-escenario .rp-toast { bottom: calc(64px + env(safe-area-inset-bottom)); 
 .rp-control-grupo .rp-ctl { font-size: 18px; font-weight: 600; }
 .rp-control-nivel { min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
 .rp-control-tv .rp-esc-avanza[aria-pressed="true"] { background: var(--rp-acento); color: #fff; }
+/* Conectado, la letra que se ve bajo el panel es la que muestra el TV: el panel queda a mano arriba, en una sola
+   fila en el celular, y la letra puede subir hasta su última línea */
+body.rp-remoto .rp-control-tv { position: sticky; top: var(--nav-h); z-index: 6; }
+body.rp-remoto #rp-letra { padding-bottom: 50vh; }
+@media (max-width: 720px) {
+  body.rp-remoto .rp-control-fila { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  body.rp-remoto .rp-control-fila::-webkit-scrollbar { display: none; }
+}
 
 .rp-pant-roles { display: grid; gap: 8px; margin: 0.6rem 0 1rem; }
 .rp-pant-rol {

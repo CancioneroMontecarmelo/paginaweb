@@ -1,4 +1,4 @@
-// Configuración del sitio. El servidor de la parroquia es /api en el mismo sitio (Cloudflare Pages); desde
+// Configuración del sitio. El servidor es /<parroquia>/api en el mismo sitio (Cloudflare Pages); desde
 // otra dirección (o abriendo el archivo) se usa el del sitio publicado.
 // googleClientId: «ID de cliente» OAuth para el botón «Entrar con Google» (el mismo que GOOGLE_CLIENT_ID en
 // wrangler.toml).
@@ -52,10 +52,24 @@
     }
   }
 
+  // La parroquia: la página la trae puesta (functions/_middleware.js, en /<parroquia>/…); el editor (/editor/)
+  // usa la última que se abrió en este equipo
+  var datosParroquia = window.MC_PARROQUIA || null;
+  var parroquia = datosParroquia && datosParroquia.slug;
+  try {
+    if (parroquia) localStorage.setItem('mc-parroquia', parroquia);
+    else parroquia = localStorage.getItem('mc-parroquia') || '';
+  } catch (_) { /* sin almacenamiento */ }
+  if (!/^[a-z0-9-]{3,40}$/.test(parroquia || '')) parroquia = 'montecarmelo';
+
   var propio = /^https?:$/.test(location.protocol) && location.hostname !== VIEJO.host;
+  var sitio = propio ? location.origin + '/' : SITIO;
   window.MONTECARMELO_CONFIG = {
-    apiUrl: (propio ? location.origin + '/' : SITIO) + 'api',
-    sitio: propio ? location.origin + '/' : SITIO,
+    apiUrl: sitio + parroquia + '/api',
+    sitio: sitio,
+    parroquia: parroquia,
+    // Las páginas de la parroquia: sitio + parroquia + '/'
+    base: sitio + parroquia + '/',
     googleClientId: '446127505219-pei616euh78muqr6ak500br0ac41t2mk.apps.googleusercontent.com',
     correoParroquia: 'cancionerolitugico@gmail.com'
   };
@@ -72,7 +86,7 @@
     try { localStorage.removeItem('mc-equipo'); } catch (_) { /* sin almacenamiento */ }
     equipo = '';
   }
-  var portada = /^\/(index\.html|reproductor(\.html)?)?$/.test(location.pathname) && !location.hash;
+  var portada = /^\/([a-z0-9-]+\/)?(index\.html|reproductor(\.html)?)?$/.test(location.pathname) && !location.hash;
   if (portada && !conMouse && (equipo === 'tv' || (esTv && equipo !== 'normal'))) {
     location.replace(location.pathname.replace(/[^/]*$/, '') + 'reproductor#pantalla');
   }

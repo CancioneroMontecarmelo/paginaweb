@@ -1,7 +1,8 @@
 // Biblioteca de canciones: tabla `canciones` (índice + texto del .md) y audios/partituras en R2.
 // La lista pública (GET biblioteca) se guarda ya armada en R2 (cache/biblioteca.json) y se rehace con cada
 // cambio: así cada lectura cuesta un solo acceso, aunque haya miles de canciones.
-import { ErrorApi, COMUNIDADES, MAX_ARCHIVO_BYTES, ahora, slug, ordenTitulo, sello, parsear } from './util.js';
+import { ErrorApi, MAX_ARCHIVO_BYTES, ahora, slug, ordenTitulo, sello, parsear } from './util.js';
+import { esComunidad, PARROQUIA_DEFECTO } from './parroquias.js';
 import { usuarioDeToken, conPrivilegios, puedeEditar, soloAdminGeneral, auditar } from './auth.js';
 import {
   cabeceraMd, soloAudioMd, letraInicio, conVideoDeCabecera, textoConAudios, idDeEnlace
@@ -137,8 +138,15 @@ export async function subirAudio(c, request, p, token) {
   return { fileId: id, nombre };
 }
 
-function exigirEditarCancion(u, e) {
-  if (e.comunidad && !puedeEditar(u, e.comunidad)) throw new ErrorApi('No tenés permiso para modificar esta canción');
+// La Biblioteca es común: una canción con comunidad solo la cambian quienes pueden editar en esa comunidad de
+// su parroquia de origen (o el administrador general)
+function puedeEditarCancion(c, u, e) {
+  if (!e.comunidad || u.rol === 'admin_general') return true;
+  return (e.parroquia || PARROQUIA_DEFECTO) === c.slug && puedeEditar(u, e.comunidad);
+}
+
+function exigirEditarCancion(c, u, e) {
+  if (!puedeEditarCancion(c, u, e)) throw new ErrorApi('No tenés permiso para modificar esta canción');
 }
 
 async function vincularAudio(c, d) {
@@ -150,7 +158,7 @@ async function vincularAudio(c, d) {
   }
   if (!pedidos.length) throw new ErrorApi('No hay audios para vincular');
   const { e, md } = await exigirCancion(c, String(d.cancionId || ''));
-  exigirEditarCancion(u, e);
+  exigirEditarCancion(c, u, e);
   const ya = new Set((e.audios || []).filter((a) => a.fileId).map((a) => a.fileId));
   const nuevos = pedidos.filter((a) => !ya.has(a.fileId));
   e.audios = (e.audios || []).concat(nuevos);
@@ -166,7 +174,7 @@ async function desvincularAudio(c, d) {
   const fileId = String(d.fileId || ''), url = String(d.url || '');
   if (!fileId && !url) throw new ErrorApi('Falta el audio a quitar');
   const { e, md } = await exigirCancion(c, String(d.cancionId || ''));
-  exigirEditarCancion(u, e);
+  exigirEditarCancion(c, u, e);
   const quitados = (e.audios || []).filter((a) => (fileId ? a.fileId === fileId : a.url === url));
   if (!quitados.length) throw new ErrorApi('Ese audio ya no está en la canción');
   e.audios = e.audios.filter((a) => !quitados.includes(a));
@@ -191,12 +199,18 @@ export async function registrarEnBiblioteca(c, items, comunidad, u, { regenerar 
     const id = 'c-' + slug(it.cab.titulo);
     const previo = await leerCancion(c, id);
     const previa = previo && previo.e;
+    // Una canción de otra parroquia con el mismo título no se pisa: se usa la que ya está
+    if (previa && previa.comunidad && u.rol !== 'admin_general' && (previa.parroquia || PARROQUIA_DEFECTO) !== c.slug) {
+      hechas.push(previa);
+      continue;
+    }
     let md = String(it.texto).replace(/\r\n?/g, '\n');
     const e = {
       id, titulo: it.cab.titulo, tono: it.cab.tono, etiquetas: it.cab.etiquetas, mdId: id,
       soloAudio: soloAudioMd(md), inicio: letraInicio(md),
       audios: conVideoDeCabecera(it.audios.length ? it.audios : (previa ? previa.audios || [] : []), md),
       comunidad: (previa && previa.comunidad) || comunidad || '',
+      parroquia: previa ? previa.parroquia || PARROQUIA_DEFECTO : c.slug,
       autor: (previa && previa.autor) || u.email, actualizado: ahora()
     };
     if (it.rutaCarpeta) e.carpeta = it.rutaCarpeta;
@@ -234,7 +248,7 @@ async function subirCancion(c, d) {
       audios.push(await audioDeEnlace(c, nombre, voz, String(a.url)));
     }
   }
-  const comunidad = COMUNIDADES[d.comunidad] ? d.comunidad : (u.comunidad || '');
+  const comunidad = esComunidad(c, d.comunidad) ? d.comunidad : (u.comunidad || '');
   const item = { texto, cab: cabeceraMd(texto, d.nombre), audios };
   const partes = partesCarpeta(d.carpeta);
   if (partes) {
@@ -242,6 +256,9 @@ async function subirCancion(c, d) {
     item.nombreMd = nombreArchivoLimpio(d.nombre || slug(item.cab.titulo) + '.md');
   }
   const [e] = await registrarEnBiblioteca(c, [item], comunidad, u, { regenerar: false });
+  if (!puedeEditarCancion(c, u, e) && (e.parroquia || PARROQUIA_DEFECTO) !== c.slug) {
+    throw new ErrorApi('Ya hay una canción «' + e.titulo + '» de otra parroquia en la Biblioteca. Ponele otro título (por ejemplo, con el autor).');
+  }
   // Los audios subidos reemplazan en el .md a su ruta local (misma etiqueta title) por su enlace
   const sinEnlace = audios.filter((a) => a.fileId && texto.indexOf(a.fileId) < 0);
   let accesos = 0;
@@ -308,7 +325,7 @@ export async function subirPartitura(c, request, p, token) {
   if (!tipo) throw new ErrorApi('La partitura tiene que ser un PDF o una imagen PNG o JPG');
   const cancionId = String(p.cancionId || ''), voz = String(p.voz || '').slice(0, 30);
   const { e, md } = await exigirCancion(c, cancionId);
-  exigirEditarCancion(u, e);
+  exigirEditarCancion(c, u, e);
   if ((e.partituras || []).length >= 12) throw new ErrorApi('La canción ya tiene 12 partituras: quitá alguna antes de subir otra');
   const bytes = await leerCuerpo(request, MAX_PARTITURA_BYTES, 'La partitura está vacía o supera los 15 MB');
   if (!tipo.firma.every((b, i) => bytes[i] === b)) throw new ErrorApi('El archivo no es un ' + ext.toUpperCase() + ' válido');
@@ -326,7 +343,7 @@ async function quitarPartitura(c, d) {
   const u = conPrivilegios(await usuarioDeToken(c, d.token));
   const fileId = String(d.fileId || '');
   const { e, md } = await exigirCancion(c, String(d.cancionId || ''));
-  exigirEditarCancion(u, e);
+  exigirEditarCancion(c, u, e);
   const antes = (e.partituras || []).length;
   e.partituras = (e.partituras || []).filter((x) => x.fileId !== fileId);
   if (e.partituras.length === antes) throw new ErrorApi('Esa partitura ya no está en la canción');

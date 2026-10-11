@@ -18,7 +18,7 @@ export const MAX_ORIGINAL = 150 * 1024 * 1024;
 const TASA = 48000;
 const BLOQUE = 1024 * 47; // ~1 s de audio por AudioData, múltiplo del cuadro AAC
 const kbps = (canales) => (canales > 1 ? 96000 : 64000);
-const ARTISTA = "Parroquia Monte Carmelo";
+const artista = () => (window.MC_PARROQUIA && window.MC_PARROQUIA.nombre) || "Cancionero Litúrgico";
 const FFMPEG_CORE = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
 
 export const esAudio = (f) => /^(audio|video)\//i.test(f.type || "") ||
@@ -139,7 +139,7 @@ async function conFfmpeg(archivo, canales, titulo, alAvanzar, alEstado) {
     await ff.writeFile(entrada, new Uint8Array(await archivo.arrayBuffer()));
     const codigo = await ff.exec(["-i", entrada, "-vn", "-sn", "-dn", "-map", "0:a:0", "-map_metadata", "-1",
       "-c:a", "aac", "-b:a", String(kbps(canales)), "-ac", String(canales), "-ar", String(TASA), "-movflags", "+faststart",
-      "-metadata", `title=${titulo}`, "-metadata", `artist=${ARTISTA}`, "-y", salida]);
+      "-metadata", `title=${titulo}`, "-metadata", `artist=${artista()}`, "-y", salida]);
     if (codigo !== 0) throw new Error("ffmpeg no pudo convertirlo");
     return (await ff.readFile(salida)).buffer;
   } finally {

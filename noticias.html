@@ -2,23 +2,23 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <script src="./js/config.js?v=2"></script>
+  <script src="/js/config.js?v=2"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Noticias — Monte Carmelo</title>
+  <title>Noticias · Cancionero Litúrgico</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/site.css">
+  <link rel="stylesheet" href="/css/site.css">
 </head>
 <body>
   <nav class="nav-sitio" aria-label="Principal">
-    <a class="nav-marca" href="./inicio.html">Monte Carmelo</a>
+    <a class="nav-marca" href="./inicio.html">Cancionero Litúrgico</a>
     <button type="button" class="nav-toggle" aria-label="Menú">Menú</button>
     <ul class="nav-links">
       <li><a href="./inicio.html">Parroquia</a></li>
       <li><a href="./misas.html">Misas</a></li>
       <li><a href="./reproductor.html">Cancionero Litúrgico</a></li>
-      <li><a href="./editor/">Editor</a></li>
+      <li><a href="/editor/">Editor</a></li>
       <li><a href="./noticias.html" aria-current="page">Noticias</a></li>
       <li><a href="./login.html" data-nav-sesion>Identificarse</a></li>
     </ul>
@@ -29,12 +29,7 @@
     <p class="subtitulo">Avisos generales. Cada comunidad tiene su propia página de noticias.</p>
     <p class="sesion-bar" id="sesion-bar" hidden></p>
 
-    <p>
-      <a href="./comunidades/maria-de-nazaret.html">María de Nazaret</a> ·
-      <a href="./comunidades/san-pablo-apostol.html">San Pablo</a> ·
-      <a href="./comunidades/sagrada-familia.html">Sagrada Familia</a> ·
-      <a href="./comunidades/monte-carmelo.html">Monte Carmelo</a>
-    </p>
+    <p id="enlaces-comunidades"></p>
 
     <div id="lista-noticias"></div>
 
@@ -63,16 +58,11 @@
   </footer>
 
   <script type="module">
-    import { initNavSitio } from "./js/auth.js";
-    import { iniciarPaginaNoticias } from "./js/noticias.js";
+    import { initNavSitio } from "/js/auth.js";
+    import { iniciarPaginaNoticias, pintarEnlacesComunidades } from "/js/noticias.js";
     initNavSitio();
-    iniciarPaginaNoticias({
-      slug: "parroquia",
-      archivo: "parroquia.json",
-      nombreArchivo: "parroquia.json"
-    });
-    const f = document.getElementById("campo-fecha");
-    if (f && !f.value) f.value = new Date().toISOString().slice(0, 10);
+    pintarEnlacesComunidades(document.getElementById("enlaces-comunidades"));
+    iniciarPaginaNoticias({ slug: "parroquia" });
   </script>
 </body>
 </html>

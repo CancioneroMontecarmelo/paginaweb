@@ -1,24 +1,28 @@
 // Cancioneros de misa (antes misas.json), sus lecturas propias (Lecturas/misa-<id>.json), los ensayos
 // (sistema/ensayos.json) y En vivo (antes en CacheService).
-import { ErrorApi, COMUNIDADES, ahora, fecha as fechaValida, texto, parsear } from './util.js';
+import { ErrorApi, ahora, fecha as fechaValida, texto, parsear } from './util.js';
 import { usuarioDeToken, puedeEditar, auditar } from './auth.js';
 import { lecturas, tiempoDeTitulo } from './lecturas.js';
+import { esComunidad, nombreComunidad } from './parroquias.js';
 
-async function leerMisa(c, id) {
-  const fila = await c.db.prepare('SELECT * FROM misas WHERE id = ?').bind(String(id || '')).first();
+// Solo las de la parroquia del pedido; `cualquiera` para leer las lecturas de un cancionero por su id
+async function leerMisa(c, id, cualquiera = false) {
+  const fila = cualquiera
+    ? await c.db.prepare('SELECT * FROM misas WHERE id = ?').bind(String(id || '')).first()
+    : await c.db.prepare('SELECT * FROM misas WHERE id = ? AND parroquia = ?').bind(String(id || ''), c.slug).first();
   return fila ? { m: parsear(fila.datos), fila } : null;
 }
 
-export async function buscarMisa(c, id) {
-  const r = await leerMisa(c, id);
+export async function buscarMisa(c, id, cualquiera = false) {
+  const r = await leerMisa(c, id, cualquiera);
   if (!r) throw new ErrorApi('Cancionero no encontrado');
   return r;
 }
 
 async function listarMisas(c, p) {
   const consulta = p && p.comunidad
-    ? c.db.prepare('SELECT datos FROM misas WHERE comunidad = ? ORDER BY orden DESC').bind(String(p.comunidad))
-    : c.db.prepare('SELECT datos FROM misas ORDER BY orden DESC');
+    ? c.db.prepare('SELECT datos FROM misas WHERE parroquia = ? AND comunidad = ? ORDER BY orden DESC').bind(c.slug, String(p.comunidad))
+    : c.db.prepare('SELECT datos FROM misas WHERE parroquia = ? ORDER BY orden DESC').bind(c.slug);
   const { results } = await consulta.all();
   return { ok: true, misas: results.map((r) => parsear(r.datos)).filter(Boolean) };
 }
@@ -75,8 +79,8 @@ async function guardarMisa(c, d) {
   const u = await usuarioDeToken(c, d.token);
   const m = d.misa || {};
   const comunidad = String(m.comunidad || '');
-  if (!COMUNIDADES[comunidad]) throw new ErrorApi('Elegí la comunidad');
-  if (!puedeEditar(u, comunidad)) throw new ErrorApi('No tenés permiso para guardar cancioneros de ' + COMUNIDADES[comunidad]);
+  if (!esComunidad(c, comunidad)) throw new ErrorApi('Elegí la comunidad');
+  if (!puedeEditar(u, comunidad)) throw new ErrorApi('No tenés permiso para guardar cancioneros de ' + nombreComunidad(c, comunidad));
   const nombre = texto(m.nombre, 120);
   if (!nombre) throw new ErrorApi('Escribí el nombre del cancionero');
   // lecturas: objeto = texto propio del cancionero; null = volver a las del día; sin el campo = no cambian
@@ -86,7 +90,7 @@ async function guardarMisa(c, d) {
   if (previa && !puedeEditar(u, previa.comunidad)) throw new ErrorApi('No tenés permiso para modificar este cancionero');
   const misa = {
     id: previa ? previa.id : 'm-' + Date.now(),
-    nombre, comunidad, comunidadNombre: COMUNIDADES[comunidad],
+    nombre, comunidad, comunidadNombre: nombreComunidad(c, comunidad),
     fechaUso: fechaValida(m.fechaUso), fechaLecturas: fechaValida(m.fechaLecturas),
     lecturasPropias: nuevasLecturas === undefined ? !!(previa && previa.lecturasPropias) : !!nuevasLecturas,
     tiempoLiturgico: texto(m.tiempoLiturgico, 60), coroId: texto(m.coroId, 40),
@@ -104,8 +108,8 @@ async function guardarMisa(c, d) {
   else if (previa && previa.publicada) misa.publicada = previa.publicada;
   const lecturasCol = nuevasLecturas === undefined ? (anterior ? anterior.fila.lecturas : null) : (nuevasLecturas ? JSON.stringify(nuevasLecturas) : null);
   const ensayosCol = d.ensayos ? JSON.stringify(limpiarEnsayos(d.ensayos)) : (anterior ? anterior.fila.ensayos : null);
-  await c.db.prepare('INSERT OR REPLACE INTO misas (id, comunidad, orden, datos, lecturas, ensayos) VALUES (?, ?, ?, ?, ?, ?)')
-    .bind(misa.id, comunidad, ordenMisa(misa), JSON.stringify(misa), lecturasCol, ensayosCol).run();
+  await c.db.prepare('INSERT OR REPLACE INTO misas (id, comunidad, orden, datos, lecturas, ensayos, parroquia) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .bind(misa.id, comunidad, ordenMisa(misa), JSON.stringify(misa), lecturasCol, ensayosCol, c.slug).run();
   await auditar(c, { tipo: 'misa_guardada', email: u.email, nombre: u.nombre, titulo: misa.nombre, comunidad });
   return { misa };
 }
@@ -114,13 +118,13 @@ async function borrarMisa(c, d) {
   const u = await usuarioDeToken(c, d.token);
   const { m } = await buscarMisa(c, d.id);
   if (!puedeEditar(u, m.comunidad)) throw new ErrorApi('No tenés permiso para borrar este cancionero');
-  await c.db.prepare('DELETE FROM misas WHERE id = ?').bind(m.id).run();
+  await c.db.prepare('DELETE FROM misas WHERE id = ? AND parroquia = ?').bind(m.id, c.slug).run();
   await auditar(c, { tipo: 'misa_borrada', email: u.email, nombre: u.nombre, titulo: m.nombre });
   return {};
 }
 
 export async function lecturasDeMisa(c, id) {
-  const { m, fila } = await buscarMisa(c, id);
+  const { m, fila } = await buscarMisa(c, id, true);
   const fecha = m.fechaLecturas || m.fechaUso;
   if (!m.lecturasPropias) return fecha ? lecturas(c, fecha) : { ok: true, lecturas: { disponible: false, secciones: [] } };
   const l = parsear(fila.lecturas, null);
@@ -148,7 +152,7 @@ async function guardarEnsayos(c, d) {
   const { m } = await buscarMisa(c, d.id);
   exigirComunidad(u, m.comunidad);
   const ensayos = limpiarEnsayos(d.ensayos);
-  await c.db.prepare('UPDATE misas SET ensayos = ? WHERE id = ?').bind(JSON.stringify(ensayos), m.id).run();
+  await c.db.prepare('UPDATE misas SET ensayos = ? WHERE id = ? AND parroquia = ?').bind(JSON.stringify(ensayos), m.id, c.slug).run();
   return { ensayos };
 }
 
@@ -163,8 +167,8 @@ async function vivoLeer(c, codigo) {
 }
 
 async function vivoGuardar(c, v) {
-  await c.db.prepare('INSERT OR REPLACE INTO vivo (codigo, misa_id, activo, vence, datos) VALUES (?, ?, ?, ?, ?)')
-    .bind(v.codigo, v.misaId, v.activo ? 1 : 0, Date.now() + VIVO_MS, JSON.stringify(v)).run();
+  await c.db.prepare('INSERT OR REPLACE INTO vivo (codigo, misa_id, activo, vence, datos, parroquia) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(v.codigo, v.misaId, v.activo ? 1 : 0, Date.now() + VIVO_MS, JSON.stringify(v), v.parroquia || c.slug).run();
 }
 
 const vivoPublico = (v) => ({
@@ -176,7 +180,7 @@ async function vivoDeQuienDirige(c, d) {
   const u = await usuarioDeToken(c, d.token);
   const v = await vivoLeer(c, d.codigo);
   if (!v) throw new ErrorApi('La transmisión ya no existe (duran 6 horas): volvé a iniciarla');
-  if (!puedeEditar(u, v.comunidad)) throw new ErrorApi('No tenés permiso para dirigir este cancionero');
+  if ((v.parroquia || 'montecarmelo') !== c.slug || !puedeEditar(u, v.comunidad)) throw new ErrorApi('No tenés permiso para dirigir este cancionero');
   return v;
 }
 
@@ -197,7 +201,7 @@ async function iniciarVivo(c, d) {
       if (!await vivoLeer(c, codigo)) break;
     }
     v = {
-      codigo, misaId: misa.id, comunidad: misa.comunidad, nombre: misa.nombre || 'Cancionero', momento: '', cancionId: '',
+      codigo, misaId: misa.id, parroquia: c.slug, comunidad: misa.comunidad, nombre: misa.nombre || 'Cancionero', momento: '', cancionId: '',
       desplazamiento: 0, rev: 0, activo: true, email: u.email, inicio: ahora()
     };
     await vivoGuardar(c, v);

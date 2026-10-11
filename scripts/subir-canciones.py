@@ -4,12 +4,15 @@ subir-canciones.py — Aplicación de escritorio: encuentra las canciones .md qu
 computadora, muestra cuáles faltan o cambiaron frente a la Biblioteca de la parroquia (el servidor del
 sitio en Cloudflare) y las sube con sus audios convertidos a AAC (.m4a), que suenan en todos los equipos.
 
-    scripts/subir-canciones.py [CARPETA_O_ARCHIVO.md ...]
+    scripts/subir-canciones.py [--parroquia montecarmelo] [CARPETA_O_ARCHIVO.md ...]
+
+La parroquia (la de cancioneroliturgico.cl/<parroquia>/) queda recordada para la próxima vez.
 
 El lanzador del menú lo instala scripts/instalar-escritorio.sh.
 """
 
 import json
+import os
 import sys
 import threading
 import webbrowser
@@ -81,10 +84,10 @@ class Ventana(Gtk.ApplicationWindow):
         self.trabajando = False
         mc.aviso = lambda *p: GLib.idle_add(self.anotar, " ".join(str(x) for x in p))
 
-        cab = Gtk.HeaderBar(show_close_button=True, title=NOMBRE, subtitle="Parroquia Nuestra Señora del Monte Carmelo")
+        self.cab = cab = Gtk.HeaderBar(show_close_button=True, title=NOMBRE, subtitle=mc.ARTISTA if mc.PARROQUIA == "montecarmelo" else mc.PARROQUIA)
         self.set_titlebar(cab)
         sitio = Gtk.Button(label="Ver la Biblioteca en el sitio")
-        sitio.connect("clicked", lambda *_: webbrowser.open(mc.SITIO_URL + "misas"))
+        sitio.connect("clicked", lambda *_: webbrowser.open(mc.sitio_parroquia() + "misas"))
         cab.pack_end(sitio)
 
         caja = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin=14)
@@ -122,7 +125,7 @@ class Ventana(Gtk.ApplicationWindow):
         fila.pack_start(self.lbl_sesion, True, True, 0)
         conseguir = Gtk.Button(label="Conseguir la clave en el sitio")
         conseguir.set_tooltip_text("Abre Identificarse (login#clave): entrá con tu cuenta y tocá «Copiar clave para el script»")
-        conseguir.connect("clicked", lambda *_: webbrowser.open(mc.SITIO_URL + "login#clave"))
+        conseguir.connect("clicked", lambda *_: webbrowser.open(mc.sitio_parroquia() + "login#clave"))
         fila.pack_start(conseguir, False, False, 0)
         pegar = Gtk.Button(label="Pegar la clave…")
         pegar.connect("clicked", lambda *_: self.pedir_clave())
@@ -166,6 +169,7 @@ class Ventana(Gtk.ApplicationWindow):
         self.cmb_comunidad.set_active(0)
         fila.pack_start(self.cmb_comunidad, False, False, 0)
         caja.pack_start(fila, False, False, 0)
+        threading.Thread(target=self.cargar_parroquia, daemon=True).start()
 
         fila = Gtk.Box(spacing=8)
         todas = Gtk.Button(label="Seleccionar todas")
@@ -351,6 +355,26 @@ class Ventana(Gtk.ApplicationWindow):
         else:
             self.contar_marcadas()
 
+    def cargar_parroquia(self):
+        try:
+            p = mc.cargar_parroquia()
+        except mc.Error as e:
+            GLib.idle_add(self.anotar, str(e))
+            return
+        if p:
+            GLib.idle_add(self.poner_parroquia, p)
+
+    def poner_parroquia(self, p):
+        self.cab.set_subtitle(p.get("nombre") or mc.PARROQUIA)
+        activa = self.cmb_comunidad.get_active_id() or ""
+        self.cmb_comunidad.remove_all()
+        self.cmb_comunidad.append("", "La de mi cuenta")
+        for slug_, nombre in mc.COMUNIDADES.items():
+            self.cmb_comunidad.append(slug_, nombre)
+        if not self.cmb_comunidad.set_active_id(activa):
+            self.cmb_comunidad.set_active(0)
+        return False
+
     def anotar(self, texto):
         buf = self.registro.get_buffer()
         buf.insert(buf.get_end_iter(), texto + "\n")
@@ -502,7 +526,7 @@ class Ventana(Gtk.ApplicationWindow):
         dlg.format_secondary_text("\n\n".join(partes))
         dlg.add_buttons("Ver en el sitio", 1, "Cerrar", Gtk.ResponseType.CLOSE)
         if dlg.run() == 1:
-            webbrowser.open(mc.SITIO_URL + "misas")
+            webbrowser.open(mc.sitio_parroquia() + "misas")
         dlg.destroy()
         self.elegidos = set()
         self.revisar()
@@ -527,11 +551,32 @@ class Aplicacion(Gtk.Application):
         ventana.present()
 
 
+def parroquia_de_argumentos(args):
+    """--parroquia X o --parroquia=X; sin eso, la última usada (o MC_PARROQUIA, o montecarmelo)."""
+    resto, elegida = [], ""
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--parroquia" and i + 1 < len(args):
+            elegida, i = args[i + 1], i + 2
+            continue
+        if a.startswith("--parroquia="):
+            elegida = a.split("=", 1)[1]
+        elif not a.startswith("-"):
+            resto.append(a)
+        i += 1
+    return elegida, resto
+
+
 def main():
     GLib.set_prgname("montecarmelo-subir")  # = StartupWMClass del lanzador: el menú agrupa bien la ventana
     GLib.set_application_name(NOMBRE)
+    elegida, rutas = parroquia_de_argumentos(sys.argv[1:])
+    if elegida:
+        guardar_prefs(parroquia=elegida)
+    mc.usar_parroquia(elegida or os.environ.get("MC_PARROQUIA") or leer_prefs().get("parroquia", ""))
     app = Aplicacion()
-    app.args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    app.args = rutas
     return app.run([sys.argv[0]])
 
 

@@ -1,13 +1,14 @@
 // Cancioneros guardados desde el editor (antes MonteCarmelo/Cancioneros/<comunidad>/<fecha>_<nombre>/ en el
 // Drive + indice.json). Cada cancionero es una «carpeta» (folderId) con sus archivos en R2:
 //   cancionero.m3u8 · canciones/*.md · audios/* · <Título>.html
-import { ErrorApi, COMUNIDADES, MAX_ARCHIVO_BYTES, ahora, idNuevo, parsear, respuestaTexto } from './util.js';
+import { ErrorApi, MAX_ARCHIVO_BYTES, ahora, idNuevo, parsear, respuestaTexto } from './util.js';
 import { usuarioDeToken, puedeEditar, esResponsable, auditar } from './auth.js';
 import { guardarArchivo, borrarArchivos, filaArchivo, archivoEnBase64, leerCuerpo } from './archivos.js';
 import { indexarEnBiblioteca } from './biblioteca.js';
+import { esComunidad, nombreComunidad } from './parroquias.js';
 
 async function leerCancionero(c, folderId) {
-  const fila = await c.db.prepare('SELECT * FROM cancioneros WHERE folder_id = ?').bind(String(folderId || '')).first();
+  const fila = await c.db.prepare('SELECT * FROM cancioneros WHERE folder_id = ? AND parroquia = ?').bind(String(folderId || ''), c.slug).first();
   if (!fila) throw new ErrorApi('Ese cancionero no pertenece al sitio');
   const entrada = parsear(fila.datos, {});
   const meta = parsear(fila.meta, null);
@@ -24,8 +25,8 @@ const listaArchivos = (filas) => filas.map((f) => ({ id: f.id, ruta: f.ruta, mim
 async function iniciarCancionero(c, d) {
   const u = await usuarioDeToken(c, d.token);
   const comunidad = String(d.comunidad || '');
-  if (!COMUNIDADES[comunidad]) throw new ErrorApi('Comunidad desconocida');
-  if (!puedeEditar(u, comunidad)) throw new ErrorApi('No tenés permiso para guardar cancioneros de ' + COMUNIDADES[comunidad]);
+  if (!esComunidad(c, comunidad)) throw new ErrorApi('Comunidad desconocida');
+  if (!puedeEditar(u, comunidad)) throw new ErrorApi('No tenés permiso para guardar cancioneros de ' + nombreComunidad(c, comunidad));
   const titulo = String(d.titulo || '').trim() || 'Cancionero';
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(d.fecha || '')) ? d.fecha : ahora().slice(0, 10);
   const meta = JSON.stringify({ comunidad, titulo, fecha, autor: u.email });
@@ -36,8 +37,8 @@ async function iniciarCancionero(c, d) {
     return { folderId: x.fila.folder_id, existentes: listaArchivos(await archivosDe(c, x.fila.folder_id)) };
   }
   const folderId = idNuevo();
-  await c.db.prepare('INSERT INTO cancioneros (folder_id, comunidad, fecha, pendiente, datos, meta) VALUES (?, ?, ?, 1, ?, ?)')
-    .bind(folderId, comunidad, fecha, '{}', meta).run();
+  await c.db.prepare('INSERT INTO cancioneros (folder_id, comunidad, fecha, pendiente, datos, meta, parroquia) VALUES (?, ?, ?, 1, ?, ?, ?)')
+    .bind(folderId, comunidad, fecha, '{}', meta, c.slug).run();
   return { folderId, existentes: [] };
 }
 
@@ -81,7 +82,7 @@ async function cerrarCancionero(c, d) {
     htmlId: (html && html.id) || previa.htmlId || '',
     titulo: meta.titulo,
     comunidad: meta.comunidad,
-    comunidadNombre: COMUNIDADES[meta.comunidad],
+    comunidadNombre: nombreComunidad(c, meta.comunidad),
     fecha: meta.fecha,
     canciones: Number(d.canciones) || 0,
     audios: Number(d.audios) || 0,
@@ -105,8 +106,8 @@ async function cerrarCancionero(c, d) {
 async function listar(c, d) {
   const comunidad = d && d.comunidad ? String(d.comunidad) : '';
   const consulta = comunidad
-    ? c.db.prepare('SELECT datos FROM cancioneros WHERE pendiente = 0 AND comunidad = ? ORDER BY fecha DESC, actualizado DESC').bind(comunidad)
-    : c.db.prepare('SELECT datos FROM cancioneros WHERE pendiente = 0 ORDER BY fecha DESC, actualizado DESC');
+    ? c.db.prepare('SELECT datos FROM cancioneros WHERE parroquia = ? AND pendiente = 0 AND comunidad = ? ORDER BY fecha DESC, actualizado DESC').bind(c.slug, comunidad)
+    : c.db.prepare('SELECT datos FROM cancioneros WHERE parroquia = ? AND pendiente = 0 ORDER BY fecha DESC, actualizado DESC').bind(c.slug);
   const { results } = await consulta.all();
   return { ok: true, cancioneros: results.map((r) => parsear(r.datos)).filter(Boolean) };
 }

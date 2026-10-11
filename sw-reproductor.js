@@ -2,16 +2,18 @@
 // App del reproductor: con internet siempre se carga la versión más nueva (y se guarda una copia);
 // sin internet, o si la red tarda, se usa la copia guardada. Ni el servidor (/api), ni YouTube, ni los audios pasan por acá.
 // Cloudflare Pages sirve las páginas sin «.html» (reproductor.html redirige a reproductor): se guarda esa dirección.
+// Cada parroquia tiene el suyo en /<parroquia>/sw-reproductor.js (lo sirve functions/_middleware.js desde este
+// archivo): lo relativo (la página, el manifest y el logo) es de la parroquia; CSS y JS son comunes (/css, /js).
 
-const CACHE = 'mc-reproductor-12';
+const CACHE = 'mc-reproductor-16';
 const NET_TIMEOUT = 3000;
 const SHELL = [
-  'reproductor', 'reproductor.webmanifest', 'js/config.js?v=2',
-  'icons/reproductor-180.png', 'icons/reproductor-192.png', 'icons/reproductor-512.png',
-  ...['site', 'posturas', 'partituras', 'voces', 'reproductor'].map((n) => `css/${n}.css`),
-  ...['reproductor', 'auth', 'comunidades', 'liturgia', 'posturas', 'partituras', 'voces', 'youtube-embed', 'misas-shim', 'sala', 'lector-qr'].map((n) => `js/${n}.js`),
-  'js/vendor/qrcode.mjs',
-  ...['acordes', 'markdown', 'etiquetas', 'buscar', 'instrumentos', 'rasgueos', 'render', 'caratula'].map((n) => `editor/js/${n}.js`)
+  'reproductor', 'reproductor.webmanifest', '/js/config.js?v=2',
+  'icono-180.png', 'icono-192.png', 'icono-512.png',
+  ...['site', 'posturas', 'partituras', 'voces', 'reproductor'].map((n) => `/css/${n}.css`),
+  ...['reproductor', 'auth', 'comunidades', 'liturgia', 'posturas', 'partituras', 'voces', 'youtube-embed', 'misas-shim', 'sala', 'lector-qr'].map((n) => `/js/${n}.js`),
+  '/js/vendor/qrcode.mjs',
+  ...['acordes', 'markdown', 'etiquetas', 'buscar', 'instrumentos', 'rasgueos', 'render', 'caratula'].map((n) => `/editor/js/${n}.js`)
 ];
 
 self.addEventListener('install', (e) => {
@@ -29,7 +31,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
-  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api') || req.headers.has('range') ||
+  if (req.method !== 'GET' || url.origin !== location.origin || /^\/([a-z0-9-]+\/)?api(\/|$)/.test(url.pathname) || req.headers.has('range') ||
       /\.(m4a|mp3|webm|ogg|opus|wav|aac)$/i.test(url.pathname)) return;
   const net = fetch(req, { cache: 'no-cache' });
   e.waitUntil(net.then((res) => {

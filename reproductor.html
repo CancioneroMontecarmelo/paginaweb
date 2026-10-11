@@ -2,14 +2,14 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <script src="./js/config.js?v=2"></script>
+  <script src="/js/config.js?v=2"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Cancionero Litúrgico: canciones para la misa con su letra, acordes y audio, en listas o siguiendo el cancionero de cada misa.">
   <meta name="theme-color" content="#030303">
   <title>Cancionero Litúrgico</title>
   <link rel="manifest" href="./reproductor.webmanifest">
-  <link rel="icon" href="./icons/reproductor-192.png">
-  <link rel="apple-touch-icon" href="./icons/reproductor-180.png">
+  <link rel="icon" href="/icons/reproductor-192.png">
+  <link rel="apple-touch-icon" href="/icons/reproductor-180.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Cancionero">
@@ -17,11 +17,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/site.css">
-  <link rel="stylesheet" href="./css/posturas.css">
-  <link rel="stylesheet" href="./css/partituras.css">
-  <link rel="stylesheet" href="./css/voces.css">
-  <link rel="stylesheet" href="./css/reproductor.css">
+  <link rel="stylesheet" href="/css/site.css">
+  <link rel="stylesheet" href="/css/posturas.css">
+  <link rel="stylesheet" href="/css/partituras.css">
+  <link rel="stylesheet" href="/css/voces.css">
+  <link rel="stylesheet" href="/css/reproductor.css">
 </head>
 <body class="pagina-reproductor rp-oscuro" data-rp-tema="noche">
   <script>
@@ -41,7 +41,7 @@
       <li><a href="./inicio.html">Parroquia</a></li>
       <li><a href="./misas.html">Misas</a></li>
       <li><a href="./reproductor.html" aria-current="page">Cancionero Litúrgico</a></li>
-      <li><a href="./editor/">Editor</a></li>
+      <li><a href="/editor/">Editor</a></li>
       <li><a href="./noticias.html">Noticias</a></li>
       <li><a href="./login.html" data-nav-sesion>Identificarse</a></li>
     </ul>
@@ -68,7 +68,7 @@
     <!-- Inicio: el próximo domingo y estanterías con la música de la parroquia -->
     <section class="rp-vista" id="vista-inicio" role="tabpanel">
       <div class="rp-portada" id="rp-portada">
-        <small id="rp-portada-sobre">Parroquia Monte Carmelo</small>
+        <small id="rp-portada-sobre" data-parroquia="nombre">Cancionero Litúrgico</small>
         <h1 id="rp-portada-titulo">Cancionero Litúrgico</h1>
         <p id="rp-portada-tiempo"></p>
         <div class="rp-portada-botones">
@@ -358,15 +358,15 @@
 
   <div class="rp-toast" id="rp-toast" role="status" hidden></div>
 
-  <script src="./js/misas-shim.js"></script>
-  <script src="./editor/js/acordes.js"></script>
-  <script src="./editor/js/markdown.js"></script>
-  <script src="./editor/js/etiquetas.js"></script>
-  <script src="./editor/js/buscar.js"></script>
-  <script src="./editor/js/instrumentos.js"></script>
-  <script src="./editor/js/rasgueos.js"></script>
-  <script src="./editor/js/render.js"></script>
-  <script src="./editor/js/caratula.js"></script>
-  <script type="module" src="./js/reproductor.js"></script>
+  <script src="/js/misas-shim.js"></script>
+  <script src="/editor/js/acordes.js"></script>
+  <script src="/editor/js/markdown.js"></script>
+  <script src="/editor/js/etiquetas.js"></script>
+  <script src="/editor/js/buscar.js"></script>
+  <script src="/editor/js/instrumentos.js"></script>
+  <script src="/editor/js/rasgueos.js"></script>
+  <script src="/editor/js/render.js"></script>
+  <script src="/editor/js/caratula.js"></script>
+  <script type="module" src="/js/reproductor.js"></script>
 </body>
 </html>

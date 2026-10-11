@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "include": ["/api", "/api/*"],
-  "exclude": []
+  "include": ["/*"],
+  "exclude": ["/css/*", "/js/*", "/icons/*", "/Imagenes/*", "/editor/*", "/favicon.ico", "/404.html"]
 }

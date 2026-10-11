@@ -2,24 +2,24 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <script src="./js/config.js?v=2"></script>
+  <script src="/js/config.js?v=2"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Identificarse — Monte Carmelo</title>
+  <title>Identificarse · Cancionero Litúrgico</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/site.css">
-  <link rel="stylesheet" href="./css/coros.css">
+  <link rel="stylesheet" href="/css/site.css">
+  <link rel="stylesheet" href="/css/coros.css">
 </head>
 <body>
   <nav class="nav-sitio" aria-label="Principal">
-    <a class="nav-marca" href="./inicio.html">Monte Carmelo</a>
+    <a class="nav-marca" href="./inicio.html">Cancionero Litúrgico</a>
     <button type="button" class="nav-toggle" aria-label="Menú">Menú</button>
     <ul class="nav-links">
       <li><a href="./inicio.html">Parroquia</a></li>
       <li><a href="./misas.html">Misas</a></li>
       <li><a href="./reproductor.html">Cancionero Litúrgico</a></li>
-      <li><a href="./editor/">Editor</a></li>
+      <li><a href="/editor/">Editor</a></li>
       <li><a href="./noticias.html">Noticias</a></li>
       <li><a href="./login.html" aria-current="page" data-nav-sesion>Identificarse</a></li>
     </ul>
@@ -55,7 +55,7 @@
       <p class="msg-ok" id="sesion-aviso" hidden></p>
       <div class="acciones-form">
         <a class="btn btn-primario" href="./noticias.html">Ir a noticias</a>
-        <a class="btn btn-secundario" href="./editor/" id="sesion-editor" hidden>Abrir el editor</a>
+        <a class="btn btn-secundario" href="/editor/" id="sesion-editor" hidden>Abrir el editor</a>
         <button type="button" class="btn btn-secundario" data-coros hidden>Coros de la comunidad</button>
         <button type="button" class="btn btn-secundario" data-clave hidden>Copiar clave para el script</button>
         <button type="button" class="btn btn-secundario" data-salir>Cerrar sesión</button>
@@ -68,8 +68,10 @@
       <p class="sesion-bar" id="panel-quien"></p>
       <div class="acciones-form">
         <button type="button" class="btn btn-primario" id="btn-admins">Administradores y permisos</button>
+        <button type="button" class="btn btn-secundario" id="btn-parroquia">Datos de la parroquia</button>
+        <button type="button" class="btn btn-secundario" id="btn-parroquias" hidden>Parroquias</button>
         <button type="button" class="btn btn-secundario" data-coros>Coros de la comunidad</button>
-        <a class="btn btn-secundario" href="./editor/">Abrir el editor</a>
+        <a class="btn btn-secundario" href="/editor/">Abrir el editor</a>
         <button type="button" class="btn btn-secundario" data-clave hidden>Copiar clave para el script</button>
         <button type="button" class="btn btn-secundario" data-salir>Cerrar sesión</button>
       </div>
@@ -78,10 +80,11 @@
       <h2 class="auth-h2">Registro de entradas</h2>
       <div id="lista-auditoria" class="lista-auditoria"></div>
 
-      <h2 class="auth-h2">Visitantes externos</h2>
-      <p class="aviso">Cuentas sin privilegios que entraron al sitio (con Google o solo con el correo).</p>
+      <h2 class="auth-h2">Invitados</h2>
+      <p class="aviso">Quienes entraron a esta parroquia sin privilegios (con Google o solo con el correo).
+        Con «Dar privilegios» los sumás a los administradores.</p>
       <table class="tabla-personas tabla-visitantes">
-        <thead><tr><th>Persona</th><th>Primera visita</th><th>Última visita</th><th>Veces</th></tr></thead>
+        <thead><tr><th>Persona</th><th>Primera visita</th><th>Última visita</th><th>Veces</th><th></th></tr></thead>
         <tbody id="tabla-visitantes"></tbody>
       </table>
 
@@ -148,13 +151,15 @@
       llamarApi,
       CORREO_PARROQUIA,
       ROLES
-    } from "./js/auth.js";
-    import { abrirCoros, listarCoros, gestionaCoros } from "./js/coros.js";
+    } from "/js/auth.js";
+    import { abrirCoros, listarCoros, gestionaCoros } from "/js/coros.js";
+    import { PARROQUIA } from "/js/comunidades.js";
+    import { abrirDatosParroquia, abrirParroquias } from "/js/admin-parroquia.js";
 
     initNavSitio();
     const $ = (id) => document.getElementById(id);
     const NOMBRES_ROL = { admin_general: "Administrador general", visitante: "Visitante", ...ROLES };
-    const COMUNIDADES = comunidadesOpciones();
+    let COMUNIDADES = comunidadesOpciones();
     const nombreComunidad = (slug) => (COMUNIDADES.find((c) => c.slug === slug) || {}).nombre || "";
 
     function mostrar(panel) {
@@ -190,6 +195,7 @@
         $("panel-quien").innerHTML = "";
         $("panel-quien").append("Sesión: ", Object.assign(document.createElement("strong"), { textContent: s.nombre }),
           " (" + NOMBRES_ROL[s.rol] + ") · " + s.email);
+        $("btn-parroquias").hidden = s.rol !== "admin_general";
         refrescarAuditoria();
         refrescarVisitantes();
         mostrarClave(s);
@@ -289,10 +295,14 @@
         const r = await llamarApi("listarVisitantes", { token: sesionActual()?.token || "" });
         tb.replaceChildren(...(r.visitantes.length ? r.visitantes.map((v) => {
           const tr = document.createElement("tr");
+          const dar = Object.assign(document.createElement("button"), { type: "button", className: "btn-chico", textContent: "Dar privilegios" });
+          dar.addEventListener("click", () => abrirAdmins({ email: v.email, nombre: v.nombre && v.nombre !== v.email ? v.nombre : "" }));
+          const tdDar = document.createElement("td");
+          tdDar.append(dar);
           tr.append(celda((v.nombre && v.nombre !== v.email ? v.nombre + " · " : "") + v.email + (v.via === "correo" ? " (solo correo)" : ""), "persona"),
-            celda(fechaCorta(v.primera)), celda(fechaCorta(v.ultima)), celda(String(v.veces || 1)));
+            celda(fechaCorta(v.primera)), celda(fechaCorta(v.ultima)), celda(String(v.veces || 1)), tdDar);
           return tr;
-        }) : [Object.assign(document.createElement("tr"), { innerHTML: '<td colspan="4" class="aviso">Todavía no entró nadie de afuera.</td>' })]));
+        }) : [Object.assign(document.createElement("tr"), { innerHTML: '<td colspan="5" class="aviso">Todavía no entró ningún invitado.</td>' })]));
         libro.replaceChildren(...(r.libro.length ? r.libro.map((m) => {
           const li = document.createElement("li");
           li.classList.toggle("oculto", !!m.oculto);
@@ -340,11 +350,24 @@
     opcionesRol($("inv-rol"), "admin");
     opcionesComunidad($("inv-comunidad"), "parroquia");
 
-    $("btn-admins").addEventListener("click", () => {
+    function abrirAdmins(persona) {
       opcionesRol($("inv-rol"), "admin");
+      opcionesComunidad($("inv-comunidad"), "parroquia");
+      if (persona) {
+        $("form-invitar").reset();
+        $("inv-email").value = persona.email || "";
+        $("inv-nombre").value = persona.nombre || "";
+      }
       $("dlg-admins").showModal();
+      if (persona) $("inv-rol").focus();
       refrescarPersonas();
-    });
+    }
+    $("btn-admins").addEventListener("click", () => abrirAdmins());
+
+    $("btn-parroquia").addEventListener("click", () =>
+      abrirDatosParroquia({ alCambiar: () => (COMUNIDADES = comunidadesOpciones()) })
+    );
+    $("btn-parroquias").addEventListener("click", () => abrirParroquias());
     $("dlg-cerrar").addEventListener("click", () => $("dlg-admins").close());
     $("dlg-admins").addEventListener("close", refrescarAuditoria);
 
@@ -362,15 +385,15 @@
     }
 
     // El mismo texto que arma el servidor (textoInvitacion en servidor/auth.js)
-    const SITIO_URL = (window.MONTECARMELO_CONFIG || {}).sitio || "./";
     function textoInvitacion(d) {
       const email = String(d.email || "").trim().toLowerCase();
       const yo = sesionActual() || {};
-      const comunidad = d.comunidad === "parroquia" ? "Parroquia" : nombreComunidad(d.comunidad) || "Parroquia";
-      return "Hola" + (d.nombre && d.nombre !== email ? " " + d.nombre : "") + ", " + (yo.nombre || "la parroquia") +
-        " te invita a ser " + (ROLES[d.rol] || "parte") + " (" + comunidad +
-        ") en el sitio de la Parroquia Nuestra Señora del Monte Carmelo.\n\n" +
-        "Para entrar abrí " + SITIO_URL + "login.html y tocá «Entrar con Google» con la cuenta " + email + ". No necesitás clave.";
+      const parroquia = PARROQUIA.nombre || "la parroquia";
+      return "Hola" + (d.nombre && d.nombre !== email ? " " + d.nombre : "") + ", " + (yo.nombre || parroquia) +
+        " te invita a ser " + (ROLES[d.rol] || "parte") + " (" + ((d.comunidad !== "parroquia" && nombreComunidad(d.comunidad)) || parroquia) +
+        ") en el Cancionero Litúrgico de la " + parroquia + ".\n\n" +
+        "Para entrar abrí " + ((window.MONTECARMELO_CONFIG || {}).base || "./") + "login y tocá «Entrar con Google» con la cuenta " +
+        email + ". No necesitás clave.";
     }
 
     async function enviarInvitacion(datos, porWhatsapp, tel) {

@@ -21,10 +21,12 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 SITIO_URL = "https://cancioneroliturgico.cl/"  # SITIO en js/config.js
-API_POR_DEFECTO = SITIO_URL + "api"
+# La parroquia de los scripts (cancioneroliturgico.cl/<parroquia>/): --parroquia o la variable MC_PARROQUIA
+PARROQUIA = os.environ.get("MC_PARROQUIA") or "montecarmelo"
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "montecarmelo" / "sesion.json"
 MAX_BYTES = 30 * 1024 * 1024  # MAX_ARCHIVO_BYTES en servidor/util.js
-ARTISTA = "Parroquia Monte Carmelo"
+ARTISTA = "Parroquia Nuestra Señora del Monte Carmelo"
+# Las de Monte Carmelo; cargar_parroquia() las cambia por las de la parroquia elegida
 COMUNIDADES = {
     "maria-de-nazaret": "Capilla María de Nazaret",
     "san-pablo-apostol": "San Pablo Apóstol",
@@ -280,9 +282,36 @@ def a_m4a(origen, destino, titulo, letra=""):
 
 # ---------------------------------------------------------------- servidor de la parroquia
 
+def usar_parroquia(slug_parroquia):
+    global PARROQUIA
+    if slug_parroquia:
+        PARROQUIA = slug_parroquia.strip().strip("/").lower()
+
+
+def sitio_parroquia():
+    """Las páginas de la parroquia: https://cancioneroliturgico.cl/<parroquia>/"""
+    return SITIO_URL + PARROQUIA + "/"
+
+
 def api_de_config():
-    """El servidor del sitio publicado; MC_API lo cambia (por ejemplo, http://127.0.0.1:8788/api para probar)."""
-    return os.environ.get("MC_API") or API_POR_DEFECTO
+    """El servidor de la parroquia; MC_API lo cambia (por ejemplo, http://127.0.0.1:8788/montecarmelo/api para probar)."""
+    return os.environ.get("MC_API") or sitio_parroquia() + "api"
+
+
+def cargar_parroquia(api=None):
+    """Nombre y comunidades de la parroquia (accion=parroquia): cambia ARTISTA y COMUNIDADES en el lugar.
+    Sin conexión quedan las de antes (las de Monte Carmelo)."""
+    global ARTISTA
+    try:
+        p = (api or Api(api_de_config(), "")).get(accion="parroquia")["parroquia"]
+    except Error as e:
+        if PARROQUIA != "montecarmelo":
+            raise Error(f"No se pudo leer la parroquia «{PARROQUIA}»: {e}")
+        return None
+    ARTISTA = p.get("nombre") or ARTISTA
+    COMUNIDADES.clear()
+    COMUNIDADES.update({c["slug"]: c["nombre"] for c in p.get("comunidades") or []})
+    return p
 
 
 # Cloudflare frena a los programas que se presentan como «Python-urllib»
