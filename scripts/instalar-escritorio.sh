@@ -59,7 +59,7 @@ Comment=Muestra cómo está armado cancioneroliturgico.cl y crea o completa parr
 Exec=python3 "$DIR/parroquias.py"
 Icon=montecarmelo-subir
 Terminal=false
-Categories=Office;Network;
+Categories=Network;
 Keywords=parroquia;cancionero;sitio;comunidades;administrar;
 EOF
 chmod +x "$LANZADOR" "$LANZADOR_PARROQUIAS"
@@ -67,4 +67,4 @@ update-desktop-database "$APPS" 2>/dev/null || true
 gtk-update-icon-cache -f -t "$ICONOS" 2>/dev/null || true
 echo "Listo: «Subir canciones a la Biblioteca» está en el menú (Sonido y video)."
 echo "También aparece en «Abrir con» al hacer clic derecho en un archivo .md."
-echo "«Parroquias del Cancionero» está en el menú (Oficina): se abre en el navegador."
+echo "«Parroquias del Cancionero» está en el menú (Internet): se abre en el navegador."
