@@ -174,7 +174,7 @@ function pedirReingreso() {
 
 export function rutaBaseAuth() {
   const path = location.pathname.replace(/\\/g, "/");
-  if (path.includes("/comunidades/") || path.includes("/editor/")) return config().base || "../";
+  if (path.includes("/comunidades/") || path.includes("/editor/") || /^\/[a-z0-9-]+\/p\//.test(path)) return config().base || "../";
   return "./";
 }
 
@@ -366,6 +366,9 @@ export function initNavSitio() {
   if (toggle && links) {
     toggle.addEventListener("click", () => links.classList.toggle("abierto"));
   }
+  // El servidor agrega al final del menú las páginas propias de la parroquia: «Identificarse» sigue último
+  const itemSesion = links && links.querySelector("[data-nav-sesion]")?.closest("li");
+  if (itemSesion && itemSesion !== links.lastElementChild) links.append(itemSesion);
   if (nav) {
     const onScroll = () => nav.classList.toggle("scrolled", window.scrollY > 24);
     onScroll();

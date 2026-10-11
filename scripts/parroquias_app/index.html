@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="clave-app" content="__CLAVE_APP__">
+  <title>Parroquias del Cancionero Litúrgico</title>
+  <link rel="icon" href="/icono.svg">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="cabeza">
+    <div>
+      <h1>Parroquias del Cancionero Litúrgico</h1>
+      <p class="suave" id="estado-sitio">Conectando…</p>
+    </div>
+    <button type="button" class="btn" id="btn-salir" title="Cierra el programa (la página deja de funcionar)">Cerrar la app</button>
+  </header>
+
+  <section class="panel aviso-clave" id="panel-clave" hidden>
+    <h2>Clave del administrador general</h2>
+    <p>La app usa la misma clave que «Subir canciones a la Biblioteca». Abrí
+      <a id="enlace-clave" target="_blank" rel="noopener">la página de la clave</a>, entrá con la cuenta del administrador
+      general, tocá «Copiar clave» y pegala acá.</p>
+    <form id="form-clave" class="fila">
+      <input id="campo-clave" placeholder="Pegá la clave acá" autocomplete="off" required>
+      <button class="btn btn-primario" type="submit">Guardar clave</button>
+    </form>
+    <p class="msg" id="msg-clave" hidden></p>
+  </section>
+
+  <nav class="pestanas" id="pestanas">
+    <button type="button" data-vista="mapa" class="activa">Mapa del sitio</button>
+    <button type="button" data-vista="nueva">Nueva parroquia</button>
+    <button type="button" data-vista="editar">Editar parroquia</button>
+  </nav>
+
+  <main>
+    <section class="vista" id="vista-mapa"></section>
+    <section class="vista" id="vista-nueva" hidden></section>
+    <section class="vista" id="vista-editar" hidden></section>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

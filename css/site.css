@@ -449,6 +449,51 @@ a:hover {
   color: var(--texto-suave);
 }
 
+/* Páginas propias de cada parroquia (pagina.html): el HTML lo escribe el responsable */
+.pagina-propia {
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.pagina-propia h2,
+.pagina-propia h3 {
+  font-family: var(--fuente-display);
+  color: var(--terracota);
+  margin: 2rem 0 0.6rem;
+}
+
+.pagina-propia img,
+.pagina-propia video {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+
+.pagina-propia iframe {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border: 0;
+  border-radius: 10px;
+}
+
+.pagina-propia table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.pagina-propia th,
+.pagina-propia td {
+  border-bottom: 1px solid rgba(154, 79, 46, 0.2);
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+}
+
+.pagina-propia a {
+  color: var(--verde);
+}
+
 .noticia {
   padding: 1.5rem 0;
   border-bottom: 1px solid rgba(154, 79, 46, 0.2);

@@ -3,6 +3,7 @@
 // (_routes.json): las páginas los piden con rutas absolutas (/css/…, /js/…).
 import { entrada, contexto } from './api.js';
 import { PARROQUIA_DEFECTO, leerParroquia, parroquiaPublica, parroquiasActivas, respuestaIcono, slugValido } from './parroquias.js';
+import { leerPaginaPropia, limpiarHtml } from './paginas-propias.js';
 
 const PAGINAS = {
   reproductor: 'Cancionero Litúrgico',
@@ -60,11 +61,13 @@ function noDisponible(p) {
     <p><a class="btn btn-primario" href="/elegir">Elegir otra parroquia</a></p>`, 404);
 }
 
-// El nombre, el logo y el manifest de la parroquia en la página base
-function conParroquia(res, p, pagina) {
+// El nombre, el logo y el manifest de la parroquia en la página base; propia: {slug, titulo, html} en pagina.html
+function conParroquia(res, p, pagina, propia = null) {
   const pub = parroquiaPublica(p);
   const datos = JSON.stringify(pub).replace(/</g, '\\u003c');
-  const titulo = (pagina === 'reproductor' || pagina === 'inicio' ? 'Cancionero Litúrgico' : PAGINAS[pagina]) + ' · ' + pub.nombre;
+  const titulo = (propia ? propia.titulo : pagina === 'reproductor' || pagina === 'inicio' ? 'Cancionero Litúrgico' : PAGINAS[pagina]) + ' · ' + pub.nombre;
+  const menu = pub.paginas.filter((x) => x.enMenu).map((x) => `<li><a href="/${escapar(pub.slug)}/p/${escapar(x.slug)}"` +
+    (propia && propia.slug === x.slug ? ' aria-current="page"' : '') + `>${escapar(x.titulo)}</a></li>`).join('');
   const marca = `<span class="nav-marca-textos"><span class="nav-marca-app">Cancionero Litúrgico</span>` +
     `<span class="nav-marca-parroquia">${escapar(pub.nombre)}</span></span>`;
   const iconos = `<link rel="icon" type="image/png" sizes="192x192" href="${escapar(pub.iconos['192'])}">` +
@@ -81,6 +84,9 @@ function conParroquia(res, p, pagina) {
     .on('link[rel="manifest"]', { element: (el) => el.setAttribute('href', '/' + pub.slug + '/reproductor.webmanifest') })
     .on('meta[name="description"]', { element: (el) => el.setAttribute('content', 'Cancionero Litúrgico de la ' + pub.nombre + ': canciones para la misa con su letra, acordes y audio, noticias y cancioneros de sus comunidades.') })
     .on('.nav-marca', { element: (el) => el.setInnerContent(marca, { html: true }) })
+    .on('.nav-links', { element: (el) => { if (menu) el.append(menu, { html: true }); } })
+    .on('[data-pagina-titulo]', { element: (el) => { if (propia) el.setInnerContent(propia.titulo); } })
+    .on('[data-pagina-propia]', { element: (el) => { if (propia) el.setInnerContent(propia.html, { html: true }); } })
     .on('[data-parroquia="nombre"]', { element: (el) => el.setInnerContent(pub.nombre) })
     .on('[data-parroquia="corto"]', { element: (el) => el.setInnerContent(pub.nombreCorto) })
     .on('[data-parroquia="portada"]', { element: (el) => {
@@ -139,7 +145,7 @@ self.addEventListener('activate', (e) => e.waitUntil(caches.keys()
   .then(() => self.registration.unregister())));
 `;
 
-async function pagina(ctx, c, p, nombre) {
+async function pagina(ctx, c, p, nombre, propia = null) {
   const url = new URL(ctx.request.url);
   const res = await ctx.env.ASSETS.fetch(new URL('/' + nombre, url.origin).toString());
   if (!res.ok) return res;
@@ -147,7 +153,18 @@ async function pagina(ctx, c, p, nombre) {
   for (const h of ['etag', 'last-modified', 'content-length']) limpia.headers.delete(h);
   limpia.headers.set('Cache-Control', 'no-cache');
   limpia.headers.append('Set-Cookie', conCookie(p.slug)['Set-Cookie']);
-  return conParroquia(limpia, p, nombre);
+  return conParroquia(limpia, p, nombre, propia);
+}
+
+async function paginaPropia(ctx, c, p, slug) {
+  const x = await leerPaginaPropia(c, p.slug, slug);
+  if (!x) {
+    return htmlBasico('Página no encontrada · ' + p.nombre, `<h1>${escapar(p.nombre)}</h1>
+      <p class="subtitulo">Esa página no existe o ya no está publicada.</p>
+      <p><a class="btn btn-primario" href="/${escapar(p.slug)}/inicio">Ir al inicio de la parroquia</a></p>`, 404);
+  }
+  // Se guarda limpio; se vuelve a limpiar por si alguien lo cambió directo en la base
+  return pagina(ctx, c, p, 'pagina', { slug: x.slug, titulo: x.titulo || x.slug, html: await limpiarHtml(x.html) });
 }
 
 export async function atenderPagina(ctx) {
@@ -200,6 +217,8 @@ export async function atenderPagina(ctx) {
   if (resto === '' || resto === '/' || /^\/index(\.html)?$/.test(resto)) return redirigir('/' + slug + '/reproductor' + url.search);
   const pag = resto.match(/^\/([a-z]+)(\.html)?$/);
   if (pag && PAGINAS[pag[1]]) return pagina(ctx, c, p, pag[1]);
+  const propia = resto.match(/^\/p\/([a-z0-9-]+)\/?$/);
+  if (propia) return paginaPropia(ctx, c, p, propia[1]);
   if (resto === '/reproductor.webmanifest') return manifest(p);
   if (resto === '/editor.webmanifest') return manifestEditor(p);
   if (resto === '/sw-reproductor.js') {

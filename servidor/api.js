@@ -20,6 +20,7 @@ import { lecturas, calendario } from './lecturas.js';
 import {
   PARROQUIA_DEFECTO, laParroquia, accionesParroquias, lecturasParroquias, subirLogo, subirPortada
 } from './parroquias.js';
+import { accionesPaginas, lecturasPaginas } from './paginas-propias.js';
 
 const ACCIONES = {
   ...accionesAuth,
@@ -28,6 +29,7 @@ const ACCIONES = {
   ...accionesMisas,
   ...accionesComunidad,
   ...accionesParroquias,
+  ...accionesPaginas,
   subirArchivo: () => { throw new ErrorApi('Actualizá la página: los archivos ahora se suben de otra forma.'); }
 };
 
@@ -37,6 +39,7 @@ const LECTURAS = {
   ...lecturasMisas,
   ...lecturasComunidad,
   ...lecturasParroquias,
+  ...lecturasPaginas,
   lecturas: (c, p) => (p.misa ? lecturasDeMisa(c, p.misa) : lecturas(c, p.fecha)),
   calendario,
   vivo: (c, p) => verVivo(c, p.codigo)

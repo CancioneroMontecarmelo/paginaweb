@@ -251,6 +251,8 @@ export async function abrirDatosParroquia(opciones) {
     agregar.disabled = false;
   });
 
+  const paginas = seccionPaginas(listo);
+
   cuerpo.replaceChildren(
     el("h3", { className: "auth-h2", textContent: "Nombre y presentación" }),
     formDatos,
@@ -266,8 +268,123 @@ export async function abrirDatosParroquia(opciones) {
     el("p", { className: "aviso", textContent: "Cada comunidad tiene su página con noticias, cancioneros de misa y coros. Los registrados guardan sus cancioneros en su comunidad. Para cambiar un nombre, escribilo y salí del campo." }),
     listaCom,
     formCom,
-    msgCom
+    msgCom,
+    el("h3", { className: "auth-h2", textContent: "Páginas propias" }),
+    el("p", { className: "aviso", textContent: "Páginas de la parroquia con su propio contenido (historia, horarios, contacto…), en " + (config().base || "/") + "p/… Las marcadas «en el menú» aparecen en el menú de arriba. Se pueden pegar textos con formato HTML o cargar un archivo .html; los scripts se quitan." }),
+    paginas
   );
+}
+
+// ==================== PÁGINAS PROPIAS ====================
+
+/** El contenido de un .html: solo lo de adentro de <body> (si es una página completa). */
+function cuerpoDeHtml(texto) {
+  if (!/<body[\s>]/i.test(texto)) return texto;
+  return new DOMParser().parseFromString(texto, "text/html").body.innerHTML.trim();
+}
+
+function seccionPaginas(listo) {
+  const caja = el("div");
+  const lista = el("ul", { className: "lista-comunidades-admin" });
+  const msg = el("p", { hidden: true });
+  const titulo = el("input", { required: true, maxLength: 120, placeholder: "Nuestra historia" });
+  const direccion = el("input", { maxLength: 60, pattern: "[a-z0-9][a-z0-9-]{0,58}[a-z0-9]", placeholder: "historia (vacío = sale del título)" });
+  const html = el("textarea", { rows: 12, placeholder: "<p>Texto de la página…</p>" });
+  const enMenu = el("input", { type: "checkbox", checked: true });
+  const archivo = el("input", { type: "file", accept: ".html,.htm,text/html" });
+  const guardar = el("button", { type: "submit", className: "btn btn-primario", textContent: "Guardar página" });
+  const nueva = el("button", { type: "button", className: "btn btn-secundario", textContent: "Página nueva" });
+  const form = el("form", { className: "form-noticia form-admin" },
+    campo("Título", titulo), campo("Dirección (…/p/historia)", direccion), campo("Contenido (HTML)", html),
+    campo("O cargar un archivo .html", archivo),
+    el("label", {}, enMenu, " Mostrar en el menú"),
+    el("div", { className: "acciones-form" }, guardar, " ", nueva), msg);
+  let editando = null;
+
+  const limpiar = () => {
+    editando = null;
+    form.reset();
+    enMenu.checked = true;
+    direccion.disabled = false;
+    guardar.textContent = "Guardar página";
+  };
+  nueva.addEventListener("click", () => { limpiar(); aviso(msg, ""); });
+  archivo.addEventListener("change", async () => {
+    const f = archivo.files && archivo.files[0];
+    if (!f) return;
+    const texto = await f.text();
+    html.value = cuerpoDeHtml(texto);
+    if (!titulo.value) {
+      const t = new DOMParser().parseFromString(texto, "text/html").title;
+      titulo.value = t || f.name.replace(/\.html?$/i, "");
+    }
+    archivo.value = "";
+  });
+
+  async function refrescar() {
+    try {
+      const r = await llamarApi("listarPaginas", { token: token() });
+      if (!r.paginas.length) {
+        lista.replaceChildren(el("li", { className: "aviso", textContent: "Todavía no hay páginas propias." }));
+        return;
+      }
+      lista.replaceChildren(...r.paginas.map((x) => {
+        const editar = el("button", { type: "button", className: "btn-chico", textContent: "Editar" });
+        const quitar = el("button", { type: "button", className: "btn-chico", textContent: "Quitar" });
+        editar.addEventListener("click", () => {
+          editando = x.slug;
+          titulo.value = x.titulo;
+          direccion.value = x.slug;
+          direccion.disabled = true;
+          html.value = x.html || "";
+          enMenu.checked = x.enMenu !== false;
+          guardar.textContent = "Guardar cambios";
+          titulo.focus();
+        });
+        quitar.addEventListener("click", async () => {
+          if (!confirm("¿Quitar la página «" + x.titulo + "»?")) return;
+          try {
+            const r2 = await llamarApi("borrarPagina", { token: token(), slug: x.slug });
+            listo(r2.parroquia);
+            if (editando === x.slug) limpiar();
+            aviso(msg, "Página quitada ✓");
+            refrescar();
+          } catch (err) {
+            aviso(msg, err.message, true);
+          }
+        });
+        return el("li", {}, el("a", { href: x.url, target: "_blank", textContent: x.titulo }),
+          x.enMenu ? " · en el menú " : " · fuera del menú ", editar, " ", quitar);
+      }));
+    } catch (err) {
+      lista.replaceChildren();
+      aviso(msg, err.message, true);
+    }
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    guardar.disabled = true;
+    aviso(msg, "Guardando…");
+    try {
+      const r = await llamarApi("guardarPagina", {
+        token: token(),
+        pagina: { slug: editando || direccion.value.trim(), titulo: titulo.value, html: html.value, enMenu: enMenu.checked, nueva: !editando }
+      });
+      listo(r.parroquia);
+      limpiar();
+      aviso(msg, "Página guardada ✓ ");
+      msg.append(el("a", { href: r.pagina.url, target: "_blank", textContent: "Verla" }));
+      refrescar();
+    } catch (err) {
+      aviso(msg, err.message, true);
+    }
+    guardar.disabled = false;
+  });
+
+  refrescar();
+  caja.append(lista, form);
+  return caja;
 }
 
 // ==================== PARROQUIAS (administrador general) ====================

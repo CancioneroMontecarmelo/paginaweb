@@ -33,14 +33,17 @@ export async function leerParroquia(c, slug) {
   if (!slugValido(slug) && slug !== PARROQUIA_DEFECTO) return null;
   const guardada = cache.get(slug);
   if (guardada && guardada.vence > Date.now()) return guardada.p;
-  const [fila, coms] = await Promise.all([
+  const [fila, coms, pags] = await Promise.all([
     c.db.prepare('SELECT datos FROM parroquias WHERE slug = ?').bind(slug).first(),
-    c.db.prepare('SELECT slug, orden, datos FROM comunidades WHERE parroquia = ? ORDER BY orden, slug').bind(slug).all()
+    c.db.prepare('SELECT slug, orden, datos FROM comunidades WHERE parroquia = ? ORDER BY orden, slug').bind(slug).all(),
+    c.db.prepare("SELECT slug, orden, json_extract(datos, '$.titulo') AS titulo, json_extract(datos, '$.enMenu') AS enMenu " +
+      'FROM paginas WHERE parroquia = ? ORDER BY orden, slug').bind(slug).all().catch(() => ({ results: [] }))
   ]);
   const p = fila ? {
     ...parsear(fila.datos, {}),
     slug,
-    comunidades: coms.results.map((r) => ({ ...parsear(r.datos, {}), slug: r.slug, orden: r.orden }))
+    comunidades: coms.results.map((r) => ({ ...parsear(r.datos, {}), slug: r.slug, orden: r.orden })),
+    paginas: pags.results.map((r) => ({ slug: r.slug, titulo: r.titulo || r.slug, enMenu: !!r.enMenu, orden: r.orden }))
   } : null;
   if (p) p.activa = p.activa !== false;
   cache.set(slug, { p, vence: Date.now() + CACHE_MS });
@@ -81,7 +84,8 @@ export function parroquiaPublica(p) {
     iconos: Object.fromEntries(TAMANOS_ICONO.map((t) => [t, iconoDe(p, t)])),
     logoPropio: !!(p.iconos && p.iconos['192']),
     activa: p.activa !== false,
-    comunidades: p.comunidades.map((x) => ({ slug: x.slug, nombre: x.nombre, carpetaCancioneros: x.carpetaCancioneros || x.nombre }))
+    comunidades: p.comunidades.map((x) => ({ slug: x.slug, nombre: x.nombre, carpetaCancioneros: x.carpetaCancioneros || x.nombre })),
+    paginas: (p.paginas || []).map((x) => ({ slug: x.slug, titulo: x.titulo, enMenu: x.enMenu }))
   };
 }
 

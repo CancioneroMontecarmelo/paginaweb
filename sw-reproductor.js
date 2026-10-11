@@ -5,7 +5,7 @@
 // Cada parroquia tiene el suyo en /<parroquia>/sw-reproductor.js (lo sirve functions/_middleware.js desde este
 // archivo): lo relativo (la página, el manifest y el logo) es de la parroquia; CSS y JS son comunes (/css, /js).
 
-const CACHE = 'mc-reproductor-16';
+const CACHE = 'mc-reproductor-17';
 const NET_TIMEOUT = 3000;
 const SHELL = [
   'reproductor', 'reproductor.webmanifest', '/js/config.js?v=2',

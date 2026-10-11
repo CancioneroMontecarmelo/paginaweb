@@ -1,0 +1,173 @@
+:root {
+  --verde: #2f5d50;
+  --terracota: #9a4f2e;
+  --fondo: #f6f3ee;
+  --papel: #ffffff;
+  --texto: #2a241c;
+  --suave: #6b6052;
+  --borde: #e1d9cc;
+  --ok: #1a7f37;
+  --error: #b42318;
+  font-family: "Outfit", "Segoe UI", system-ui, sans-serif;
+  color: var(--texto);
+  background: var(--fondo);
+}
+
+body {
+  margin: 0;
+  line-height: 1.5;
+}
+
+h1, h2, h3 {
+  font-family: "Fraunces", Georgia, serif;
+  color: var(--verde);
+  margin: 0 0 0.4rem;
+}
+
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1.05rem; color: var(--terracota); margin-top: 1.2rem; }
+
+a { color: var(--verde); }
+
+.suave { color: var(--suave); margin: 0; }
+
+.cabeza {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: var(--papel);
+  border-bottom: 1px solid var(--borde);
+}
+
+main { padding: 1rem 1.5rem 3rem; max-width: 72rem; }
+
+.pestanas {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 1.5rem;
+  background: var(--papel);
+  border-bottom: 1px solid var(--borde);
+}
+
+.pestanas button {
+  border: 0;
+  background: none;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  cursor: pointer;
+  color: var(--suave);
+  border-bottom: 3px solid transparent;
+}
+
+.pestanas button.activa { color: var(--verde); border-bottom-color: var(--verde); font-weight: 600; }
+
+.panel {
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+
+.aviso-clave { margin: 1rem 1.5rem; border-color: var(--terracota); }
+
+.btn {
+  font: inherit;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--borde);
+  background: var(--papel);
+  cursor: pointer;
+}
+
+.btn:disabled { opacity: 0.55; cursor: default; }
+.btn-primario { background: var(--verde); border-color: var(--verde); color: #fff; }
+.btn-chico { font: inherit; font-size: 0.85rem; padding: 0.15rem 0.5rem; border-radius: 6px; border: 1px solid var(--borde); background: var(--papel); cursor: pointer; }
+
+.fila { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.fila > input, .fila > select { flex: 1 1 14rem; }
+
+form.campos { display: grid; gap: 0.6rem; max-width: 46rem; }
+
+label.campo { display: grid; gap: 0.2rem; font-size: 0.92rem; color: var(--suave); }
+
+input, select, textarea {
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--texto);
+}
+
+textarea { min-height: 6rem; resize: vertical; }
+textarea.codigo { font-family: ui-monospace, "DejaVu Sans Mono", monospace; font-size: 0.85rem; min-height: 16rem; }
+
+.msg { margin: 0.4rem 0; white-space: pre-line; }
+.msg.ok { color: var(--ok); }
+.msg.error { color: var(--error); }
+
+/* ---- Mapa del sitio ---- */
+.arbol, .arbol ul { list-style: none; margin: 0; padding-left: 1.2rem; }
+.arbol { padding-left: 0; }
+.arbol li { margin: 0.2rem 0; position: relative; }
+.arbol ul { border-left: 1px dashed var(--borde); margin-left: 0.4rem; }
+
+details.parroquia {
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 0.6rem 1rem;
+  margin: 0.6rem 0;
+}
+
+details.parroquia > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  list-style: none;
+}
+
+details.parroquia > summary::-webkit-details-marker { display: none; }
+details.parroquia > summary::before { content: "▸"; color: var(--suave); }
+details.parroquia[open] > summary::before { content: "▾"; }
+
+.icono-parroquia { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; background: #eee; }
+
+.insignia {
+  font-size: 0.75rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 99px;
+  border: 1px solid var(--borde);
+  color: var(--suave);
+}
+
+.insignia.activa { color: var(--ok); border-color: var(--ok); }
+.insignia.oculta { color: var(--terracota); border-color: var(--terracota); }
+.insignia.inactiva { color: var(--error); border-color: var(--error); }
+
+.columnas { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.4rem 1.5rem; margin-top: 0.5rem; }
+
+.rol { font-size: 0.8rem; color: var(--suave); }
+
+/* ---- Editar parroquia ---- */
+.pasos { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0 0; padding: 0; list-style: none; }
+.pasos li a { display: inline-block; padding: 0.25rem 0.7rem; border-radius: 99px; border: 1px solid var(--borde); text-decoration: none; background: var(--papel); }
+.pasos li.hecho a { border-color: var(--ok); color: var(--ok); }
+.pasos li.hecho a::before { content: "✓ "; }
+
+.vista-logo { width: 96px; height: 96px; border-radius: 18px; object-fit: cover; border: 1px solid var(--borde); background: #fafafa; }
+.vista-portada { width: 320px; max-width: 100%; aspect-ratio: 16 / 7; border-radius: 12px; border: 1px solid var(--borde); background: #fafafa center / cover no-repeat; }
+
+.lista-simple { list-style: none; padding: 0; margin: 0.4rem 0; }
+.lista-simple li { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; padding: 0.3rem 0; border-bottom: 1px solid var(--borde); }
+.lista-simple li > input { flex: 1 1 14rem; }
+
+.vista-previa { width: 100%; min-height: 22rem; border: 1px solid var(--borde); border-radius: 10px; background: #fff; }
+
+.invitacion { background: #f3f7f5; border: 1px solid #cfe1d8; border-radius: 10px; padding: 0.6rem 0.8rem; white-space: pre-line; }
