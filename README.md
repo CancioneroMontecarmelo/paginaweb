@@ -5,10 +5,14 @@ Misas, el reproductor y los cancioneros litúrgicos hechos con el editor **Canci
 El servidor de la parroquia es `/api` en el mismo sitio (Pages Functions, código en `servidor/`): los datos
 viven en una base **D1** y los archivos (audios, partituras, cancioneros publicados) en **R2**.
 
-- Página publicada: <https://cancioneroliturgico.cl/> (`www.` lleva a la dirección sin www).
+- Página publicada: <https://www.cancioneroliturgico.cl/>. La página principal es el reproductor, con la
+  parroquia de ese equipo (cookie `mc-parroquia`; se cambia en **Cambiar parroquia**, `/elegir`).
+- La dirección sin www (<https://cancioneroliturgico.cl/>) la resuelve el servidor (`servidor/paginas.js`):
+  las páginas responden con una página mínima que lleva a la misma dirección de www con lo que el navegador
+  tenía guardado (sesión, listas, preferencias, en `#mc-migrar=`); el resto, redirección 308.
 - Las direcciones anteriores (<https://montecarmelo-kxg.pages.dev/> y
-  <https://cancioneromontecarmelo.github.io/paginaweb/>) llevan solas a la misma página del dominio, con lo
-  que el navegador tenía guardado (sesión, listas, preferencias). `/api` sigue respondiendo también en
+  <https://cancioneromontecarmelo.github.io/paginaweb/>) llevan solas a la misma página de www, también con
+  lo guardado (`js/config.js`). `/api` sigue respondiendo también en
   pages.dev: hay canciones con enlaces de audio a esa dirección. Las vistas previas no se redirigen.
 - Dominio registrado en NIC Chile; sus servidores DNS son los de Cloudflare (`rosalyn` y `zac`
   `.ns.cloudflare.com`). En Pages, el proyecto tiene como dominios propios `cancioneroliturgico.cl` y
@@ -101,8 +105,9 @@ Con la cuenta **cancionerolitugico@gmail.com**, desde la raíz del sitio:
    y vista previa). Su valor sale del Apps Script: en el editor de Apps Script ejecutá
    `verSecretoParaCloudflare` y copiá lo que muestra el registro.
 7. Cloudflare dio `montecarmelo-kxg.pages.dev` (`montecarmelo` ya estaba usado); la dirección pública es el
-   dominio `cancioneroliturgico.cl`. Si alguna vez cambia, está en `SITIO_URL` (`wrangler.toml`), `SITIO` y
-   las redirecciones (`js/config.js`) y `SITIO_URL` (`scripts/mc_biblioteca.py`).
+   dominio `www.cancioneroliturgico.cl`. Si alguna vez cambia, está en `SITIO_URL` (`wrangler.toml`), `SITIO` y
+   las redirecciones (`js/config.js`), `PRINCIPAL` y `SECUNDARIA` (`servidor/paginas.js`) y `SITIO_URL`
+   (`scripts/mc_biblioteca.py`).
 8. Sumá la dirección a los orígenes del cliente de Google (ver arriba).
 
 Cada rama distinta de `main` se publica como **vista previa** en `https://<rama>.montecarmelo-kxg.pages.dev`,
@@ -565,15 +570,20 @@ de reproducción abajo con la carátula. El acento del tema **Noche** es el colo
 
 ### App del reproductor (instalable)
 
-- El reproductor se instala en el celular como una app (PWA) que muestra solo el reproductor: sin el menú
-  del sitio, y con **Monte Carmelo** arriba como enlace a la página de la parroquia (se abre en el navegador).
-- Android y computadora: botón **Instalar app** junto a las pestañas (aparece cuando el navegador lo
-  permite). iPhone: el botón explica **Compartir → Agregar a inicio** en Safari.
-- Archivos: `reproductor.webmanifest` (abre `reproductor?app=1`, alcance solo el reproductor; Cloudflare
-  sirve las páginas sin `.html`),
-  `sw-reproductor.js` (con internet carga siempre lo más nuevo y guarda una copia para abrir sin conexión;
-  no guarda `/api`, YouTube ni los audios) e `icons/reproductor-*.png` (la parroquia con ▶).
-- Al cambiar los archivos del reproductor, subir el número de `CACHE` en `sw-reproductor.js`.
+- Una sola app (PWA) para todas las parroquias: la página principal (`/`), que muestra solo el reproductor,
+  sin el menú del sitio. Abre con la parroquia de ese equipo; se cambia en Inicio → **Cambiar parroquia**.
+- Botón **Instalar app** siempre visible fuera de la app (en el celular, en la portada de Inicio): abre el
+  instalador del navegador si lo ofrece; si no, los pasos para Android, iPhone o computadora.
+- Archivos: `app.webmanifest` (abre `/?app=1`, alcance `/`), `sw.js` (alcance `/`: con internet carga
+  siempre lo más nuevo y guarda una copia de la página principal y de `/css`, `/js`, `/editor/js` e `/icons`
+  para abrir sin conexión; no toca `/api`, las demás páginas, YouTube ni los audios) e
+  `icons/reproductor-*.png`.
+- La Biblioteca queda guardada en el equipo (Cache Storage `mc-datos`): Inicio se muestra al instante y se
+  actualiza en segundo plano. Las lecturas de los domingos llegan después.
+- Las apps instaladas antes (alcance `/reproductor` o `/<parroquia>/reproductor`, y las de la dirección sin
+  www) reciben un service worker que borra su copia y se da de baja; abiertas fuera de su alcance muestran
+  un aviso para instalar la nueva.
+- Al cambiar los archivos del reproductor, subir el número de `CACHE` en `sw.js`.
 
 ### En vivo (para el coro)
 

@@ -89,6 +89,6 @@ export function urlPagina(pagina) {
 
 export function rutaBase() {
   const path = location.pathname.replace(/\\/g, "/");
-  if (path.includes("/comunidades/") || path.includes("/editor/")) return urlPagina("");
+  if (path === "/" || path.includes("/comunidades/") || path.includes("/editor/")) return urlPagina("");
   return "./";
 }

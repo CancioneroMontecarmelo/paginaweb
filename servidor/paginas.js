@@ -1,6 +1,7 @@
-// Páginas de cada parroquia: /<parroquia>/<página> sirve la página base (inicio.html, reproductor.html…) con el
-// nombre, el logo y el manifest de esa parroquia. CSS, JS, íconos comunes y el editor no pasan por acá
-// (_routes.json): las páginas los piden con rutas absolutas (/css/…, /js/…).
+// Páginas de cada parroquia: /<parroquia>/<página> sirve la página base (inicio.html, misas.html…) con el
+// nombre y el logo de esa parroquia. El reproductor es la página principal (/), con la parroquia de este equipo
+// (cookie mc-parroquia), y la única app instalable (/app.webmanifest, /sw.js). CSS, JS, íconos comunes y el editor
+// no pasan por acá (_routes.json): las páginas los piden con rutas absolutas (/css/…, /js/…).
 import { entrada, contexto } from './api.js';
 import { PARROQUIA_DEFECTO, leerParroquia, parroquiaPublica, parroquiasActivas, respuestaIcono, slugValido } from './parroquias.js';
 import { leerPaginaPropia, limpiarHtml } from './paginas-propias.js';
@@ -16,9 +17,12 @@ const PAGINAS = {
   ver: 'Cancionero'
 };
 // Las direcciones de antes, sin parroquia
-const VIEJAS = /^\/(index|inicio|login|misas|noticias|reproductor|tv|ver|comunidad)(\.html)?$/;
+const VIEJAS = /^\/(inicio|login|misas|noticias|tv|ver|comunidad)(\.html)?$/;
 const COOKIE = 'mc-parroquia';
 const UN_ANO = 31536000;
+// La dirección principal es www: la otra lleva ahí (con lo guardado en el navegador, ver paginaMigrar)
+const PRINCIPAL = 'www.cancioneroliturgico.cl';
+const SECUNDARIA = 'cancioneroliturgico.cl';
 
 const escapar = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const redirigir = (destino, extra = {}) => new Response(null, { status: 302, headers: { Location: destino, 'Cache-Control': 'no-store', ...extra } });
@@ -32,8 +36,44 @@ function cookieParroquia(request) {
 async function parroquiaDelEquipo(c, request) {
   const s = cookieParroquia(request);
   const p = s ? await leerParroquia(c, s) : null;
-  return p && p.activa ? p.slug : PARROQUIA_DEFECTO;
+  if (p && p.activa) return p.slug;
+  const lista = await parroquiasActivas(c);
+  return lista.length === 1 ? lista[0].slug : PARROQUIA_DEFECTO;
 }
+
+// Cada dirección tiene su propio almacenamiento: la página lleva la sesión, las listas y las preferencias a www
+// en la dirección (#mc-migrar=, lo recibe js/config.js), primero lo chico, hasta ~1,5 MB
+function paginaMigrar(url) {
+  const destino = JSON.stringify('https://' + PRINCIPAL + url.pathname + url.search).replace(/</g, '\\u003c');
+  return new Response(`<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cancionero Litúrgico</title><meta name="theme-color" content="#030303">
+<script>(function () {
+  var destino = ${destino}, guardado = {}, total = 0, todo = [], hay = false;
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i), v = localStorage.getItem(k);
+      if (v != null) todo.push([k, v, encodeURIComponent(JSON.stringify(k) + JSON.stringify(v)).length]);
+    }
+  } catch (_) {}
+  todo.sort(function (a, b) { return a[2] - b[2]; }).forEach(function (e) {
+    if (total + e[2] < 1500000) { guardado[e[0]] = e[1]; total += e[2]; hay = true; }
+  });
+  if (hay || location.hash) destino += '#mc-migrar=' + encodeURIComponent(JSON.stringify({ ls: guardado, h: location.hash }));
+  location.replace(destino);
+})();</script>
+</head><body style="background:#030303;color:#ddd;font-family:sans-serif">
+<noscript><p><a href=${destino} style="color:#fff">Abrir el Cancionero Litúrgico</a></p></noscript>
+</body></html>`, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
+// Las apps instaladas antes (/reproductor y /<parroquia>/reproductor) tenían su service worker: este lo da de baja
+// y borra su copia; la app nueva es una sola, en la raíz (/sw.js)
+const SW_RETIRO = `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(caches.keys()
+  .then((k) => Promise.all(k.filter((n) => n.startsWith('mc-reproductor-')).map((n) => caches.delete(n))))
+  .then(() => self.registration.unregister())));`;
+const swRetiro = () => new Response(SW_RETIRO, { headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-cache' } });
 
 // ==================== HTML ====================
 
@@ -61,6 +101,13 @@ function noDisponible(p) {
     <p><a class="btn btn-primario" href="/elegir">Elegir otra parroquia</a></p>`, 404);
 }
 
+function enlaceDeParroquia(slug, href) {
+  const m = href.match(/^\.\/([a-z]+)(?:\.html)?([?#].*)?$/);
+  if (!m) return href;
+  if (m[1] === 'reproductor' || m[1] === 'index') return '/' + (m[2] || '');
+  return '/' + slug + '/' + m[1] + (m[2] || '');
+}
+
 // El nombre, el logo y el manifest de la parroquia en la página base; propia: {slug, titulo, html} en pagina.html
 function conParroquia(res, p, pagina, propia = null) {
   const pub = parroquiaPublica(p);
@@ -81,7 +128,9 @@ function conParroquia(res, p, pagina, propia = null) {
     .on('title', { element: (el) => el.setInnerContent(titulo) })
     .on('link[rel="icon"]', quitar)
     .on('link[rel="apple-touch-icon"]', quitar)
-    .on('link[rel="manifest"]', { element: (el) => el.setAttribute('href', '/' + pub.slug + '/reproductor.webmanifest') })
+    .on('link[rel="manifest"]', { element: (el) => el.setAttribute('href', '/app.webmanifest') })
+    // El reproductor se sirve también en la raíz: los enlaces relativos (./inicio.html…) van a la parroquia
+    .on('a[href^="./"]', { element: (el) => el.setAttribute('href', enlaceDeParroquia(pub.slug, el.getAttribute('href'))) })
     .on('meta[name="description"]', { element: (el) => el.setAttribute('content', 'Cancionero Litúrgico de la ' + pub.nombre + ': canciones para la misa con su letra, acordes y audio, noticias y cancioneros de sus comunidades.') })
     .on('.nav-marca', { element: (el) => el.setInnerContent(marca, { html: true }) })
     .on('.nav-links', { element: (el) => { if (menu) el.append(menu, { html: true }); } })
@@ -137,15 +186,6 @@ function manifestEditor(p) {
   }, null, 2), { headers: { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-cache' } });
 }
 
-// El service worker del reproductor: el mismo archivo en /<parroquia>/sw-reproductor.js y en /sw-reproductor.js
-// (este último, el de la app instalada antes de que hubiera parroquias)
-async function swReproductor(env, url) {
-  const sw = await env.ASSETS.fetch(new URL('/sw-reproductor.js', url.origin).toString());
-  const r = new Response(sw.body, sw);
-  r.headers.set('Cache-Control', 'no-cache');
-  return r;
-}
-
 async function pagina(ctx, c, p, nombre, propia = null) {
   const url = new URL(ctx.request.url);
   const res = await ctx.env.ASSETS.fetch(new URL('/' + nombre, url.origin).toString());
@@ -172,6 +212,15 @@ export async function atenderPagina(ctx) {
   const { request, env } = ctx;
   const url = new URL(request.url);
   const ruta = url.pathname;
+  if (url.hostname === SECUNDARIA) {
+    if (/^\/([a-z0-9-]+\/)?sw-reproductor\.js$/.test(ruta)) return swRetiro();
+    const navega = request.method === 'GET' && (request.headers.get('Sec-Fetch-Mode') === 'navigate' ||
+      (request.headers.get('Accept') || '').includes('text/html'));
+    if (navega) return paginaMigrar(url);
+    return new Response(null, { status: 308, headers: {
+      Location: 'https://' + PRINCIPAL + ruta + url.search, 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*'
+    } });
+  }
   if (ruta === '/api' || ruta.startsWith('/api/')) return ctx.next();
   if (request.method !== 'GET' && request.method !== 'HEAD' && !/^\/[a-z0-9-]+\/api(\/|$)/.test(ruta)) return ctx.next();
   let c;
@@ -181,31 +230,20 @@ export async function atenderPagina(ctx) {
     return ctx.next();
   }
 
-  if (ruta === '/sw-reproductor.js') return swReproductor(env, url);
-  // La app instalada antes de que hubiera parroquias abre /reproductor (su «scope» es /reproductor): se le sirve
-  // ahí mismo el de la parroquia del equipo. Redirigida a /<parroquia>/ quedaría fuera de su scope y el teléfono la
-  // mostraría como pestaña del navegador, con barra de dirección, en vez de como app.
-  if (ruta === '/reproductor') {
+  // El reproductor es la página principal (y la app instalable, con alcance /), con la parroquia de este equipo
+  if (ruta === '/') {
     const p = await leerParroquia(c, await parroquiaDelEquipo(c, request));
     if (p) return pagina(ctx, c, p, 'reproductor');
+    return elegirParroquia(c);
   }
+  if (/^\/(index|reproductor)(\.html)?$/.test(ruta)) return redirigir('/' + url.search);
+  if (ruta === '/sw-reproductor.js') return swRetiro();
   const iconoRaiz = ruta.match(/^\/icono-(180|192|512)\.png$/);
   if (iconoRaiz) return respuestaIcono(c, await parroquiaDelEquipo(c, request), iconoRaiz[1], env.ASSETS, url);
   if (ruta === '/elegir') return elegirParroquia(c);
-  if (ruta === '/') {
-    const s = cookieParroquia(request);
-    const p = s ? await leerParroquia(c, s) : null;
-    if (p && p.activa) return redirigir('/' + p.slug + '/reproductor' + url.search);
-    const lista = await parroquiasActivas(c);
-    if (lista.length === 1) return redirigir('/' + lista[0].slug + '/reproductor' + url.search);
-    return elegirParroquia(c);
-  }
   // Direcciones de antes: a la misma página de la parroquia del equipo (o la principal)
   const vieja = ruta.match(VIEJAS);
-  if (vieja) {
-    const nombre = vieja[1] === 'index' ? 'reproductor' : vieja[1];
-    return redirigir('/' + await parroquiaDelEquipo(c, request) + '/' + nombre + url.search);
-  }
+  if (vieja) return redirigir('/' + await parroquiaDelEquipo(c, request) + '/' + vieja[1] + url.search);
   const comunidadVieja = ruta.match(/^\/comunidades\/([a-z0-9-]+?)(\.html)?$/);
   if (comunidadVieja) return redirigir('/' + await parroquiaDelEquipo(c, request) + '/comunidad?c=' + comunidadVieja[1]);
 
@@ -222,14 +260,15 @@ export async function atenderPagina(ctx) {
   if (!p) return ctx.next();
   if (!p.activa) return noDisponible(p);
 
-  if (resto === '' || resto === '/' || /^\/index(\.html)?$/.test(resto)) return redirigir('/' + slug + '/reproductor' + url.search);
+  // El reproductor de la parroquia es la página principal con esta parroquia elegida
+  if (resto === '' || resto === '/' || /^\/(index|reproductor)(\.html)?$/.test(resto)) return redirigir('/' + url.search, conCookie(slug));
   const pag = resto.match(/^\/([a-z]+)(\.html)?$/);
   if (pag && PAGINAS[pag[1]]) return pagina(ctx, c, p, pag[1]);
   const propia = resto.match(/^\/p\/([a-z0-9-]+)\/?$/);
   if (propia) return paginaPropia(ctx, c, p, propia[1]);
   if (resto === '/reproductor.webmanifest') return manifest(p);
   if (resto === '/editor.webmanifest') return manifestEditor(p);
-  if (resto === '/sw-reproductor.js') return swReproductor(env, url);
+  if (resto === '/sw-reproductor.js') return swRetiro();
   const icono = resto.match(/^\/icono-(180|192|512)\.png$/);
   if (icono) return respuestaIcono(c, slug, icono[1], env.ASSETS, url);
   if (resto === '/editor' || resto.startsWith('/editor/')) {

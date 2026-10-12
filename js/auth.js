@@ -174,7 +174,7 @@ function pedirReingreso() {
 
 export function rutaBaseAuth() {
   const path = location.pathname.replace(/\\/g, "/");
-  if (path.includes("/comunidades/") || path.includes("/editor/") || /^\/[a-z0-9-]+\/p\//.test(path)) return config().base || "../";
+  if (path === "/" || path.includes("/comunidades/") || path.includes("/editor/") || /^\/[a-z0-9-]+\/p\//.test(path)) return config().base || "../";
   return "./";
 }
 

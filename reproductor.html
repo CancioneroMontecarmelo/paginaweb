@@ -7,7 +7,7 @@
   <meta name="description" content="Cancionero Litúrgico: canciones para la misa con su letra, acordes y audio, en listas o siguiendo el cancionero de cada misa.">
   <meta name="theme-color" content="#030303">
   <title>Cancionero Litúrgico</title>
-  <link rel="manifest" href="./reproductor.webmanifest">
+  <link rel="manifest" href="/app.webmanifest">
   <link rel="icon" href="/icons/reproductor-192.png">
   <link rel="apple-touch-icon" href="/icons/reproductor-180.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="/css/site.css">
   <link rel="stylesheet" href="/css/posturas.css">
   <link rel="stylesheet" href="/css/partituras.css">
@@ -31,7 +31,9 @@
       if (t) { b.dataset.rpTema = t; b.classList.toggle("rp-oscuro", t !== "dia" && t !== "liturgico"); }
       var a = localStorage.getItem("mc-rp-acento");
       if (a) { b.style.setProperty("--rp-acento", a); b.style.setProperty("--rp-acorde", a); }
-      if (/[?&]app=1/.test(location.search) || matchMedia("(display-mode: standalone)").matches || navigator.standalone) b.classList.add("rp-app");
+      // ?app=1 sin estar instalada: la abrió una app anterior que quedó fuera de su dirección
+      if (matchMedia("(display-mode: standalone)").matches || navigator.standalone) b.classList.add("rp-app");
+      else if (/[?&]app=1/.test(location.search)) b.classList.add("rp-app-vieja");
     } catch (e) {}
   </script>
   <nav class="nav-sitio scrolled" aria-label="Principal">
@@ -75,7 +77,10 @@
           <span id="rp-portada-acciones"></span>
           <button type="button" class="rp-btn rp-instalar rp-solo-celular" hidden>Instalar app</button>
         </div>
+        <p class="rp-portada-parroquia"><span data-parroquia="nombre"></span> · <a href="/elegir">Cambiar parroquia</a></p>
       </div>
+      <p class="rp-app-aviso" id="rp-app-aviso" hidden>Estás usando la app anterior del Cancionero. Para que abra bien,
+        quitala de la pantalla de inicio y volvé a instalarla con <b>Instalar app</b>.</p>
       <div id="rp-estantes"><p class="rp-aviso">Cargando la Biblioteca…</p></div>
     </section>
 
@@ -318,16 +323,25 @@
     <p class="rp-tv-sonido" id="rp-tv-sonido" hidden>Presioná OK en el control remoto del TV para activar el sonido</p>
   </div>
 
-  <!-- Instalar en iPhone -->
+  <!-- Instalar cuando el navegador no ofrece su instalador: los pasos de este equipo -->
   <dialog class="rp-dlg" id="rp-dlg-instalar">
     <form method="dialog">
-      <h2>Instalar el reproductor</h2>
-      <ol class="rp-pasos">
+      <h2>Instalar el Cancionero</h2>
+      <ol class="rp-pasos" data-equipo="ios" hidden>
         <li>Abrí esta página en <b>Safari</b>.</li>
         <li>Tocá <b>Compartir</b> (el cuadrado con la flecha hacia arriba).</li>
         <li>Elegí <b>Agregar a inicio</b> y después <b>Agregar</b>.</li>
       </ol>
-      <p class="rp-aviso">Queda como una app con el ícono de la parroquia, que abre solo el reproductor.</p>
+      <ol class="rp-pasos" data-equipo="android" hidden>
+        <li>Abrí esta página en <b>Chrome</b>.</li>
+        <li>Tocá el menú <b>⋮</b> (arriba a la derecha).</li>
+        <li>Elegí <b>Instalar app</b> o <b>Agregar a la pantalla principal</b> y confirmá.</li>
+      </ol>
+      <ol class="rp-pasos" data-equipo="pc" hidden>
+        <li>Abrí esta página en <b>Chrome</b> o <b>Edge</b>.</li>
+        <li>Hacé clic en el ícono de instalar, a la derecha de la barra de direcciones, o en el menú <b>⋮</b> → <b>Instalar Cancionero Litúrgico</b>.</li>
+      </ol>
+      <p class="rp-aviso">Queda como una app en la pantalla de inicio, que abre el reproductor de tu parroquia.</p>
       <div class="rp-dlg-acciones"><span class="espacio"></span><button type="submit" class="rp-btn">Entendido</button></div>
     </form>
   </dialog>
@@ -358,15 +372,15 @@
 
   <div class="rp-toast" id="rp-toast" role="status" hidden></div>
 
-  <script src="/js/misas-shim.js"></script>
-  <script src="/editor/js/acordes.js"></script>
-  <script src="/editor/js/markdown.js"></script>
-  <script src="/editor/js/etiquetas.js"></script>
-  <script src="/editor/js/buscar.js"></script>
-  <script src="/editor/js/instrumentos.js"></script>
-  <script src="/editor/js/rasgueos.js"></script>
-  <script src="/editor/js/render.js"></script>
-  <script src="/editor/js/caratula.js"></script>
+  <script src="/js/misas-shim.js" defer></script>
+  <script src="/editor/js/acordes.js" defer></script>
+  <script src="/editor/js/markdown.js" defer></script>
+  <script src="/editor/js/etiquetas.js" defer></script>
+  <script src="/editor/js/buscar.js" defer></script>
+  <script src="/editor/js/instrumentos.js" defer></script>
+  <script src="/editor/js/rasgueos.js" defer></script>
+  <script src="/editor/js/render.js" defer></script>
+  <script src="/editor/js/caratula.js" defer></script>
   <script type="module" src="/js/reproductor.js"></script>
 </body>
 </html>

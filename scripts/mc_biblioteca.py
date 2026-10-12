@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-SITIO_URL = "https://cancioneroliturgico.cl/"  # SITIO en js/config.js
+SITIO_URL = "https://www.cancioneroliturgico.cl/"  # SITIO en js/config.js
 # La parroquia de los scripts (cancioneroliturgico.cl/<parroquia>/): --parroquia o la variable MC_PARROQUIA
 PARROQUIA = os.environ.get("MC_PARROQUIA") or "montecarmelo"
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "montecarmelo" / "sesion.json"
@@ -289,7 +289,7 @@ def usar_parroquia(slug_parroquia):
 
 
 def sitio_parroquia():
-    """Las páginas de la parroquia: https://cancioneroliturgico.cl/<parroquia>/"""
+    """Las páginas de la parroquia: https://www.cancioneroliturgico.cl/<parroquia>/"""
     return SITIO_URL + PARROQUIA + "/"
 
 

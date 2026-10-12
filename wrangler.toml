@@ -12,7 +12,7 @@ CORREO_PARROQUIA = "cancionerolitugico@gmail.com"
 ADMINS_GENERALES = ""
 # Dirección pública del sitio (con / al final): va en los enlaces de audio de los .md y en las invitaciones
 # (también en las vistas previas, que usan la misma base). Vacía = la del pedido: .dev.vars la deja vacía en local.
-SITIO_URL = "https://cancioneroliturgico.cl/"
+SITIO_URL = "https://www.cancioneroliturgico.cl/"
 
 [[d1_databases]]
 binding = "DB"

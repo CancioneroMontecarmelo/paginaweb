@@ -203,14 +203,63 @@ function pintarCanciones() {
   }).join("");
 }
 
-async function cargarBiblioteca() {
+// La Biblioteca queda guardada en el equipo (Cache Storage «mc-datos»): se muestra al instante la guardada y se
+// pide la nueva en segundo plano; si cambió, se vuelve a pintar
+const CACHE_DATOS = "mc-datos";
+const urlBiblioteca = () => (window.MONTECARMELO_CONFIG || {}).apiUrl + "?accion=biblioteca";
+
+async function bibliotecaGuardada() {
   try {
-    st.biblioteca = (await leer({ accion: "biblioteca" })).canciones || [];
-    st.biblioteca.sort((a, b) => String(a.titulo).localeCompare(String(b.titulo), "es"));
-    st.porId = new Map(st.biblioteca.map((c) => [c.id, c]));
-    $("#rp-estado-bib").textContent = st.biblioteca.length ? "" : "La Biblioteca todavía no tiene canciones.";
-  } catch (e) {
-    $("#rp-estado-bib").textContent = e.message;
+    const r = await (await caches.open(CACHE_DATOS)).match(urlBiblioteca());
+    return r ? await r.text() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function bibliotecaNueva() {
+  if (!(window.MONTECARMELO_CONFIG || {}).apiUrl) throw new Error("El servidor de la parroquia todavía no está conectado.");
+  let texto;
+  try {
+    texto = await (await fetch(urlBiblioteca())).text();
+  } catch (_) {
+    throw new Error("No se pudo conectar con el servidor de la parroquia. Revisá tu conexión.");
+  }
+  let r = {};
+  try { r = JSON.parse(texto); } catch (_) { /* no es la respuesta del servidor */ }
+  if (!r.ok) throw new Error(r.error || "El servidor de la parroquia no respondió");
+  caches.open(CACHE_DATOS).then((c) => c.put(urlBiblioteca(), new Response(texto, { headers: { "Content-Type": "application/json" } }))).catch(() => {});
+  return texto;
+}
+
+function ponerBiblioteca(texto) {
+  st.biblioteca = JSON.parse(texto).canciones || [];
+  st.biblioteca.sort((a, b) => String(a.titulo).localeCompare(String(b.titulo), "es"));
+  st.porId = new Map(st.biblioteca.map((c) => [c.id, c]));
+  $("#rp-estado-bib").textContent = st.biblioteca.length ? "" : "La Biblioteca todavía no tiene canciones.";
+}
+
+async function cargarBiblioteca() {
+  let guardada = await bibliotecaGuardada();
+  try {
+    if (guardada) ponerBiblioteca(guardada);
+  } catch (_) {
+    guardada = null;
+  }
+  if (guardada) {
+    bibliotecaNueva().then((nueva) => {
+      if (nueva === guardada) return;
+      ponerBiblioteca(nueva);
+      pintarCanciones();
+      if (st.vista === "inicio") pintarInicio();
+      else inicioViejo = true;
+    }).catch(() => {});
+  } else {
+    try {
+      ponerBiblioteca(await bibliotecaNueva());
+    } catch (e) {
+      $("#rp-estado-bib").textContent = e.message;
+    }
   }
   pintarCanciones();
 }
@@ -228,7 +277,9 @@ const todasLasMisas = () => (misasPublicas ||= leer({ accion: "misas" }).then((r
 
 // Los domingos con lecturas publicadas en eucaristiadiaria.cl (desde el primero del mes, para la cadena sin
 // repetir canciones): [{ fecha, lecturas }]
+// Inicio se pinta sin esperarlas (domingosListos queda null) y se vuelve a pintar cuando llegan.
 let domingosLeidos = null;
+let domingosListos = null;
 const lecturasDelDia = (fecha) => leer({ accion: "lecturas", fecha }).then((r) => r.lecturas?.disponible ? r.lecturas : null);
 const domingosConLecturas = () => (domingosLeidos ||= lit.domingosPublicados(lecturasDelDia)
   .catch(() => { domingosLeidos = null; return [{ fecha: domingo, lecturas: null }]; }));
@@ -266,8 +317,16 @@ async function pintarInicio() {
   $("#rp-portada-sobre").textContent = "Próximo domingo · " + lit.fechaLarga(domingo);
   $("#rp-portada-titulo").textContent = lit.nombreDelDia(domingo) || tiempoDomingo;
   $("#rp-portada-tiempo").innerHTML = `<span class="rp-punto" style="background:${acentoLiturgico}"></span>${esc(tiempoDomingo)} · color ${esc(lit.colorPorTiempo(tiempoDomingo).toLowerCase())}`;
-  const [todas, domingos] = await Promise.all([todasLasMisas(), domingosConLecturas()]);
-  const misas = todas.filter(cuantas);
+  const domingos = domingosListos;
+  if (!domingos) {
+    domingosConLecturas().then((d) => {
+      if (domingosListos) return;
+      domingosListos = d;
+      if (st.vista === "inicio") pintarInicio();
+      else inicioViejo = true;
+    });
+  }
+  const misas = (await todasLasMisas()).filter(cuantas);
   const delDomingo = misas.find((m) => m.fechaUso === domingo && (!st.comunidad || m.comunidad === st.comunidad))
     || misas.find((m) => m.fechaUso === domingo);
   $("#rp-portada-acciones").innerHTML = (delDomingo
@@ -298,7 +357,7 @@ async function pintarInicio() {
 
   if (lista.length) {
     // Un estante por domingo desde hoy: los cantos sugeridos sin repetir ninguno en el mes
-    try {
+    if (domingos) try {
       for (const d of lit.sugerirDomingos(domingos, { biblioteca: lista, misas }).filter((x) => x.fecha >= domingo)) {
         const ev = lit.evangelioDe(d.lecturas);
         const nombre = d.lecturas?.titulo ? lit.tituloLiturgico(d.lecturas.titulo) : lit.nombreDelDia(d.fecha);
@@ -2344,31 +2403,37 @@ function conectar() {
 
 // ============ APP INSTALABLE ============
 
+// Una sola app, la de la página principal (/app.webmanifest, /sw.js con alcance /). «Instalar app» está siempre
+// fuera de la app: con el instalador del navegador si lo ofrece, o con los pasos para este equipo.
 function prepararApp() {
   const app = document.body.classList.contains("rp-app");
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-reproductor.js", { scope: "./reproductor" }).catch(() => {});
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
   if (app) return;
+  if (document.body.classList.contains("rp-app-vieja")) $("#rp-app-aviso").hidden = false;
   const botones = document.querySelectorAll(".rp-instalar");
   const mostrar = (si) => botones.forEach((b) => (b.hidden = !si));
   let pedido = null;
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     pedido = e;
-    mostrar(true);
   });
   window.addEventListener("appinstalled", () => {
     pedido = null;
     mostrar(false);
-    avisar("Listo: el reproductor quedó instalado.");
+    avisar("Listo: el Cancionero quedó instalado.");
   });
+  mostrar(true);
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  if (ios) mostrar(true);
+  const equipo = ios ? "ios" : /android/i.test(navigator.userAgent) ? "android" : "pc";
   botones.forEach((b) => b.addEventListener("click", async () => {
-    if (!pedido) return $("#rp-dlg-instalar").showModal();
+    if (!pedido) {
+      document.querySelectorAll("#rp-dlg-instalar [data-equipo]").forEach((l) => (l.hidden = l.dataset.equipo !== equipo));
+      return $("#rp-dlg-instalar").showModal();
+    }
     pedido.prompt();
-    await pedido.userChoice.catch(() => {});
+    const { outcome } = await pedido.userChoice.catch(() => ({}));
     pedido = null;
-    mostrar(false);
+    if (outcome === "accepted") mostrar(false);
   }));
 }
 

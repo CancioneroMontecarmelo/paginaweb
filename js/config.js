@@ -3,23 +3,18 @@
 // googleClientId: «ID de cliente» OAuth para el botón «Entrar con Google» (el mismo que GOOGLE_CLIENT_ID en
 // wrangler.toml).
 (function () {
-  var SITIO = 'https://cancioneroliturgico.cl/';
+  var SITIO = 'https://www.cancioneroliturgico.cl/';
   var VIEJO = { host: 'cancioneromontecarmelo.github.io', base: '/paginaweb/' };
   // Solo la dirección principal de Pages: las vistas previas (<rama>.montecarmelo-kxg.pages.dev) quedan para pruebas
   var PAGES = 'montecarmelo-kxg.pages.dev';
   var MIGRAR = '#mc-migrar=';
 
-  if (location.hostname === 'www.cancioneroliturgico.cl') {
-    location.replace(SITIO + location.pathname.slice(1) + location.search + location.hash);
-    window.MONTECARMELO_CONFIG = {};
-    return;
-  }
-
-  // Las direcciones anteriores (GitHub Pages y pages.dev) llevan a la misma página del dominio, con lo que el
-  // navegador tenía guardado (sesión, listas, preferencias): cada dirección tiene su propio almacenamiento.
-  // Sin internet no se mueve: el reproductor guardado para usar sin conexión es el de esta dirección.
+  // Las direcciones anteriores (GitHub Pages, pages.dev y cancioneroliturgico.cl sin www) llevan a la misma página
+  // de www, con lo que el navegador tenía guardado (sesión, listas, preferencias): cada dirección tiene su propio
+  // almacenamiento. Sin internet no se mueve: la copia guardada para usar sin conexión es la de esta dirección.
+  // (Con internet, la dirección sin www ya la resuelve el servidor antes de llegar acá.)
   var desdeGithub = location.hostname === VIEJO.host;
-  var desdePages = location.hostname === PAGES && navigator.onLine !== false;
+  var desdePages = (location.hostname === PAGES || location.hostname === 'cancioneroliturgico.cl') && navigator.onLine !== false;
   if ((desdeGithub || desdePages) && !window.MONTECARMELO_CONFIG) {
     var ruta = desdePages ? location.pathname.slice(1)
       : location.pathname.indexOf(VIEJO.base) === 0 ? location.pathname.slice(VIEJO.base.length) : '';
@@ -88,6 +83,6 @@
   }
   var portada = /^\/([a-z0-9-]+\/)?(index\.html|reproductor(\.html)?)?$/.test(location.pathname) && !location.hash;
   if (portada && !conMouse && (equipo === 'tv' || (esTv && equipo !== 'normal'))) {
-    location.replace(location.pathname.replace(/[^/]*$/, '') + 'reproductor#pantalla');
+    location.replace(location.pathname === '/' ? '/#pantalla' : location.pathname.replace(/[^/]*$/, '') + 'reproductor#pantalla');
   }
 })();

@@ -206,6 +206,12 @@
 .rp-punto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3); }
 .rp-portada-botones, #rp-portada-acciones { display: flex; flex-wrap: wrap; gap: 10px; }
 .rp-portada-botones { margin-top: 18px; }
+.rp-portada .rp-portada-parroquia { margin-top: 16px; font-size: 13px; opacity: 0.8; }
+.rp-portada-parroquia a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.rp-app-aviso {
+  margin: -12px 0 24px; padding: 12px 16px; border-radius: 12px; font-size: 14px;
+  background: color-mix(in srgb, #e5534b 22%, var(--rp-panel)); border: 1px solid color-mix(in srgb, #e5534b 50%, transparent);
+}
 
 .rp-estante { margin: 0 0 36px; }
 .rp-estante-cabeza { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 14px; }

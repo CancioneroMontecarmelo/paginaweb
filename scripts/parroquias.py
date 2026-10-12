@@ -3,10 +3,10 @@
 parroquias.py — Aplicación local para ver cómo está armado cancioneroliturgico.cl y crear o completar parroquias
 (datos, logo, portada, comunidades, responsable, administradores y páginas propias).
 
-    scripts/parroquias.py [--sitio https://cancioneroliturgico.cl/] [--puerto 8790] [--sin-navegador]
+    scripts/parroquias.py [--sitio https://www.cancioneroliturgico.cl/] [--puerto 8790] [--sin-navegador]
 
 Se abre en el navegador (http://127.0.0.1:8790). No toca la base de datos: todo pasa por la API del sitio con la
-clave del administrador general (la de cancioneroliturgico.cl/montecarmelo/login#clave, la misma de «Subir
+clave del administrador general (la de www.cancioneroliturgico.cl/montecarmelo/login#clave, la misma de «Subir
 canciones»). Para probar contra el sitio local: --sitio http://localhost:8788/ (después de `npm run local`).
 
 El lanzador del menú lo instala scripts/instalar-escritorio.sh.
