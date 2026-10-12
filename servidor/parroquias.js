@@ -13,7 +13,7 @@ const RESERVADOS = new Set([
   'api', 'js', 'css', 'icons', 'imagenes', 'editor', 'comunidades', 'comunidad', 'noticias', 'scripts', 'functions',
   'servidor', 'migrations', 'trabajadores', 'dist', 'admin', 'www', 'static', 'assets', 'parroquia', 'parroquias',
   'inicio', 'login', 'misas', 'reproductor', 'tv', 'ver', 'index', 'sala', 'audio', 'archivo', 'nueva', 'elegir',
-  'sw-reproductor', 'favicon', 'robots', 'sitemap', '404'
+  'sw-reproductor', 'favicon', 'robots', 'sitemap', '404', 'acerca'
 ]);
 
 export const slugValido = (s) => /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(String(s || '')) && !RESERVADOS.has(String(s));

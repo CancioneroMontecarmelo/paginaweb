@@ -108,11 +108,49 @@ function enlaceDeParroquia(slug, href) {
   return '/' + slug + '/' + m[1] + (m[2] || '');
 }
 
-// El nombre, el logo y el manifest de la parroquia en la página base; propia: {slug, titulo, html} en pagina.html
-function conParroquia(res, p, pagina, propia = null) {
+const IMAGEN_COMPARTIR = 'https://' + PRINCIPAL + '/Imagenes/compartir.png';
+
+function descripcionDe(pub, pagina, propia) {
+  if (propia) return propia.titulo + ' · ' + pub.nombre + ' · Cancionero Litúrgico.';
+  if (pagina === 'inicio' && pub.descripcion) {
+    const d = pub.descripcion.replace(/\s+/g, ' ').trim();
+    return d.length > 300 ? d.slice(0, d.lastIndexOf(' ', 297)) + '…' : d;
+  }
+  if (pagina === 'misas') return 'Cancioneros de misa de las comunidades de la ' + pub.nombre + ': las canciones de cada momento con su letra, acordes y audio.';
+  if (pagina === 'noticias') return 'Noticias y avisos de la ' + pub.nombre + '.';
+  if (pagina === 'comunidad') return 'Comunidades de la ' + pub.nombre + ': sus noticias y sus cancioneros de misa.';
+  return 'Cancionero Litúrgico de la ' + pub.nombre + ': canciones para la misa con su letra, acordes y audio, noticias y cancioneros de sus comunidades.';
+}
+
+// Para los buscadores y la vista previa al compartir: dirección canónica, Open Graph y datos estructurados
+function etiquetasBuscadores(pub, pagina, titulo, descripcion, canonica) {
+  const absoluta = (u) => (u.startsWith('/') ? 'https://' + PRINCIPAL + u : u);
+  const parroquia = {
+    '@type': 'Church', name: pub.nombre, url: 'https://' + PRINCIPAL + '/' + pub.slug + '/inicio', logo: absoluta(pub.iconos['512']),
+    ...(pub.correo ? { email: pub.correo } : {})
+  };
+  const ld = pagina === 'reproductor' ? {
+    '@context': 'https://schema.org', '@type': 'WebApplication', name: 'Cancionero Litúrgico', url: 'https://' + PRINCIPAL + '/',
+    description: descripcion, inLanguage: 'es', applicationCategory: 'MultimediaApplication',
+    operatingSystem: 'Web, Android, iOS, Windows, macOS, Linux', isAccessibleForFree: true, image: IMAGEN_COMPARTIR,
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'CLP' }, provider: parroquia
+  } : pagina === 'inicio' ? { '@context': 'https://schema.org', ...parroquia, description: descripcion } : null;
+  const meta = (k, v, atr = 'property') => `<meta ${atr}="${k}" content="${escapar(v)}">`;
+  return `<link rel="canonical" href="${escapar(canonica)}">` + meta('description', descripcion, 'name') +
+    meta('og:type', 'website') + meta('og:site_name', 'Cancionero Litúrgico') + meta('og:locale', 'es_CL') +
+    meta('og:title', titulo) + meta('og:description', descripcion) + meta('og:url', canonica) +
+    meta('og:image', IMAGEN_COMPARTIR) + meta('og:image:width', '1200') + meta('og:image:height', '630') +
+    meta('twitter:card', 'summary_large_image', 'name') +
+    (ld ? `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>` : '');
+}
+
+// El nombre, el logo y el manifest de la parroquia en la página base; propia: {slug, titulo, html} en pagina.html.
+// canonica: la dirección de la página en www, para los buscadores
+function conParroquia(res, p, pagina, propia, canonica) {
   const pub = parroquiaPublica(p);
   const datos = JSON.stringify(pub).replace(/</g, '\\u003c');
   const titulo = (propia ? propia.titulo : pagina === 'reproductor' || pagina === 'inicio' ? 'Cancionero Litúrgico' : PAGINAS[pagina]) + ' · ' + pub.nombre;
+  const descripcion = descripcionDe(pub, pagina, propia);
   const menu = pub.paginas.filter((x) => x.enMenu).map((x) => `<li><a href="/${escapar(pub.slug)}/p/${escapar(x.slug)}"` +
     (propia && propia.slug === x.slug ? ' aria-current="page"' : '') + `>${escapar(x.titulo)}</a></li>`).join('');
   const marca = `<span class="nav-marca-textos"><span class="nav-marca-app">Cancionero Litúrgico</span>` +
@@ -124,6 +162,7 @@ function conParroquia(res, p, pagina, propia = null) {
     .on('head', { element: (el) => {
       el.prepend(`<meta name="parroquia" content="${escapar(pub.slug)}"><script>window.MC_PARROQUIA=${datos};</script>`, { html: true });
       el.append(iconos, { html: true });
+      el.append(etiquetasBuscadores(pub, pagina, titulo, descripcion, canonica), { html: true });
     } })
     .on('title', { element: (el) => el.setInnerContent(titulo) })
     .on('link[rel="icon"]', quitar)
@@ -131,7 +170,12 @@ function conParroquia(res, p, pagina, propia = null) {
     .on('link[rel="manifest"]', { element: (el) => el.setAttribute('href', '/app.webmanifest') })
     // El reproductor se sirve también en la raíz: los enlaces relativos (./inicio.html…) van a la parroquia
     .on('a[href^="./"]', { element: (el) => el.setAttribute('href', enlaceDeParroquia(pub.slug, el.getAttribute('href'))) })
-    .on('meta[name="description"]', { element: (el) => el.setAttribute('content', 'Cancionero Litúrgico de la ' + pub.nombre + ': canciones para la misa con su letra, acordes y audio, noticias y cancioneros de sus comunidades.') })
+    // Las de la página base se cambian por las de esta parroquia y esta dirección
+    .on('meta[name="description"]', quitar)
+    .on('link[rel="canonical"]', quitar)
+    .on('meta[property^="og:"]', quitar)
+    .on('meta[name^="twitter:"]', quitar)
+    .on('script[type="application/ld+json"]', quitar)
     .on('.nav-marca', { element: (el) => el.setInnerContent(marca, { html: true }) })
     .on('.nav-links', { element: (el) => { if (menu) el.append(menu, { html: true }); } })
     .on('[data-pagina-titulo]', { element: (el) => { if (propia) el.setInnerContent(propia.titulo); } })
@@ -194,7 +238,8 @@ async function pagina(ctx, c, p, nombre, propia = null) {
   for (const h of ['etag', 'last-modified', 'content-length']) limpia.headers.delete(h);
   limpia.headers.set('Cache-Control', 'no-cache');
   limpia.headers.append('Set-Cookie', conCookie(p.slug)['Set-Cookie']);
-  return conParroquia(limpia, p, nombre, propia);
+  const canonica = 'https://' + PRINCIPAL + (nombre === 'reproductor' ? '/' : url.pathname.replace(/\.html$/, '') + (nombre === 'comunidad' ? url.search : ''));
+  return conParroquia(limpia, p, nombre, propia, canonica);
 }
 
 async function paginaPropia(ctx, c, p, slug) {
@@ -206,6 +251,22 @@ async function paginaPropia(ctx, c, p, slug) {
   }
   // Se guarda limpio; se vuelve a limpiar por si alguien lo cambió directo en la base
   return pagina(ctx, c, p, 'pagina', { slug: x.slug, titulo: x.titulo || x.slug, html: await limpiarHtml(x.html) });
+}
+
+// Para los buscadores: las páginas públicas de todas las parroquias activas (las ocultas, de prueba, no)
+async function sitemap(c) {
+  const base = 'https://' + PRINCIPAL;
+  const rutas = [['/', '1.0'], ['/acerca', '0.9'], ['/editor/', '0.5']];
+  for (const { slug } of await parroquiasActivas(c)) {
+    const p = await leerParroquia(c, slug);
+    if (!p || !p.activa) continue;
+    rutas.push(['/' + slug + '/inicio', '0.8'], ['/' + slug + '/misas', '0.7'], ['/' + slug + '/noticias', '0.6']);
+    for (const x of p.comunidades) rutas.push(['/' + slug + '/comunidad?c=' + encodeURIComponent(x.slug), '0.5']);
+    for (const x of p.paginas || []) rutas.push(['/' + slug + '/p/' + encodeURIComponent(x.slug), '0.5']);
+  }
+  const xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    rutas.map(([r, prioridad]) => `  <url><loc>${escapar(base + r)}</loc><priority>${prioridad}</priority></url>`).join('\n') + '\n</urlset>\n';
+  return new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=21600' } });
 }
 
 export async function atenderPagina(ctx) {
@@ -229,6 +290,8 @@ export async function atenderPagina(ctx) {
   } catch (_) {
     return ctx.next();
   }
+
+  if (ruta === '/sitemap.xml') return sitemap(c);
 
   // El reproductor es la página principal (y la app instalable, con alcance /), con la parroquia de este equipo
   if (ruta === '/') {
