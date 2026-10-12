@@ -24,7 +24,7 @@
  */
 
 import { initNavSitio, sesionActual, llamarApi, puedeEditar } from "./auth.js";
-import { COMUNIDADES } from "./comunidades.js";
+import { COMUNIDADES, PARROQUIA } from "./comunidades.js";
 import * as lit from "./liturgia.js";
 import { activarPosturas, cerrar as cerrarPostura } from "./posturas.js";
 import { botonesPartituras } from "./partituras.js";
@@ -838,7 +838,10 @@ function pintarPasoGuardar() {
   const s = sesionActual();
   const propias = COMUNIDADES.filter((c) => puedeEditar(c.slug));
   if (propias.length) {
-    const def = propias.find((c) => c.slug === st.comunidad) || propias.find((c) => c.slug === s?.comunidad) || propias[0];
+    // Con permiso en toda la parroquia, parte en la sede: la comunidad que da su nombre a la parroquia
+    const plano = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const sede = propias.find((c) => c.nombre && plano(PARROQUIA.nombre).includes(plano(c.nombre)));
+    const def = propias.find((c) => c.slug === st.comunidad) || propias.find((c) => c.slug === s?.comunidad) || sede || propias[0];
     $("#rp-crear-donde").innerHTML = `<label class="rp-campo">Guardar en
       <select id="rp-crear-comunidad">${propias.map((c) => `<option value="${esc(c.slug)}"${c === def ? " selected" : ""}>Cancioneros de ${esc(c.nombre)}</option>`).join("")}
         <option value="">Mis listas (solo en este equipo)</option></select></label>`;
