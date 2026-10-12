@@ -257,6 +257,49 @@
     </form>
   </dialog>
 
+  <!-- Crear nueva misa: la fecha, un canto por momento y guardar el cancionero -->
+  <dialog class="rp-dlg rp-dlg-crear" id="rp-dlg-crear" aria-labelledby="rp-crear-titulo">
+    <form method="dialog" class="rp-crear">
+      <header class="rp-crear-cabeza">
+        <h2 id="rp-crear-titulo">Crear nueva misa</h2>
+        <ol class="rp-crear-pasos">
+          <li data-paso="fecha">Fecha</li>
+          <li data-paso="elegir">Cantos</li>
+          <li data-paso="crear">Cancionero</li>
+        </ol>
+        <button type="button" class="rp-ico" id="rp-crear-cerrar" aria-label="Cerrar">✕</button>
+      </header>
+      <div class="rp-crear-cuerpo">
+        <section data-paso="fecha">
+          <label class="rp-campo">Fecha de la misa <input type="date" id="rp-crear-fecha" required></label>
+          <p class="rp-crear-dia" id="rp-crear-dia"></p>
+          <p class="rp-aviso">Te sugerimos un canto para cada momento según las lecturas de ese día: el salmo del día,
+            el aleluya si corresponde y la comunión según el Evangelio. Los domingos, los mismos de Inicio. Después elegís uno de cada momento.</p>
+        </section>
+        <section data-paso="elegir" hidden>
+          <p class="rp-crear-resumen" id="rp-crear-resumen"></p>
+          <label class="rp-buscar-caja rp-crear-buscar"><span data-ico="buscar"></span>
+            <input type="search" id="rp-crear-buscar" placeholder="Buscar otra canción en la Biblioteca" autocomplete="off" aria-label="Buscar otra canción">
+          </label>
+          <div id="rp-crear-estantes"></div>
+        </section>
+        <section data-paso="crear" hidden>
+          <label class="rp-campo">Nombre del cancionero <input type="text" id="rp-crear-nombre" maxlength="120" autocomplete="off"></label>
+          <div id="rp-crear-donde"></div>
+          <ol class="rp-crear-lista" id="rp-crear-lista"></ol>
+        </section>
+      </div>
+      <footer class="rp-crear-pie">
+        <button type="button" class="rp-btn" id="rp-crear-atras" hidden>Atrás</button>
+        <span class="espacio"></span>
+        <button type="button" class="rp-btn rp-btn-fuerte" id="rp-crear-seguir">Sugerir cantos</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- El cancionero de misa que suena, en el editor -->
+  <a class="rp-editar-misa" id="rp-editar-misa" href="/editor/" hidden title="Abrir este cancionero en el editor: transponer, cambiar canciones y editar la letra" data-ico="editar">Editar en el editor</a>
+
   <!-- Colores -->
   <dialog class="rp-dlg" id="rp-dlg-colores">
     <form method="dialog">

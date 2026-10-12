@@ -2,7 +2,9 @@
  * reproductor.js — Reproductor de la Biblioteca (reproductor.html), sin sesión. Con el aspecto del editor
  * («YouTube Music»): menú a la izquierda (abajo en el celular), carátulas, la cola a la derecha y la barra abajo.
  *
- *  - Inicio: el próximo domingo y estanterías (cancioneros de misa, tus listas, sugeridas, cada momento).
+ *  - Inicio: el próximo domingo y estanterías (cancioneros de misa, tus listas, sugeridas, cada momento), y
+ *    «Crear nueva misa»: un canto por momento según las lecturas de la fecha elegida, guardado como cancionero.
+ *    El cancionero que suena se abre en el editor con «Editar en el editor» (botón al costado).
  *  - Canciones: buscador de la Biblioteca y «Solo con audio». Tocar una canción la hace sonar (la cola es
  *    lo que se ve en la lista); «+» la agrega a una lista.
  *  - Listas: «Mis listas» en este equipo (localStorage mc-listas: crear, renombrar, ordenar, quitar, borrar)
@@ -21,7 +23,7 @@
  * render) más js/misas-shim.js. Todo lo del servidor son lecturas públicas.
  */
 
-import { initNavSitio, sesionActual } from "./auth.js";
+import { initNavSitio, sesionActual, llamarApi, puedeEditar } from "./auth.js";
 import { COMUNIDADES } from "./comunidades.js";
 import * as lit from "./liturgia.js";
 import { activarPosturas, cerrar as cerrarPostura } from "./posturas.js";
@@ -50,6 +52,7 @@ const ICONOS = {
   anterior: "M6 6h2v12H6zm3.5 6l8.5 6V6z",
   siguiente: "M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z",
   agregar: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+  editar: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
   aleatorio: "M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z",
   repetir: "M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z",
   repetirUna: "M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v4H13z",
@@ -171,6 +174,7 @@ function mostrarVista(v) {
   }
   cerrarPostura();
   pedirPantalla();
+  pintarEditarMisa();
   if (v === "sonando") alinear();
 }
 
@@ -326,12 +330,9 @@ async function pintarInicio() {
       else inicioViejo = true;
     });
   }
-  const misas = (await todasLasMisas()).filter(cuantas);
-  const delDomingo = misas.find((m) => m.fechaUso === domingo && (!st.comunidad || m.comunidad === st.comunidad))
-    || misas.find((m) => m.fechaUso === domingo);
-  $("#rp-portada-acciones").innerHTML = (delDomingo
-    ? `<a class="rp-btn rp-btn-claro" href="#misa=${esc(encodeURIComponent(delDomingo.id))}">${icono("play")} Escuchar «${esc(delDomingo.nombre)}»</a>` : "")
+  $("#rp-portada-acciones").innerHTML = `<button type="button" class="rp-btn rp-btn-claro" data-crear-misa="1">${icono("agregar")} Crear nueva misa</button>`
     + `<button type="button" class="rp-btn" data-ir="vivo">${icono("vivo")} Seguir en vivo</button>`;
+  const misas = (await todasLasMisas()).filter(cuantas);
 
   st.estantes = [];
   // pares: [canción, momento, motivo corto]
@@ -399,7 +400,8 @@ function accionInicio(e) {
     colaPropia({ nombre: l.nombre, tipo: "lista", items: l.items.map((x) => ({ ...x })) });
     reproducir(0);
     mostrarVista("sonando");
-  } else if (d.ir) mostrarVista(d.ir);
+  } else if (d.crearMisa) abrirCrear();
+  else if (d.ir) mostrarVista(d.ir);
 }
 
 // ============ MIS LISTAS ============
@@ -502,7 +504,8 @@ function nuevaLista(items = [], nombre) {
   const usados = new Set(st.listas.map((l) => l.nombre));
   let final = nombre.slice(0, 80);
   for (let n = 2; usados.has(final); n++) final = nombre.slice(0, 74) + " (" + n + ")";
-  const l = { id: uid(), nombre: final, items: items.map(({ cancionId, desplazamiento }) => ({ cancionId, desplazamiento: desplazamiento || 0 })) };
+  const l = { id: uid(), nombre: final, items: items.map(({ cancionId, desplazamiento, momento }) =>
+    ({ cancionId, desplazamiento: desplazamiento || 0, ...(momento ? { momento } : {}) })) };
   st.listas.push(l);
   guardarListas();
   pintarListas();
@@ -598,10 +601,10 @@ function pintarMisas() {
 
 function colaDeMisa(m) {
   return {
-    nombre: m.nombre || "Cancionero de misa", tipo: "misa",
-    items: m.momentos.flatMap((x) => x.canciones.map((c) => ({
+    nombre: m.nombre || "Cancionero de misa", tipo: "misa", misaId: m.id, comunidad: m.comunidad || "",
+    items: m.momentos.flatMap((x, mi) => x.canciones.map((c, ci) => ({
       cancionId: c.cancionId, desplazamiento: c.desplazamiento || 0, momento: x.momento, capo: c.capo || 0, velocidad: c.velocidad || 1,
-      ...(c.scroll ? { scroll: c.scroll } : {})
+      ...(c.scroll ? { scroll: c.scroll } : {}), mi, ci
     })))
   };
 }
@@ -625,6 +628,306 @@ async function abrirMisa(id, tocar = true) {
   mostrarVista("sonando");
   reproducir(0, tocar);
   return true;
+}
+
+// El cancionero de misa que suena se edita en el editor (tono, letra, canciones), en la canción que suena
+function pintarEditarMisa() {
+  const c = st.cola, b = $("#rp-editar-misa");
+  const si = st.vista === "sonando" && c?.tipo === "misa" && !!c.misaId && !tv && puedeEditar(c.comunidad);
+  b.hidden = !si;
+  if (!si) return;
+  const it = c.items[st.indice];
+  b.href = "/editor/?misa=" + encodeURIComponent(c.misaId) + (it?.mi != null ? "&foco=" + it.mi + "." + it.ci : "");
+}
+
+// ============ CREAR NUEVA MISA ============
+// Inicio → «Crear nueva misa»: la fecha; un canto sugerido por momento según las lecturas de ese día (para un domingo
+// de los estantes de Inicio, el mismo de ese estante); elegir uno de cada momento y guardar el cancionero: en la
+// comunidad si la cuenta puede editarla, si no en «Mis listas» de este equipo.
+
+const crear = { paso: "fecha", fecha: "", lecturas: null, tiempo: "", momentos: [], motivos: new Map(), sugeridas: [], eleccion: [], candidatos: [], turno: 0 };
+const oido = new Audio();
+let oyendo = "";
+
+const fechaDia = (iso) => {
+  const d = new Date(iso + "T12:00:00").toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
+  return d.charAt(0).toUpperCase() + d.slice(1);
+};
+// Cada momento: elegida = cancionId, "" = sin canto, undefined = todavía no
+const completa = () => crear.momentos.length > 0 && crear.eleccion.every((x) => x !== undefined);
+
+function abrirCrear() {
+  if (!crear.fecha) crear.fecha = domingo;
+  $("#rp-crear-fecha").value = crear.fecha;
+  pintarDiaCrear();
+  pasoCrear("fecha");
+  $("#rp-dlg-crear").showModal();
+}
+
+function pintarDiaCrear() {
+  const f = $("#rp-crear-fecha").value, box = $("#rp-crear-dia");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) {
+    box.innerHTML = "";
+    return;
+  }
+  const tiempo = lit.tiempoPorFecha(f), color = lit.colorPorTiempo(tiempo);
+  box.innerHTML = `<b>${esc(fechaDia(f))}</b><span>${esc(lit.nombreDelDia(f))}</span>
+    <span><span class="rp-punto" style="background:${COLOR_LITURGICO[color] || acentoLiturgico}"></span>${esc(tiempo)} · color ${esc(color.toLowerCase())}</span>`;
+}
+
+function pasoCrear(p) {
+  crear.paso = p;
+  const dlg = $("#rp-dlg-crear");
+  dlg.querySelectorAll("section[data-paso]").forEach((s) => (s.hidden = s.dataset.paso !== p));
+  dlg.querySelectorAll(".rp-crear-pasos li").forEach((li) => li.classList.toggle("activo", li.dataset.paso === p));
+  $("#rp-crear-atras").hidden = p === "fecha";
+  const seguir = $("#rp-crear-seguir");
+  seguir.textContent = { fecha: "Sugerir cantos", elegir: "Crear cancionero", crear: "Guardar" }[p];
+  seguir.disabled = p === "elegir" && !completa();
+  dlg.querySelector(".rp-crear-cuerpo").scrollTop = 0;
+  if (p === "crear") pintarPasoGuardar();
+}
+
+// Los momentos de esa fecha con su canto sugerido: { lecturas, tiempo, momentos, motivos }
+async function sugerenciasDe(fecha) {
+  const biblioteca = st.biblioteca, misas = (await todasLasMisas()).filter(cuantas);
+  const esDomingo = new Date(fecha + "T12:00:00").getDay() === 0;
+  const listo = esDomingo && domingosListos?.some((d) => d.fecha === fecha)
+    && lit.sugerirDomingos(domingosListos, { biblioteca, misas }).find((d) => d.fecha === fecha);
+  let lecturas, tiempo, momentos, motivos;
+  if (listo) {
+    ({ lecturas } = listo);
+    tiempo = listo.misa.tiempoLiturgico;
+    motivos = new Map(listo.motivos);
+    momentos = listo.misa.momentos.map((m) => ({ momento: m.momento, canciones: m.canciones.map((c) => ({ ...c })) }));
+  } else {
+    lecturas = await lecturasDelDia(fecha).catch(() => null);
+    const base = lit.momentosDeMisa(fecha, lecturas);
+    tiempo = base.tiempo;
+    // El Gloria va los domingos (fuera de Adviento y Cuaresma), en las solemnidades y en las fiestas
+    const fiesta = lit.etiquetasDelDia(lecturas?.titulo).fiestas.length || /SOLEMNIDAD|FIESTA/i.test(lecturas?.titulo || "");
+    momentos = base.momentos.filter((m) => esDomingo || fiesta || m.momento !== "Gloria");
+    motivos = new Map();
+    const evitar = esDomingo ? await lit.evitadosDelMes(fecha, lecturasDelDia, { biblioteca, misas }).catch(() => null) : null;
+    lit.sugerirCantos({ id: "nueva-" + fecha, comunidad: "", fechaUso: fecha, tiempoLiturgico: tiempo, momentos }, lecturas,
+      { biblioteca, misas, motivos, evitar });
+  }
+  // En Cuaresma no se canta el aleluya: la aclamación al Evangelio es otra
+  if (lit.TIEMPOS_SIN_ALELUYA.includes(tiempo)) {
+    for (const m of momentos.filter((x) => x.momento === "Aleluya")) {
+      if (motivos.has(m.momento)) motivos.set("Aclamación al Evangelio", motivos.get(m.momento));
+      m.momento = "Aclamación al Evangelio";
+    }
+  }
+  return { lecturas, tiempo, momentos, motivos };
+}
+
+// La sugerida primero; después las del momento por su etiqueta y, si son pocas, las que lo nombran en el título o la letra
+function candidatosDe(momento, sugerida) {
+  const fuera = (c) => c.id === sugerida;
+  const por = st.biblioteca.filter((c) => !fuera(c) && lit.esDelMomento(c, momento)).sort(ordenInicio);
+  let lista = por;
+  if (por.length < 12) {
+    const ya = new Set(por.map((c) => c.id));
+    lista = por.concat(st.biblioteca.filter((c) => !fuera(c) && !ya.has(c.id))
+      .map((c) => [c, lit.momentoPorLetra(c, momento)]).filter(([, x]) => x)
+      .sort((a, b) => a[1].orden - b[1].orden || ordenInicio(a[0], b[0])).map(([c]) => c));
+  }
+  const s = sugerida && st.porId.get(sugerida);
+  return [...(s ? [s] : []), ...lista.slice(0, 30)];
+}
+
+async function sugerirParaFecha() {
+  const fecha = $("#rp-crear-fecha").value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return avisar("Elegí la fecha de la misa.");
+  if (!st.biblioteca.length) return avisar("La Biblioteca todavía no está cargada.");
+  const t = ++crear.turno;
+  crear.fecha = fecha;
+  pasoCrear("elegir");
+  $("#rp-crear-buscar").value = "";
+  $("#rp-crear-resumen").textContent = "";
+  $("#rp-crear-estantes").innerHTML = `<p class="rp-aviso">Buscando las lecturas y los cantos para el ${esc(fechaDia(fecha).toLowerCase())}…</p>`;
+  $("#rp-crear-seguir").disabled = true;
+  let r;
+  try {
+    r = await sugerenciasDe(fecha);
+  } catch (e) {
+    if (t === crear.turno) $("#rp-crear-estantes").innerHTML = `<p class="rp-error">${esc(e.message)}</p>`;
+    return;
+  }
+  if (t !== crear.turno) return;
+  Object.assign(crear, r);
+  crear.sugeridas = r.momentos.map((m) => m.canciones[0]?.cancionId || "");
+  crear.eleccion = crear.sugeridas.map((id) => id || undefined);
+  crear.candidatos = r.momentos.map((m, i) => candidatosDe(m.momento, crear.sugeridas[i]));
+  pintarElegir();
+}
+
+const tarjetaCrear = (c, i, momento, elegida, sub) => `<div class="rp-tj${elegida ? " elegida" : ""}" data-c-elegir="${i}" data-id="${esc(c.id)}">
+    <div class="rp-tj-cara">${cara(c, "grande", momento)}<button type="button" class="rp-tj-play" data-c-oir="${esc(c.id)}" aria-label="Escuchar «${esc(c.titulo)}»">${icono(oyendo === c.id && !oido.paused ? "pausa" : "play")}</button></div>
+    <button type="button" class="rp-tj-titulo">${esc(c.titulo)}</button>
+    <div class="rp-tj-sub">${esc(sub)}</div>
+  </div>`;
+
+const estadoMomento = (i) => {
+  const e = crear.eleccion[i];
+  return e === undefined ? "Elegí uno" : e ? "✓ " + (st.porId.get(e)?.titulo || "") : "✓ Sin canto";
+};
+
+function pintarResumen() {
+  const ev = lit.evangelioDe(crear.lecturas);
+  const nombre = crear.lecturas?.titulo ? lit.tituloLiturgico(crear.lecturas.titulo) : lit.nombreDelDia(crear.fecha);
+  const n = crear.eleccion.filter((x) => x !== undefined).length;
+  $("#rp-crear-resumen").innerHTML = `<b>${esc(fechaDia(crear.fecha))}</b> · ${esc(nombre)}`
+    + (ev ? ` · Evangelio según ${esc(ev.cita)}` : crear.lecturas ? "" : " · lecturas aún no publicadas: según el tiempo litúrgico")
+    + `<span class="rp-crear-cuenta${n === crear.momentos.length ? " lista" : ""}">${n} de ${crear.momentos.length} momentos elegidos</span>`;
+  $("#rp-crear-seguir").disabled = !completa();
+}
+
+function pintarElegir() {
+  const q = $("#rp-crear-buscar").value.trim();
+  const hallados = q ? buscarCanciones(st.biblioteca, q).slice(0, 24) : null;
+  pintarResumen();
+  $("#rp-crear-estantes").innerHTML = crear.momentos.map((m, i) => {
+    const elegida = crear.eleccion[i], motivo = crear.motivos.get(m.momento);
+    let lista = hallados || crear.candidatos[i];
+    if (elegida && !lista.some((c) => c.id === elegida) && st.porId.get(elegida)) lista = [st.porId.get(elegida), ...lista];
+    const tarjetas = lista.map((c) => tarjetaCrear(c, i, m.momento, c.id === elegida,
+      c.id === crear.sugeridas[i] ? "Sugerida" + (motivo?.corto ? " · " + motivo.corto : "") : subCancion(c)));
+    tarjetas.push(`<div class="rp-tj rp-tj-sin${elegida === "" ? " elegida" : ""}" data-c-elegir="${i}" data-id="">
+      <div class="rp-tj-cara"><span class="cara grande rp-cara-sin" aria-hidden="true">—</span></div>
+      <button type="button" class="rp-tj-titulo">Sin canto</button><div class="rp-tj-sub">Dejar este momento vacío</div></div>`);
+    return `<div data-c-momento="${i}">${estante(m.momento, estadoMomento(i), tarjetas)}</div>`;
+  }).join("");
+}
+
+function elegirEnCrear(tj) {
+  const i = +tj.dataset.cElegir, caja = tj.closest("[data-c-momento]");
+  crear.eleccion[i] = tj.dataset.id;
+  caja.querySelectorAll("[data-c-elegir]").forEach((x) => x.classList.toggle("elegida", x === tj));
+  caja.querySelector(".rp-estante-cabeza small").textContent = estadoMomento(i);
+  pintarResumen();
+}
+
+// ▶ en una tarjeta: escuchar la canción sin elegirla (con su audio de la Biblioteca)
+function escuchar(id) {
+  if (oyendo === id && !oido.paused) return oido.pause();
+  const rep = audiosReproducibles(st.porId.get(id));
+  const a = rep.find((x) => x.fileId) || rep.find((x) => !esVideo(x));
+  if (!a) return avisar(rep.length ? "Esa canción solo tiene video: escuchala después en el reproductor." : "Esa canción no tiene audio.");
+  if (!audio.paused) audio.pause();
+  if (yt?.activo && !yt.paused) yt.pause();
+  oyendo = id;
+  oido.src = a.fileId ? urlAudio(a.fileId) : a.url;
+  oido.play().catch(() => avisar("No se pudo reproducir el audio."));
+}
+const pintarOido = () => document.querySelectorAll("#rp-crear-estantes [data-c-oir]").forEach((b) => {
+  const k = oyendo === b.dataset.cOir && !oido.paused ? "pausa" : "play";
+  if (b.dataset.estado !== k) {
+    b.dataset.estado = k;
+    b.innerHTML = icono(k);
+  }
+});
+
+function pintarPasoGuardar() {
+  const nombre = $("#rp-crear-nombre");
+  if (nombre.dataset.para !== crear.fecha) {
+    nombre.value = "Misa " + fechaDia(crear.fecha).toLowerCase();
+    nombre.dataset.para = crear.fecha;
+  }
+  const s = sesionActual();
+  const propias = COMUNIDADES.filter((c) => puedeEditar(c.slug));
+  if (propias.length) {
+    const def = propias.find((c) => c.slug === st.comunidad) || propias.find((c) => c.slug === s?.comunidad) || propias[0];
+    $("#rp-crear-donde").innerHTML = `<label class="rp-campo">Guardar en
+      <select id="rp-crear-comunidad">${propias.map((c) => `<option value="${esc(c.slug)}"${c === def ? " selected" : ""}>Cancioneros de ${esc(c.nombre)}</option>`).join("")}
+        <option value="">Mis listas (solo en este equipo)</option></select></label>`;
+  } else {
+    $("#rp-crear-donde").innerHTML = `<p class="rp-aviso">Se guarda en <b>Mis listas</b> de este equipo. ${s
+      ? "Tu cuenta todavía no tiene permiso para guardar cancioneros de misa: pedíselo a un responsable de la parroquia."
+      : `<a href="/login">Identificate</a> para guardarlo como cancionero de tu comunidad.`}</p>`;
+  }
+  $("#rp-crear-lista").innerHTML = crear.momentos.map((m, i) => `<li><small>${esc(m.momento)}</small>
+    <b>${esc(crear.eleccion[i] ? st.porId.get(crear.eleccion[i])?.titulo || "" : "Sin canto")}</b></li>`).join("");
+}
+
+async function guardarCrear() {
+  const nombre = $("#rp-crear-nombre").value.trim();
+  if (!nombre) return avisar("Escribí el nombre del cancionero.");
+  const comunidad = $("#rp-crear-comunidad")?.value || "";
+  const momentos = crear.momentos.map((m, i) => ({
+    momento: m.momento, canciones: crear.eleccion[i]
+      ? [{ cancionId: crear.eleccion[i], desplazamiento: 0, ...(crear.eleccion[i] === crear.sugeridas[i] ? { sugerida: true } : {}) }] : []
+  }));
+  if (!momentos.some((m) => m.canciones.length)) return avisar("Elegí al menos una canción.");
+  if (!comunidad) {
+    const l = nuevaLista(momentos.flatMap((m) => m.canciones.map((c) => ({ cancionId: c.cancionId, desplazamiento: 0, momento: m.momento }))), nombre);
+    if (!l) return;
+    $("#rp-dlg-crear").close();
+    st.abierta = l.id;
+    mostrarVista("listas");
+    avisar(`Se guardó «${l.nombre}» en Mis listas.`);
+    return;
+  }
+  const boton = $("#rp-crear-seguir");
+  boton.disabled = true;
+  boton.textContent = "Guardando…";
+  try {
+    const r = await llamarApi("guardarMisa", {
+      token: sesionActual()?.token || "",
+      misa: { nombre, comunidad, fechaUso: crear.fecha, tiempoLiturgico: crear.tiempo, momentos }
+    });
+    misasPublicas = null;
+    st.misas = null;
+    inicioViejo = true;
+    guardar("mc-reproducir", JSON.stringify({ ...r.misa, t: Date.now() }));
+    $("#rp-dlg-crear").close();
+    history.replaceState(null, "", location.pathname + location.search + "#misa=" + encodeURIComponent(r.misa.id));
+    await abrirMisa(r.misa.id, false);
+    avisar(`Se creó «${r.misa.nombre}». Con «Editar en el editor» cambiás tonos, letras y canciones.`);
+  } catch (e) {
+    avisar(e.message);
+  } finally {
+    boton.disabled = false;
+    boton.textContent = "Guardar";
+  }
+}
+
+function conectarCrear() {
+  const dlg = $("#rp-dlg-crear");
+  dlg.querySelector("form").addEventListener("submit", (e) => e.preventDefault());
+  $("#rp-crear-cerrar").addEventListener("click", () => dlg.close());
+  dlg.addEventListener("close", () => {
+    oido.pause();
+    oyendo = "";
+  });
+  $("#rp-crear-fecha").addEventListener("input", pintarDiaCrear);
+  $("#rp-crear-seguir").addEventListener("click", () => {
+    if (crear.paso === "fecha") sugerirParaFecha();
+    else if (crear.paso === "elegir" && completa()) pasoCrear("crear");
+    else if (crear.paso === "crear") guardarCrear();
+  });
+  $("#rp-crear-atras").addEventListener("click", () => pasoCrear(crear.paso === "crear" ? "elegir" : "fecha"));
+  let espera = 0;
+  $("#rp-crear-buscar").addEventListener("input", () => {
+    clearTimeout(espera);
+    espera = setTimeout(pintarElegir, 200);
+  });
+  $("#rp-crear-estantes").addEventListener("click", (e) => {
+    const des = e.target.closest("[data-desplazar]");
+    if (des) {
+      const fila = des.closest(".rp-estante").querySelector(".rp-estante-fila");
+      return fila.scrollBy({ left: +des.dataset.desplazar * fila.clientWidth * 0.9, behavior: "smooth" });
+    }
+    const oir = e.target.closest("[data-c-oir]");
+    if (oir) return escuchar(oir.dataset.cOir);
+    const tj = e.target.closest("[data-c-elegir]");
+    if (tj) elegirEnCrear(tj);
+  });
+  for (const ev of ["play", "pause", "ended", "emptied"]) oido.addEventListener(ev, pintarOido);
+  $("#rp-crear-nombre").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") guardarCrear();
+  });
 }
 
 // ============ COLA GUARDADA ============
@@ -828,6 +1131,7 @@ async function reproducir(i, tocar = true, desde = 0, desdeTv = false) {
   pintarExtras(entrada);
   pintarCanciones();
   pintarCola();
+  pintarEditarMisa();
   sesionDeMedios(entrada, item);
   if (escena.abierto) pintarEscenario();
   await pintarLetra(item, entrada);
@@ -2399,6 +2703,7 @@ function conectar() {
   conectarMedios();
   conectarEscenario();
   conectarControlesPantalla();
+  conectarCrear();
 }
 
 // ============ APP INSTALABLE ============

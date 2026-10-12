@@ -311,6 +311,7 @@ recPanel.innerHTML = `
       <button type="button" class="btn" data-rc="discard">Descartar</button>
       <button type="button" class="btn primary" data-rc="save">Guardar</button>
     </div>
+    <button type="button" class="btn" data-rc="nueva" title="Una canción nueva para la Biblioteca con esta toma: le pones el título y la letra">Canción nueva con esta toma…</button>
   </div>`;
 document.body.appendChild(recPanel);
 
@@ -419,6 +420,11 @@ recPanel.addEventListener('click', e => {
   else if (act === 'stop') stopRecording();
   else if (act === 'save') saveTake();
   else if (act === 'discard') discardTake();
+  else if (act === 'nueva' && rec.blob) {
+    const toma = { blob: rec.blob, ext: rec.ext };
+    discardTake();
+    abrirCancionNueva({ toma });
+  }
   else if (act === 'folder') pickAudiosFolder();
   else if (act === 'retry') startInput();
 });

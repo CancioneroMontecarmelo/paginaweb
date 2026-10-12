@@ -27,7 +27,7 @@ if (location.hash === '#pantalla' && !location.search) {
 <meta name="apple-mobile-web-app-title" content="Editor">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a73e8'/%3E%3Ctext x='16' y='24' font-size='22' text-anchor='middle' fill='white'%3E%E2%99%AA%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/canciotras.css?v=4">
+<link rel="stylesheet" href="css/canciotras.css?v=5">
 <link rel="stylesheet" href="css/ytm.css?v=3">
 </head>
 <body class="mode-atril">
@@ -58,6 +58,7 @@ if (location.hash === '#pantalla' && !location.search) {
   <div class="nav-sep"></div>
   <a href="../misas.html" class="nav-item nav-extra"><span data-ico="iglesia"></span><span>Misas</span></a>
   <a href="../reproductor.html" class="nav-item nav-extra"><span data-ico="play"></span><span>Cancionero Litúrgico</span></a>
+  <button type="button" class="nav-item nav-extra" data-action="cancionNueva"><span data-ico="agregar"></span><span>Canción nueva (grabar o escribir)</span></button>
   <button type="button" class="nav-item nav-extra" data-action="openMisa"><span data-ico="cola"></span><span>Abrir cancionero de misa</span></button>
   <button type="button" class="nav-item nav-extra" data-action="driveOpen"><span data-ico="biblioteca"></span><span>Cancioneros en la nube</span></button>
 </nav>
@@ -201,7 +202,7 @@ if (location.hash === '#pantalla' && !location.search) {
   </div>
   <div class="tabs" id="tabs" role="tablist" title="Arrastra para ordenar"></div>
   <div class="cola-pie">
-    <button type="button" class="btn-borde" data-action="new"><span data-ico="agregar"></span> Canción nueva</button>
+    <button type="button" class="btn-borde" data-action="cancionNueva" title="Grabarla o escribirla, con los acordes sobre la letra"><span data-ico="agregar"></span> Canción nueva</button>
     <button type="button" class="btn-borde" data-vista="biblioteca"><span data-ico="biblioteca"></span> De la Biblioteca</button>
   </div>
 </aside>
@@ -317,6 +318,7 @@ if (location.hash === '#pantalla' && !location.search) {
 <script src="js/colaboradores.js"></script>
 <script src="js/movil.js"></script>
 <script src="js/nube.js"></script>
+<script src="js/cancion-nueva.js"></script>
 <script src="js/caratula.js"></script>
 <script src="js/ytm.js"></script>
 <script src="js/atril.js"></script>

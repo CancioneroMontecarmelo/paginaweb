@@ -421,6 +421,7 @@ const MENUS = [
   { label: 'Archivo', items: [
     { label: 'Nuevo', submenu: [
       { label: 'Canción', action: 'new', key: 'Ctrl+Alt+N' },
+      { label: 'Canción para la Biblioteca (grabar o escribir)…', action: 'cancionNueva' },
       { label: 'Cancionero…', action: 'newBook' }
     ]},
     { label: 'Abrir', submenu: [
@@ -580,6 +581,7 @@ const ACTIONS = {
   driveSave: driveSaveDialog,
   driveOpen: driveOpenDialog,
   newBook: newBookDialog,
+  cancionNueva: () => abrirCancionNueva(),
   openCollection: () => ytmIrA('biblioteca'),
   openLocalCollection,
   openMisa: ytmElegirMisa,

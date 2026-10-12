@@ -564,13 +564,20 @@ async function mcGuardarCancion() {
     const c = r.cancion;
     const momentos = (c.etiquetas || []).filter(t => typeof TAG_FAMILIES !== 'undefined' &&
       TAG_FAMILIES.catolico.groups[0].tags.some(m => tagNorm(m) === tagNorm(t)));
+    // Una canción propia agregada a un cancionero de misa abierto: se ofrece dejarla también en la misa
+    const aMisa = state.mcMisa && !d.mc && !EFIMERO;
     showModal({
       title: 'Guardada en la Biblioteca ✓',
       body: `<p>«${escapeHtml(c.titulo)}» quedó en la Biblioteca de la parroquia con ${(c.audios || []).length} ${(c.audios || []).length === 1 ? 'audio' : 'audios'}${previa?.soloAudio ? ', ya unida a los audios que se habían subido solos' : ''}.</p>
         <p>${momentos.length ? `En la pantalla Misas aparece en: <b>${escapeHtml(momentos.join(', '))}</b>.`
           : 'Para que aparezca en los momentos de la pantalla Misas, ponle sus etiquetas (Editar → Tags: Entrada, Comunión…) y vuelve a guardarla.'}</p>
-        ${faltan ? `<p class="hint">${faltan} audio(s) de este equipo no se encontraron (pulsa «Activar audios de la carpeta» y vuelve a guardar).</p>` : ''}`
+        ${faltan ? `<p class="hint">${faltan} audio(s) de este equipo no se encontraron (pulsa «Activar audios de la carpeta» y vuelve a guardar).</p>` : ''}`,
+      buttons: aMisa ? [
+        { label: 'Cerrar' },
+        { label: `Agregar a «${state.cancioneroName || 'la misa'}»`, primary: true, onClick: () => { setTimeout(() => mcAgregarAMisa(d, c.id, momentos[0] || '')); } }
+      ] : undefined
     });
+    return c;
   } catch (e) {
     if (dlg.open) dlg.close();
     mcError('No se pudo guardar en la Biblioteca', e);
@@ -961,6 +968,55 @@ async function mcGuardarEnMisa() {
   } catch (e) {
     mcError('No se pudo guardar en el cancionero de misa', e);
     return false;
+  }
+}
+
+// Una canción de la Biblioteca abierta en una pestaña pasa al cancionero de misa abierto, en su momento (si la
+// misa no lo tiene, se agrega en el orden de la misa). Desde ahí se guarda con «Guardar en la misa» como las demás.
+async function mcAgregarAMisa(d, cancionId, momento) {
+  if (!state.mcMisa || d.mc) return;
+  const orden = TAG_FAMILIES.catolico.groups[0].tags;
+  if (!momento) {
+    momento = await showModal({
+      title: 'Agregar al cancionero de misa',
+      body: `<label class="field"><span>¿En qué momento de la misa va «${escapeHtml(d.title)}»?</span>
+        <select id="mcMomentoNuevo">${orden.map(m => `<option>${escapeHtml(m)}</option>`).join('')}</select></label>`,
+      buttons: [{ label: 'Cancelar' }, { label: 'Agregar', primary: true, onClick: dlg => dlg.querySelector('#mcMomentoNuevo').value }]
+    });
+    if (!momento) return;
+  }
+  const s = await mcEntrar('Para cambiar el cancionero de misa entra con tu cuenta de Google.');
+  if (!s) return;
+  toast('Agregando al cancionero de misa…', 60000);
+  try {
+    const misa = ((await mcLeerPublico({ accion: 'misas' })).misas || []).find(m => m.id === state.mcMisa.id);
+    if (!misa) throw new Error('El cancionero ya no está en la parroquia: puede que lo hayan borrado.');
+    let mi = misa.momentos.findIndex(m => tagNorm(m.momento) === tagNorm(momento));
+    if (mi < 0) {
+      const pos = i => { const k = orden.findIndex(t => tagNorm(t) === tagNorm(i)); return k < 0 ? orden.length : k; };
+      mi = misa.momentos.findIndex(m => pos(m.momento) > pos(momento));
+      if (mi < 0) mi = misa.momentos.length;
+      misa.momentos.splice(mi, 0, { momento, canciones: [] });
+      for (const x of docs) if (x.mc && x.mc.mi >= mi) x.mc.mi++;
+    }
+    const ci = misa.momentos[mi].canciones.push({ cancionId, desplazamiento: 0 }) - 1;
+    const { drive, lecturas, ...datos } = misa;
+    await mcApi('guardarMisa', { token: s.token, misa: datos });
+    const key = detectKey(d.text);
+    d.mc = { cancionId, momento: misa.momentos[mi].momento, mi, ci, tonoOriginal: key ? key.idx : null,
+      base: { desplazamiento: 0, capo: 0, velocidad: 1, scroll: 0 } };
+    d.mc.base = mcValores(d);
+    d.bibId = cancionId;
+    markClean(d);
+    state.mcMisa.t = Date.now();
+    try { localStorage.setItem(MC_GUARDADA_KEY, JSON.stringify({ id: misa.id, t: state.mcMisa.t })); } catch (_) {}
+    state.cancioneroClean = bookSignature();
+    colaFirma = '';
+    refresh();
+    scheduleSave();
+    toast(`«${d.title}» quedó en «${misa.nombre}» (${d.mc.momento})`, 4000);
+  } catch (e) {
+    mcError('No se pudo agregar al cancionero de misa', e);
   }
 }
 

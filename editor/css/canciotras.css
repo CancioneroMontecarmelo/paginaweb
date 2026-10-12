@@ -845,6 +845,58 @@ body.pv-open { overflow: hidden; }
 .rc-take { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #e0e0e0; padding-top: 8px; }
 .rc-preview { width: 100%; }
 
+/* ============ CANCIÓN NUEVA (grabar o escribir) ============ */
+dialog.cn-hoja { width: min(1100px, 96vw); }
+.cn-hoja.cn-encima { outline: 3px dashed #1a73e8; outline-offset: -8px; }
+.cn-datos { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 0 12px; }
+.cn-audio { border: 1px solid #e8eaed; border-radius: 10px; padding: 8px 12px 10px; }
+.cn-grabar { display: flex; align-items: center; gap: 12px; }
+.cn-nivel { flex: 1; height: 10px; border-radius: 5px; background: #f1f3f4; overflow: hidden; }
+.cn-nivel i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #34a853 70%, #fbbc04 88%, #ea4335); transition: width .1s; }
+.cn-hoja:not(.cn-grabando) .cn-nivel { opacity: .4; }
+.cn-tiene { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; }
+.cn-tiene audio { flex: 1 1 260px; height: 40px; }
+.cn-tiene a { color: #1a73e8; font-weight: bold; word-break: break-all; }
+.cn-audio-fila { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.cn-audio-fila input { flex: 1 1 200px; min-width: 0; }
+.cn-escribir { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; }
+.cn-acordes {
+  display: flex; flex-wrap: wrap; gap: 4px; position: sticky; top: 0; z-index: 3;
+  background: white; padding: 4px 0;
+}
+.cn-acordes button {
+  min-width: 42px; height: 38px; padding: 0 6px; border: 1px solid #dadce0; border-radius: 8px;
+  background: white; color: #d93025; font: bold 15px Arial, sans-serif; cursor: pointer; touch-action: manipulation;
+}
+.cn-acordes button:hover { background: #fce8e6; }
+.cn-mods { display: flex; gap: 4px; margin-left: auto; }
+.cn-mods button { min-width: 36px; color: #3c4043; }
+.cn-mods button[aria-pressed="true"] { background: #d93025; border-color: #d93025; color: white; }
+.field textarea.cn-letra {
+  width: 100%; min-height: 300px; resize: vertical; padding: 8px 10px; border: 1px solid #dadce0; border-radius: 6px;
+  font: 15px/1.5 'Courier New', monospace; color: #202124; white-space: pre; overflow-x: auto;
+}
+.cn-ayuda { display: block; margin-top: 2px; }
+.cn-previa {
+  --song-font: 15px; min-height: 300px; max-height: 60vh; overflow: auto; padding: 8px 10px;
+  border: 1px solid #e8eaed; border-radius: 6px; background: #fafafa; color: #202124;
+}
+@media (pointer: coarse) { .cn-pc { display: none; } }
+@media (max-width: 860px) {
+  .cn-escribir { grid-template-columns: minmax(0, 1fr); }
+  .cn-previa { min-height: 0; max-height: none; }
+}
+@media (max-width: 700px) {
+  dialog.wide.cn-hoja { height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .cn-datos { grid-template-columns: minmax(0, 1fr); }
+  .cn-datos .field { margin: 6px 0; }
+  .cn-acordes { margin: 0 -14px; padding: 6px 14px; box-shadow: 0 2px 4px rgba(0,0,0,.06); }
+  .cn-acordes button { flex: 1 0 auto; height: 42px; min-width: 40px; }
+  .cn-mods { margin-left: 0; }
+  .field textarea.cn-letra { font-size: 16px; min-height: 40vh; }
+  .cn-hoja .modal-actions .btn { flex: 1 1 40%; }
+}
+
 /* ============ TELÉFONO Y TABLET ============ */
 /* Piezas que solo aparecen en pantallas chicas */
 .menu-toggle, .key-toggle, .key-sheet-head, .banner-more, .fit-btn { display: none; }

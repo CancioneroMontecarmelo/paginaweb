@@ -248,9 +248,30 @@ hoja blanca); solo el Atril es oscuro. Con la música de la parroquia:
   publicado, su página se actualiza al volver a **Publicar** en Misas.
 - **▶ Atril** de Misas (`&atril=1`) abre el atril directo, sin guardar nada en el editor.
 
+### Canción nueva (grabar o escribir, pensada para el teléfono)
+
+**Canción nueva** (abajo en la cola del cancionero, en el menú lateral, en **Archivo → Nuevo → Canción para la
+Biblioteca** o con **Canción nueva con esta toma…** en el panel Grabar) abre una hoja (`editor/js/cancion-nueva.js`):
+
+- **Título** y **momento de la misa** (si hay un cancionero de misa abierto, el de la canción que se está mirando).
+- **Audio**: el botón rojo graba ahí mismo con la cadena del panel Grabar (nivel automático y limitador);
+  también **Elegir archivo…** o pegar un enlace (YouTube, Vimeo, SoundCloud, un mp3; los de Dropbox, Drive y
+  GitHub pasan a descarga directa; Spotify, Apple Music y Deezer no sirven).
+- **Letra y acordes** como en todo el editor: sin corchetes, en **notación latina**, los acordes en la
+  línea de arriba y la letra en la de abajo. La barra **Do Re Mi Fa Sol La Si** (con **# b m 7**) pone el
+  acorde en la línea de acordes justo sobre la sílaba donde está el cursor (si no hay línea de acordes, la
+  crea encima) sin cerrar el teclado del teléfono. **Así se verá** muestra los acordes en otro color.
+- **En el PC, arrastrar y soltar** sobre la hoja (o pegar con Ctrl+V): de **un archivo del equipo**, un audio o
+  video, o la letra en `.md`, `.txt` o ChordPro; **desde una web**, un enlace (queda como audio) o un texto
+  seleccionado (queda como letra). Todo lo que entra se pasa a notación latina y el ChordPro (`[Sol]Noche…`) a
+  la línea de acordes de arriba. Si ya había letra o audio, pregunta antes de reemplazar.
+- **Solo en una pestaña** la deja en el cancionero; **Guardar en la Biblioteca** además la sube como
+  **Guardar canción en la Biblioteca** (el audio grabado pasa a .m4a). Si hay un cancionero de misa abierto,
+  ofrece **Agregar a «…»**: la pone en ese momento de la misa (si la misa no lo tenía, lo agrega en su orden).
+
 ## Editor: menú Archivo
 
-- **Nuevo** ▸ Canción · Cancionero.
+- **Nuevo** ▸ Canción · Canción para la Biblioteca (grabar o escribir) · Cancionero.
 - **Abrir** ▸ Canción de la Biblioteca de la parroquia (buscador por título, etiqueta o frase de la letra,
   igual que en Misas; marca las que tienen **solo audio** para escribirles la letra) o de este equipo · Cancionero de la nube, de este
   equipo o de la colección.
@@ -520,7 +541,7 @@ Tiene el aspecto del editor («YouTube Music»): el menú a la izquierda (abajo 
 cola a la derecha (en el celular sube desde el botón ≡♪ de la barra, con aleatorio y repetir) y la barra
 de reproducción abajo con la carátula. El acento del tema **Noche** es el color litúrgico del próximo domingo.
 
-- **Inicio**: el próximo domingo (con **Escuchar** su cancionero de misa, si ya hay uno) y estanterías:
+- **Inicio**: el próximo domingo (con **Crear nueva misa** y **Seguir en vivo**) y estanterías:
   cancioneros de misa, tus listas, sugeridas para el domingo, las del tiempo litúrgico y las de cada
   momento. Tocar una tarjeta hace sonar esa estantería desde esa canción.
 - **Canciones**: el buscador de la Biblioteca (título, frase de la letra, autor o etiqueta) y **Solo con
@@ -567,6 +588,28 @@ de reproducción abajo con la carátula. El acento del tema **Noche** es el colo
 - En el celular: controles en la pantalla bloqueada y en los auriculares (Media Session, también con
   video) y la pantalla no se apaga mientras se lee la letra (Wake Lock, donde exista). La música sigue
   sonando al cambiar de pestaña o de app; al volver, la barra se pone al día.
+
+### Crear nueva misa
+
+En Inicio, **Crear nueva misa** abre un diálogo de tres pasos (sección «CREAR NUEVA MISA» de `js/reproductor.js`):
+
+1. **Fecha**: por defecto el próximo domingo; muestra el nombre litúrgico del día, el tiempo y su color.
+2. **Cantos**: un estante por momento de la misa, como en Inicio, con la sugerida primero (marcada ✓), las
+   canciones con la etiqueta del momento y, si son pocas, las que lo nombran en el título o la letra
+   (hasta 30), más **Sin canto**. Un domingo con lecturas publicadas tiene las mismas sugeridas que su estante
+   de Inicio (`sugerirDomingos`). Otro día se arma con las lecturas de ese día (`momentosDeMisa` +
+   `sugerirCantos`): el salmo del día, el aleluya (en Cuaresma, **Aclamación al Evangelio**) y la comunión
+   según el Evangelio; el Gloria solo va los domingos, en fiestas y solemnidades. ▶ en una tarjeta la escucha
+   sin elegirla; el buscador trae cualquier canción de la Biblioteca. **Crear cancionero** se activa cuando
+   todos los momentos tienen una canción o «Sin canto».
+3. **Cancionero**: el nombre («Misa domingo 18 de octubre») y dónde se guarda. Con una cuenta que puede
+   editar alguna comunidad, en **Cancioneros de esa comunidad** (`guardarMisa`, las sugeridas sin cambiar
+   quedan con `sugerida: true`) y se abre en el reproductor; sin permiso o sin sesión, en **Mis listas** de
+   ese equipo.
+
+Mientras suena un cancionero de misa que la cuenta puede editar, la pestaña lateral **Editar en el editor**
+(`#rp-editar-misa`, a la izquierda en el PC y abajo a la derecha en el celular) lo abre en el editor en la
+canción que suena (`/editor/?misa=<id>&foco=<momento>.<canción>`): ahí se cambian tonos, letras y canciones.
 
 ### App del reproductor (instalable)
 
