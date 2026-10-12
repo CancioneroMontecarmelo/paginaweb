@@ -174,7 +174,7 @@ function ytmEstante(titulo, tarjetas, { sobre = '', explorar = '' } = {}) {
 
 // ============ INICIO ============
 const MOMENTOS_INICIO = ['Entrada', 'Acto penitencial', 'Gloria', 'Salmo responsorial', 'Aleluya', 'Ofertorio', 'Santo',
-  'Cordero de Dios', 'Comunión', 'Acción de gracias', 'Salida'];
+  'Cordero de Dios', 'Comunión', 'Acción de gracias', 'Salida', 'Canto a María'];
 let ytmInicioListo = false;
 
 async function ytmPintarInicio() {
@@ -208,7 +208,10 @@ async function ytmPintarInicio() {
     const masComun = [...veces].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
     const nuevas = lista.filter(c => c.actualizado > masComun).sort((a, b) => b.actualizado.localeCompare(a.actualizado)).slice(0, 20);
 
-    const marianos = lista.filter(c => (c.etiquetas || []).some(t => /marian/i.test(t)) || lit.esDelMomento(c, 'Canto a María')).sort(orden);
+    // Los de María según el tiempo: en Navidad villancicos, en Cuaresma la Dolorosa…
+    const temaMaria = lit.temaMarianoDe(tiempo, domingo);
+    const marianos = lit.candidatosMomento(lista, 'Canto a María', { fechaUso: domingo, tiempoLiturgico: tiempo })
+      .filter(x => x.delMomento).map(x => x.cancion);
     const delTiempo = lista.filter(c => (c.etiquetas || []).some(t => tagNorm(t) === tTiempo)).sort(orden);
 
     let html = `<section class="ytm-hero">
@@ -223,18 +226,18 @@ async function ytmPintarInicio() {
         </div>
       </div>
     </section>
-    <div class="chips">${MOMENTOS_INICIO.map(m => `<button type="button" class="chip" data-explorar="momento|${escapeHtml(m)}">${escapeHtml(m)}</button>`).join('')}
-      <button type="button" class="chip" data-explorar="etiqueta|Marianos">Marianos</button></div>`;
+    <div class="chips">${MOMENTOS_INICIO.map(m => `<button type="button" class="chip" data-explorar="momento|${escapeHtml(m)}">${escapeHtml(m)}</button>`).join('')}</div>`;
     html += ytmEstante('Sugeridos para el domingo', sugeridos.map(([c, m]) => ytmTarjeta(c, m)), { sobre: 'Un canto para cada momento' });
     html += ytmEstante('Cancioneros de misa', [...proximas, ...pasadas].slice(0, 16).map(m => ytmTarjetaMisa(m, lit)),
       { sobre: proximas.length ? 'Los próximos y los últimos' : 'Los últimos' });
     if (tiempo) html += ytmEstante(`Para ${/^tiempo/i.test(tiempo) ? 'el ' + tiempo.toLowerCase() : tiempo}`, delTiempo.slice(0, 24).map(c => ytmTarjeta(c)),
       { sobre: 'Tiempo litúrgico', explorar: 'etiqueta|' + tiempo });
     for (const m of MOMENTOS_INICIO) {
-      const canciones = lista.filter(c => lit.esDelMomento(c, m)).sort(orden);
-      html += ytmEstante(m, canciones.slice(0, 24).map(c => ytmTarjeta(c)), { sobre: 'Momentos de la misa', explorar: 'momento|' + m });
+      const maria = m === 'Canto a María';
+      const canciones = maria ? marianos : lista.filter(c => lit.esDelMomento(c, m)).sort(orden);
+      html += ytmEstante(m, canciones.slice(0, 24).map(c => ytmTarjeta(c)),
+        { sobre: maria && temaMaria ? 'Para ' + temaMaria.nombre : 'Momentos de la misa', explorar: maria ? 'etiqueta|Marianos' : 'momento|' + m });
     }
-    html += ytmEstante('Marianos', marianos.slice(0, 24).map(c => ytmTarjeta(c)), { sobre: 'Virgen María', explorar: 'etiqueta|Marianos' });
     html += ytmEstante('Recién agregadas', nuevas.map(c => ytmTarjeta(c)), { sobre: 'Biblioteca' });
     html += ytmEstante('Cancioneros guardados en la nube', nubes.slice(0, 16).map(ytmTarjetaNube), { sobre: 'De las comunidades' });
     box.innerHTML = html;

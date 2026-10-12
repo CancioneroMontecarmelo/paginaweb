@@ -309,29 +309,57 @@ export async function indexarEnBiblioteca(c, folderId, comunidad, u) {
 
 // ==================== PARTITURAS ====================
 const MAX_PARTITURA_BYTES = 15 * 1024 * 1024;
+// Partituras y tablaturas: PDF e imágenes, y las que el editor dibuja y traspone con alphaTab (MusicXML, Guitar Pro, alphaTex)
+const ZIP = [0x50, 0x4b];
 const PARTITURAS = {
-  pdf: { mime: 'application/pdf', firma: [0x25, 0x50, 0x44, 0x46] },
-  png: { mime: 'image/png', firma: [0x89, 0x50, 0x4e, 0x47] },
-  jpg: { mime: 'image/jpeg', firma: [0xff, 0xd8] },
-  jpeg: { mime: 'image/jpeg', firma: [0xff, 0xd8] }
+  pdf: { mime: 'application/pdf', formato: 'pdf', firma: [0x25, 0x50, 0x44, 0x46] },
+  png: { mime: 'image/png', formato: 'imagen', firma: [0x89, 0x50, 0x4e, 0x47] },
+  jpg: { mime: 'image/jpeg', formato: 'imagen', firma: [0xff, 0xd8] },
+  jpeg: { mime: 'image/jpeg', formato: 'imagen', firma: [0xff, 0xd8] },
+  webp: { mime: 'image/webp', formato: 'imagen', firma: [0x52, 0x49, 0x46, 0x46] },
+  musicxml: { mime: 'application/vnd.recordare.musicxml+xml', formato: 'musicxml', texto: true },
+  xml: { mime: 'application/vnd.recordare.musicxml+xml', formato: 'musicxml', texto: true },
+  mxl: { mime: 'application/vnd.recordare.musicxml', formato: 'musicxml', firma: ZIP },
+  gp: { mime: 'application/octet-stream', formato: 'gp', firma: ZIP },
+  gp7: { mime: 'application/octet-stream', formato: 'gp', firma: ZIP },
+  gpx: { mime: 'application/octet-stream', formato: 'gp', firma: [0x42, 0x43, 0x46] },
+  gp3: { mime: 'application/octet-stream', formato: 'gp', guitarPro: true },
+  gp4: { mime: 'application/octet-stream', formato: 'gp', guitarPro: true },
+  gp5: { mime: 'application/octet-stream', formato: 'gp', guitarPro: true },
+  alphatex: { mime: 'text/plain', formato: 'alphatex', texto: true, libre: true },
+  atex: { mime: 'text/plain', formato: 'alphatex', texto: true, libre: true }
 };
 
-// PUT /api/subir?tipo=partitura&cancionId=&nombre=&voz=
+function contenidoValido(tipo, bytes) {
+  if (tipo.firma) return tipo.firma.every((b, i) => bytes[i] === b);
+  const inicio = new TextDecoder().decode(bytes.slice(0, 64)).replace(/^\uFEFF/, '').trimStart();
+  if (tipo.guitarPro) return /FICHIER GUITAR PRO/.test(new TextDecoder().decode(bytes.slice(0, 40)));
+  if (tipo.libre) return !!inicio;
+  return inicio.startsWith('<');
+}
+
+// PUT /api/subir?tipo=partitura&cancionId=&nombre=&voz=&clase=partitura|tablatura&tono=0-11
 export async function subirPartitura(c, request, p, token) {
   const u = conPrivilegios(await usuarioDeToken(c, token));
   const original = String(p.nombre || 'partitura').replace(/[/\\]/g, '-');
-  const ext = (original.match(/\.([a-z0-9]{2,5})$/i) || [, ''])[1].toLowerCase();
+  const ext = (original.match(/\.([a-z0-9]{2,8})$/i) || [, ''])[1].toLowerCase();
   const tipo = PARTITURAS[ext];
-  if (!tipo) throw new ErrorApi('La partitura tiene que ser un PDF o una imagen PNG o JPG');
+  if (!tipo) throw new ErrorApi('La partitura tiene que ser un PDF, una imagen (PNG, JPG, WEBP), MusicXML, Guitar Pro o alphaTex');
   const cancionId = String(p.cancionId || ''), voz = String(p.voz || '').slice(0, 30);
+  const clase = p.clase === 'tablatura' || p.clase === 'partitura' ? p.clase
+    : (tipo.formato === 'gp' || tipo.formato === 'alphatex' ? 'tablatura' : 'partitura');
+  const tono = p.tono === '' || p.tono == null ? null : Math.round(Number(p.tono));
   const { e, md } = await exigirCancion(c, cancionId);
   exigirEditarCancion(c, u, e);
-  if ((e.partituras || []).length >= 12) throw new ErrorApi('La canción ya tiene 12 partituras: quitá alguna antes de subir otra');
+  if ((e.partituras || []).length >= 12) throw new ErrorApi('La canción ya tiene 12 partituras y tablaturas: quitá alguna antes de subir otra');
   const bytes = await leerCuerpo(request, MAX_PARTITURA_BYTES, 'La partitura está vacía o supera los 15 MB');
-  if (!tipo.firma.every((b, i) => bytes[i] === b)) throw new ErrorApi('El archivo no es un ' + ext.toUpperCase() + ' válido');
+  if (!contenidoValido(tipo, bytes)) throw new ErrorApi('El archivo no es un ' + ext.toUpperCase() + ' válido');
   const nombreArchivo = (slug(e.titulo) + (voz ? '-' + slug(voz) : '') + '-' + sello()).slice(0, 140) + '.' + ext;
   const fila = await guardarArchivo(c, { tipo: 'partitura', nombre: nombreArchivo, mime: tipo.mime, bytes });
-  e.partituras = (e.partituras || []).concat([{ fileId: fila.id, nombre: original.replace(/\.[^.]+$/, '').slice(0, 100) || 'Partitura', voz, mime: tipo.mime }]);
+  const entrada = { fileId: fila.id, nombre: original.replace(/\.[^.]+$/, '').slice(0, 100) || (clase === 'tablatura' ? 'Tablatura' : 'Partitura'),
+    voz, mime: tipo.mime, tipo: clase, formato: tipo.formato };
+  if (Number.isInteger(tono) && tono >= 0 && tono <= 11) entrada.tono = tono;
+  e.partituras = (e.partituras || []).concat([entrada]);
   e.actualizado = ahora();
   await guardarCancion(c, e, md);
   await regenerarBiblioteca(c);

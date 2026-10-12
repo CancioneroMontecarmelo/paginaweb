@@ -1,0 +1,243 @@
+/* Diálogos comunes al reproductor y Misas: cambiar una canción (js/cambiar-cancion.js) y crear un momento
+   (js/momento-nuevo.js). Toman los colores de la página con --dc-*. */
+
+.dlg-cambiar,
+.dlg-momento {
+  --dc-fondo: var(--crema-clara, #fffef9);
+  --dc-texto: var(--texto, #2a241c);
+  --dc-suave: #6a5f50;
+  --dc-linea: rgba(154, 79, 46, 0.2);
+  --dc-acento: var(--verde, #2f6b3a);
+  --dc-campo: var(--blanco, #fff);
+  width: min(40rem, 96vw);
+  height: min(48rem, 92vh);
+  height: min(48rem, 92dvh);
+  max-height: none;
+  padding: 0;
+  border: 1px solid var(--dc-linea);
+  border-radius: 12px;
+  background: var(--dc-fondo);
+  color: var(--dc-texto);
+  overflow: hidden;
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.35);
+}
+
+.pagina-reproductor .dlg-cambiar,
+.pagina-reproductor .dlg-momento {
+  --dc-fondo: var(--rp-panel);
+  --dc-texto: var(--rp-texto);
+  --dc-suave: var(--rp-suave);
+  --dc-linea: var(--rp-linea);
+  --dc-acento: var(--rp-acento);
+  --dc-campo: color-mix(in srgb, var(--rp-texto) 8%, var(--rp-fondo));
+}
+
+.dlg-cambiar[open],
+.dlg-momento[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.dlg-cambiar::backdrop,
+.dlg-momento::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cc-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 0.8rem 0.6rem 1.1rem;
+  border-bottom: 1px solid var(--dc-linea);
+}
+
+.cc-titulo {
+  flex: 1;
+  margin: 0;
+  font-size: 1.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-cerrar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.cc-cerrar:hover {
+  background: color-mix(in srgb, var(--dc-texto) 10%, transparent);
+}
+
+.cc-buscar {
+  padding: 0.6rem 1.1rem;
+}
+
+.dlg-cambiar input,
+.dlg-momento input,
+.dlg-momento select {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--dc-linea);
+  border-radius: 8px;
+  background: var(--dc-campo);
+  color: var(--dc-texto);
+}
+
+.cc-cuerpo {
+  flex: 1;
+  overflow: auto;
+  padding: 0 1.1rem 1rem;
+  overscroll-behavior: contain;
+}
+
+.cc-cuerpo h3 {
+  margin: 0.9rem 0 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dc-acento);
+}
+
+.cc-cuerpo h3 small {
+  color: var(--dc-suave);
+  font-weight: 400;
+}
+
+.cc-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cc-fila {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  min-height: 3.2rem;
+  padding: 0.55rem 0.6rem;
+  border: none;
+  border-bottom: 1px solid var(--dc-linea);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cc-fila:hover,
+.cc-fila:focus-visible {
+  background: color-mix(in srgb, var(--dc-acento) 12%, transparent);
+}
+
+.cc-fila small {
+  color: var(--dc-suave);
+  font-size: 0.8rem;
+}
+
+.cc-fila.actual {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.cc-fila.elegida {
+  background: color-mix(in srgb, var(--dc-acento) 18%, transparent);
+  box-shadow: inset 3px 0 0 var(--dc-acento);
+}
+
+.cc-mas,
+.dc-chip {
+  margin: 0.8rem 0.3rem 0 0;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--dc-linea);
+  border-radius: 99px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.dc-chip[aria-pressed="true"] {
+  border-color: var(--dc-acento);
+  background: color-mix(in srgb, var(--dc-acento) 16%, transparent);
+}
+
+.cc-nada {
+  margin: 1.5rem 0;
+  color: var(--dc-suave);
+  text-align: center;
+}
+
+/* Crear un momento */
+.mn-campo {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.9rem 0 0;
+  font-size: 0.9rem;
+  color: var(--dc-suave);
+}
+
+.mn-ideas {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.mn-ideas .dc-chip {
+  margin-top: 0.4rem;
+}
+
+.mn-pie {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  padding: 0.7rem 1.1rem calc(0.7rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--dc-linea);
+}
+
+.mn-pie button {
+  min-height: 2.75rem;
+  padding: 0 1.2rem;
+  border: 1px solid var(--dc-linea);
+  border-radius: 99px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mn-pie .mn-listo {
+  border-color: var(--dc-acento);
+  background: var(--dc-acento);
+  color: #fff;
+  font-weight: 600;
+}
+
+.mn-pie .mn-listo:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .dlg-cambiar,
+  .dlg-momento {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
+}

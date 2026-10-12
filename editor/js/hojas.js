@@ -52,9 +52,28 @@ function normalizeSheet(h) {
     name: h.name || fileBase(src) || sheetLabel(h.tipo),
     tono: h.tono ?? null
   };
+  if (h.fileId) out.fileId = h.fileId;
+  if (h.voz) out.voz = h.voz;
   if (h.objectUrl) out.objectUrl = h.objectUrl;
   if (h.blob) out.blob = h.blob;
   return out;
+}
+
+// Partituras y tablaturas guardadas en la Biblioteca de la parroquia (cancion.partituras): son hojas con fileId
+const bibSheetSrc = fileId => (typeof MC_API !== 'undefined' ? MC_API : '') + '/archivo/' + encodeURIComponent(fileId);
+function bibSheet(p) {
+  const formato = p.formato || (p.mime === 'application/pdf' ? 'pdf' : 'imagen');
+  return normalizeSheet({
+    id: 'bib-' + p.fileId, fileId: p.fileId, voz: p.voz || '',
+    tipo: p.tipo || (formato === 'gp' || formato === 'alphatex' ? 'tablatura' : 'partitura'),
+    formato, kind: 'url', src: bibSheetSrc(p.fileId), name: p.nombre || sheetLabel(p.tipo), tono: p.tono ?? null
+  });
+}
+// d.hojasBib: los fileId que la canción tenía en la Biblioteca al abrirla (al guardar, las que falten se quitan)
+function addBibSheets(d, partituras) {
+  const ya = new Set(d.sheets.map(h => h.fileId).filter(Boolean));
+  for (const p of partituras || []) if (p?.fileId && !ya.has(p.fileId)) d.sheets.push(bibSheet(p));
+  d.hojasBib = [...new Set([...(d.hojasBib || []), ...(partituras || []).map(p => p?.fileId).filter(Boolean)])];
 }
 
 const storableSheet = ({ objectUrl, blob, ...rest }) => rest;
@@ -177,7 +196,8 @@ function currentSheet(d = cur()) {
 async function removeSheet() {
   const d = cur(), h = currentSheet(d);
   if (!h) return;
-  if (!confirm(`¿Quitar "${h.name}" de esta canción? El archivo no se borra.`)) return;
+  if (!confirm(h.fileId ? `¿Quitar "${h.name}" de esta canción? Se quita de la Biblioteca al volver a guardar la canción en la Biblioteca.`
+    : `¿Quitar "${h.name}" de esta canción? El archivo no se borra.`)) return;
   if (h.objectUrl) URL.revokeObjectURL(h.objectUrl);
   forgetLinkHandle('hoja:' + h.id);
   d.sheets.splice(d.sheets.indexOf(h), 1);
@@ -359,6 +379,7 @@ async function sheetBytes(h) {
   if (h.objectUrl) return new Uint8Array(await (await fetch(h.objectUrl)).arrayBuffer());
   let r = null;
   try { r = await fetch(h.src); } catch (_) {}
+  if (!r?.ok && h.fileId) throw new Error('ya no está en la Biblioteca');
   if (!r?.ok) {
     try {
       if (!extractorAllowed()) throw new Error('web');
@@ -380,7 +401,7 @@ async function drawSheet(h, host, opts) {
       host.innerHTML = `<img class="sheet-img" alt="${escapeHtml(h.name)}" src="${escapeHtml(src)}">`;
       const img = host.querySelector('img');
       img.onerror = () => {
-        if (h.kind === 'url' && !img.dataset.proxy && extractorAllowed()) { img.dataset.proxy = '1'; img.src = hojaProxyUrl(h.src); }
+        if (h.kind === 'url' && !h.fileId && !img.dataset.proxy && extractorAllowed()) { img.dataset.proxy = '1'; img.src = hojaProxyUrl(h.src); }
         else host.innerHTML = missingSheetHtml(h);
       };
     } else if (h.formato === 'pdf') {

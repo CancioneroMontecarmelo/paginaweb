@@ -1,8 +1,9 @@
 'use strict';
 // Canción nueva para la Biblioteca, pensada para el teléfono: el título, el momento de la misa, el audio (grabarlo
 // ahí mismo, un archivo o un enlace) y la letra con los acordes en notación latina en la línea de arriba, con una
-// barra de acordes que los pone sobre la sílaba donde está el cursor. En el PC también recibe lo que se arrastra
-// o se pega: un audio o la letra (.md, .txt, ChordPro) del equipo, o un enlace o un texto de otra página.
+// barra de acordes que los pone sobre la sílaba donde está el cursor, el cambio de tono, los comentarios y las
+// partituras y tablaturas. En el PC también recibe lo que se arrastra o se pega: un audio, la letra (.md, .txt,
+// ChordPro) o una partitura del equipo, o un enlace o un texto de otra página.
 // Al terminar queda en una pestaña y, si se pide, se guarda en la Biblioteca de la parroquia.
 
 const CN_NOTAS = ['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Si'];
@@ -70,6 +71,41 @@ function cnPonerAcorde(ta, acorde) {
 
 const cnLineaHtml = l => isChordLine(l) ? `<div class="line chord-line">${chordLineHtml(l, true)}</div>` : renderLine(l);
 
+// Traspone las líneas de acordes del texto (quedan en notación latina y en sus columnas)
+function cnTrasponer(texto, semis) {
+  const key = detectKey(texto);
+  if (!key || !semis) return texto;
+  const idx = mod12(key.idx + semis);
+  return cnLatino(transposeText(texto, semis, keyPrefersFlats(idx, key.minor)));
+}
+
+// 💬 Comentario: pone o quita «> » en las líneas donde está el cursor (o la selección)
+function cnComentario(ta) {
+  const v = ta.value;
+  const ini = v.lastIndexOf('\n', ta.selectionStart - 1) + 1;
+  let fin = v.indexOf('\n', Math.max(ta.selectionEnd - (ta.selectionEnd > ta.selectionStart ? 1 : 0), ta.selectionStart));
+  if (fin < 0) fin = v.length;
+  const lineas = v.slice(ini, fin).split('\n');
+  const llenas = lineas.filter(l => l.trim());
+  const re = /^\s*>\s?/;
+  const quitar = llenas.length && llenas.every(l => re.test(l));
+  const out = lineas.length === 1 && !lineas[0].trim() ? '> '
+    : lineas.map(l => !l.trim() ? l : quitar ? l.replace(re, '') : '> ' + l).join('\n');
+  ta.setRangeText(out, ini, fin, 'end');
+  ta.dispatchEvent(new Event('input'));
+}
+
+// Una partitura o tablatura que llega a la hoja: archivo del equipo, imagen pegada o enlace
+function cnHoja({ file = null, url = '', tipo = null }) {
+  const formato = file ? sheetFormat(file.name, file.type) : sheetFormat(urlPath(url)) || 'imagen';
+  if (formato === 'mscz') throw new Error(MSCZ_MSG);
+  if (!formato) throw new Error(`«${file.name}» no es una partitura que se pueda mostrar.`);
+  tipo ||= formato === 'gp' || formato === 'alphatex' ? 'tablatura' : 'partitura';
+  return file
+    ? { tipo, formato, kind: 'local', src: file.name || `Imagen ${tipo}.png`, name: fileBase(file.name || '') || sheetLabel(tipo), blob: file }
+    : { tipo, formato, kind: 'url', src: url, name: fileBase(urlPath(url)) || sheetLabel(tipo) };
+}
+
 // ============ LA HOJA ============
 // audio: { kind: 'local', blob, fileName, name, url, info } | { kind: 'url', src, name, info }
 async function abrirCancionNueva({ toma = null } = {}) {
@@ -102,9 +138,17 @@ async function abrirCancionNueva({ toma = null } = {}) {
       </div>
       <div class="cn-escribir">
         <div class="field"><span>Letra y acordes <small>(los acordes en la línea de arriba, en notación latina)</small></span>
+          <div class="cn-tono" id="cnTono" role="toolbar" aria-label="Cambiar de tono">
+            <span class="cn-tono-lbl">🎼 Tono <b id="cnTonoActual">—</b></span>
+            <button type="button" data-semi="-1" title="Bajar medio tono">−½</button>
+            <span class="cn-tonos" id="cnTonos"></span>
+            <button type="button" data-semi="1" title="Subir medio tono">+½</button>
+            <button type="button" data-original title="Volver al tono en que se escribió">Original</button>
+          </div>
           <div class="cn-acordes" id="cnAcordes" role="toolbar" aria-label="Poner un acorde donde está el cursor">
             ${CN_NOTAS.map(n => `<button type="button" data-nota="${n}">${n}</button>`).join('')}
             <span class="cn-mods">${['#', 'b', 'm', '7'].map(x => `<button type="button" data-mod="${x}" aria-pressed="false">${x}</button>`).join('')}</span>
+            <button type="button" class="cn-cmt" data-cmt title="Comentario: la línea del cursor queda como nota (no se canta)">💬</button>
           </div>
           <textarea id="cnLetra" class="cn-letra" wrap="off" spellcheck="false" autocapitalize="sentences"
             placeholder="Sol              Re7        Sol&#10;Noche de paz, noche de amor"></textarea>
@@ -112,8 +156,17 @@ async function abrirCancionNueva({ toma = null } = {}) {
         </div>
         <div class="field cn-previa-caja"><span>Así se verá</span><div class="song-render cn-previa" id="cnPrevia"></div></div>
       </div>
-      <p class="hint cn-pc">También puedes arrastrar aquí (o pegar con Ctrl+V) un audio o la letra (.md, .txt, ChordPro) de tu equipo,
-        o un enlace o un texto desde otra página.</p>`,
+      <div class="field cn-hojas"><span>Partituras y tablaturas</span>
+        <div class="cn-audio-fila">
+          <button type="button" class="btn" data-hoja="partitura">🎼 Partitura…</button>
+          <button type="button" class="btn" data-hoja="tablatura">🎸 Tablatura…</button>
+          <input type="file" id="cnHojaFile" accept="${SHEET_ACCEPT}" hidden>
+          <input type="text" id="cnHojaUrl" inputmode="url" autocomplete="off" placeholder="o pega el enlace (PDF, imagen, MusicXML, Guitar Pro)">
+        </div>
+        <div class="cn-fichas" id="cnFichas"></div>
+      </div>
+      <p class="hint cn-pc">También puedes arrastrar aquí (o pegar con Ctrl+V) un audio, la letra (.md, .txt, ChordPro), una partitura
+        o una tablatura de tu equipo, o un enlace o un texto desde otra página.</p>`,
     onOpen: dlg => {
       dlg.classList.add('cn-hoja');
       const q = s => dlg.querySelector(s);
@@ -127,8 +180,35 @@ async function abrirCancionNueva({ toma = null } = {}) {
         espera = setTimeout(() => {
           q('#cnPrevia').innerHTML = ta.value.trim() ? ta.value.split('\n').map(cnLineaHtml).join('')
             : '<div class="hint">Aquí aparece la canción con los acordes sobre la letra.</div>';
+          pintarTono();
         }, 120);
       };
+
+      // ---- Tono: los 12 tonos, medio tono arriba o abajo y volver al original ----
+      let corrido = 0;
+      const pintarTono = () => {
+        const key = detectKey(ta.value);
+        q('#cnTonoActual').textContent = key ? keyName(key.idx, key.minor, true) : '—';
+        q('#cnTonos').innerHTML = Array.from({ length: 12 }, (_, i) =>
+          `<button type="button" data-tono="${i}"${key?.idx === i ? ' class="on"' : ''}${key ? '' : ' disabled'}>${keyName(i, !!key?.minor, true)}</button>`).join('');
+        q('#cnTono').querySelectorAll('[data-semi]').forEach(b => { b.disabled = !key; });
+        q('#cnTono [data-original]').hidden = !corrido;
+      };
+      const mover = semis => {
+        if (!semis) return;
+        ta.value = cnTrasponer(ta.value, semis);
+        corrido = mod12(corrido + semis);
+        ta.dispatchEvent(new Event('input'));
+      };
+      q('#cnTono').addEventListener('pointerdown', e => { if (e.target.closest('button')) e.preventDefault(); });
+      q('#cnTono').addEventListener('click', e => {
+        const b = e.target.closest('button');
+        const key = detectKey(ta.value);
+        if (!b || b.disabled || !key) return;
+        if (b.dataset.semi) mover(+b.dataset.semi);
+        else if (b.dataset.tono) mover(signedSemis(+b.dataset.tono - key.idx));
+        else if ('original' in b.dataset) mover(signedSemis(-corrido));
+      });
       ta.addEventListener('input', previa);
       previa();
 
@@ -138,6 +218,11 @@ async function abrirCancionNueva({ toma = null } = {}) {
       q('#cnAcordes').addEventListener('click', e => {
         const b = e.target.closest('button');
         if (!b) return;
+        if ('cmt' in b.dataset) {
+          if (document.activeElement !== ta) ta.focus();
+          cnComentario(ta);
+          return;
+        }
         if (b.dataset.mod) {
           const x = b.dataset.mod;
           if (mods.has(x)) mods.delete(x);
@@ -261,6 +346,52 @@ async function abrirCancionNueva({ toma = null } = {}) {
       };
       dlg._cnAudio = () => audio;
 
+      // ---- Partituras y tablaturas (pasan a la pestaña y se suben a la Biblioteca con la canción) ----
+      const hojas = [];
+      let tipoHoja = 'partitura';
+      const pintarHojas = () => {
+        q('#cnFichas').innerHTML = hojas.map((h, i) => `<span class="cn-ficha">
+          <button type="button" data-hoja-tipo="${i}" title="${h.tipo === 'tablatura' ? 'Es tablatura: tocar para que sea partitura' : 'Es partitura: tocar para que sea tablatura'}">${h.tipo === 'tablatura' ? '🎸' : '🎼'}</button>
+          <span>${escapeHtml(h.name)}</span><button type="button" data-hoja-quitar="${i}" aria-label="Quitar ${escapeHtml(h.name)}">×</button></span>`).join('');
+      };
+      const ponerHoja = datos => {
+        try {
+          hojas.push(cnHoja(datos));
+        } catch (e) {
+          aviso(e.message);
+          return false;
+        }
+        pintarHojas();
+        aviso('');
+        return true;
+      };
+      q('.cn-hojas').addEventListener('click', e => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        if (b.dataset.hoja) { tipoHoja = b.dataset.hoja; q('#cnHojaFile').click(); }
+        else if (b.dataset.hojaTipo) {
+          const h = hojas[+b.dataset.hojaTipo];
+          h.tipo = h.tipo === 'tablatura' ? 'partitura' : 'tablatura';
+          pintarHojas();
+        } else if (b.dataset.hojaQuitar) { hojas.splice(+b.dataset.hojaQuitar, 1); pintarHojas(); }
+      });
+      q('#cnHojaFile').onchange = e => {
+        const f = e.target.files[0];
+        e.target.value = '';
+        if (f) ponerHoja({ file: f, tipo: tipoHoja });
+      };
+      const ponerHojaUrl = () => {
+        const url = q('#cnHojaUrl').value.trim();
+        if (!url) return true;
+        if (!/^https?:\/\//i.test(url)) { aviso('El enlace de la partitura debe empezar por http:// o https://'); return false; }
+        if (!ponerHoja({ url })) return false;
+        q('#cnHojaUrl').value = '';
+        return true;
+      };
+      q('#cnHojaUrl').addEventListener('change', ponerHojaUrl);
+      q('#cnHojaUrl').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); ponerHojaUrl(); } });
+      dlg._cnHojas = () => (ponerHojaUrl() ? hojas : null);
+
       // ---- Lo que llega de afuera: archivos del equipo, enlaces o texto de otra página ----
       const ponerLetra = ({ titulo: t, texto }) => {
         if (!texto.trim()) return;
@@ -273,15 +404,23 @@ async function abrirCancionNueva({ toma = null } = {}) {
       const recibir = async (files, uriList, html, plano) => {
         if (files.length) {
           const media = files.find(isMediaFile), texto = files.find(f => CN_TEXTO.test(f.name));
-          if (!media && !texto) { aviso('Eso no sirve aquí: trae un audio o video, o la letra en un archivo .md, .txt o ChordPro.'); return; }
+          const deHoja = files.filter(f => !CN_TEXTO.test(f.name) && (isSheetFile(f) || sheetFormat(f.name) === 'mscz'));
+          if (!media && !texto && !deHoja.length) {
+            aviso('Eso no sirve aquí: trae un audio o video, la letra (.md, .txt, ChordPro) o una partitura o tablatura.');
+            return;
+          }
           if (texto) ponerLetra(cnTextoDe(await texto.text(), texto.name));
           if (media) ponerArchivo(media, media.name, tamano(media));
+          deHoja.forEach(f => ponerHoja({ file: f }));
           return;
         }
         const url = (uriList || '').split('\n').map(s => s.trim()).find(l => /^https?:\/\//i.test(l))
           || (/^https?:\/\/\S+$/i.test((plano || '').trim()) ? plano.trim() : '');
-        // Un enlace arrastrado (o pegado) es el audio; un texto seleccionado en otra página es la letra
-        if (url && (!plano?.trim() || plano.trim() === url)) { ponerUrl(url); return; }
+        // Un enlace arrastrado (o pegado) es el audio, o la partitura si apunta a una; un texto de otra página es la letra
+        if (url && (!plano?.trim() || plano.trim() === url)) {
+          if (isSheetUrl(url)) ponerHoja({ url }); else ponerUrl(url);
+          return;
+        }
         const t = clipboardToText(html, plano, false);
         if (t.trim()) ponerLetra(cnTextoDe(t));
       };
@@ -333,14 +472,17 @@ async function abrirCancionNueva({ toma = null } = {}) {
   const dlg = $('#modal');
   dlg._cnCerrar?.();
   dlg.ondragover = dlg.ondragleave = dlg.ondrop = dlg.onpaste = null;
-  delete dlg._cnCerrar; delete dlg._cnAudio; delete dlg._cnPonerUrl; delete dlg._cnUsado;
+  delete dlg._cnCerrar; delete dlg._cnAudio; delete dlg._cnPonerUrl; delete dlg._cnUsado; delete dlg._cnHojas;
   if (!r) return;
 
   const a = r.audio;
   const audios = !a ? [] : a.kind === 'url' ? [{ kind: 'url', src: a.src, name: a.name }]
     : [{ kind: 'local', src: './' + a.fileName, name: a.name, objectUrl: a.url }];
   openInTab({ title: r.titulo, text: r.texto, audios, tags: r.momento ? withFamilyTag([r.momento], 'catolico') : [], clean: false }, true);
-  setMode(r.texto.trim() ? 'atril' : 'edit');
+  const d = cur();
+  for (const h of r.hojas) pushSheet(d, h.blob ? { ...h, objectUrl: URL.createObjectURL(h.blob) } : h);
+  if (r.hojas.length && r.texto.trim()) d.view = 'letra';
+  setMode(r.texto.trim() || r.hojas.length ? 'atril' : 'edit');
   if (typeof ytmIrA === 'function') ytmIrA('cancionero');
   scheduleSave();
   if (r.biblioteca) await mcGuardarCancion();
@@ -355,8 +497,10 @@ function cnListo(dlg, biblioteca) {
   if (!dlg._cnPonerUrl()) return false;
   const texto = cnLatino(dlg.querySelector('#cnLetra').value.replace(/\s+$/, ''));
   const audio = dlg._cnAudio();
-  if (!texto.trim() && !audio) return modalFail(dlg, 'Graba o elige un audio, o escribe la letra.');
+  const hojas = dlg._cnHojas();
+  if (!hojas) return false;
+  if (!texto.trim() && !audio && !hojas.length) return modalFail(dlg, 'Graba o elige un audio, escribe la letra o agrega una partitura.');
   if (biblioteca && !MC_API) return modalFail(dlg, 'El servidor de la parroquia no está conectado: usa «Solo en una pestaña».');
   dlg._cnUsado = true;
-  return { titulo, momento: dlg.querySelector('#cnMomento').value, texto, audio, biblioteca };
+  return { titulo, momento: dlg.querySelector('#cnMomento').value, texto, audio, hojas, biblioteca };
 }

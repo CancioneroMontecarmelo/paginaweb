@@ -872,6 +872,24 @@ dialog.cn-hoja { width: min(1100px, 96vw); }
 .cn-mods { display: flex; gap: 4px; margin-left: auto; }
 .cn-mods button { min-width: 36px; color: #3c4043; }
 .cn-mods button[aria-pressed="true"] { background: #d93025; border-color: #d93025; color: white; }
+.cn-acordes .cn-cmt { color: #3c4043; font-weight: normal; }
+.cn-tono { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 2px 0 4px; }
+.cn-tono-lbl { font-size: 13px; color: #5f6368; margin-right: 4px; }
+.cn-tono-lbl b { color: #d93025; }
+.cn-tonos { display: flex; flex-wrap: wrap; gap: 3px; }
+.cn-tono button {
+  min-width: 34px; height: 32px; padding: 0 5px; border: 1px solid #dadce0; border-radius: 6px;
+  background: white; color: #3c4043; font: 13px Arial, sans-serif; cursor: pointer; touch-action: manipulation;
+}
+.cn-tono button.on { background: #d93025; border-color: #d93025; color: white; font-weight: bold; }
+.cn-tono button:disabled { opacity: .45; cursor: default; }
+.cn-hojas { border: 1px solid #e8eaed; border-radius: 10px; padding: 8px 12px 10px; }
+.cn-fichas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.cn-fichas:empty { display: none; }
+.cn-ficha { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 2px; border: 1px solid #dadce0; border-radius: 16px; background: #f8f9fa; font-size: 13px; max-width: 100%; }
+.cn-ficha span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cn-ficha button { border: none; background: none; cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 12px; }
+.cn-ficha button:hover { background: #e8eaed; }
 .field textarea.cn-letra {
   width: 100%; min-height: 300px; resize: vertical; padding: 8px 10px; border: 1px solid #dadce0; border-radius: 6px;
   font: 15px/1.5 'Courier New', monospace; color: #202124; white-space: pre; overflow-x: auto;
@@ -893,6 +911,8 @@ dialog.cn-hoja { width: min(1100px, 96vw); }
   .cn-acordes { margin: 0 -14px; padding: 6px 14px; box-shadow: 0 2px 4px rgba(0,0,0,.06); }
   .cn-acordes button { flex: 1 0 auto; height: 42px; min-width: 40px; }
   .cn-mods { margin-left: 0; }
+  .cn-tonos { display: grid; grid-template-columns: repeat(6, 1fr); width: 100%; order: 5; }
+  .cn-tono button { height: 38px; }
   .field textarea.cn-letra { font-size: 16px; min-height: 40vh; }
   .cn-hoja .modal-actions .btn { flex: 1 1 40%; }
 }

@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="/css/posturas.css">
   <link rel="stylesheet" href="/css/partituras.css">
   <link rel="stylesheet" href="/css/voces.css">
+  <link rel="stylesheet" href="/css/dialogos.css">
   <link rel="stylesheet" href="/css/reproductor.css">
 </head>
 <body class="pagina-reproductor rp-oscuro" data-rp-tema="noche">
@@ -57,6 +58,7 @@
     <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="sonando" data-ico="nota" aria-label="Reproduciendo"><span class="rp-no-celular">Reproduciendo</span><span class="rp-solo-celular" aria-hidden="true">Sonando</span></button>
     <button type="button" class="rp-pestana" id="rp-esc-menu" data-ico="escenario" title="Solo la letra y los acordes a pantalla completa">Escenario</button>
     <button type="button" class="rp-pestana rp-pant" id="rp-pant-menu" data-ico="pantalla" title="Mostrar la letra y hacer sonar el audio en un TV o proyector">Pantalla</button>
+    <a class="rp-pestana rp-editor-menu" id="rp-editor-menu" href="/editor/" data-ico="editar" title="Editar canciones y audios, transponer, grabar, partituras y tablaturas"><span class="rp-no-celular">Editor</span><span class="rp-solo-celular" aria-hidden="true">Editor</span></a>
     <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="vivo" data-ico="vivo">En vivo</button>
     <button type="button" class="rp-pestana rp-instalar" data-ico="instalar" hidden>Instalar app</button>
   </nav>
@@ -273,6 +275,10 @@
         <section data-paso="fecha">
           <label class="rp-campo">Fecha de la misa <input type="date" id="rp-crear-fecha" required></label>
           <p class="rp-crear-dia" id="rp-crear-dia"></p>
+          <label class="rp-campo">Celebración <select id="rp-crear-celebracion"></select></label>
+          <label class="rp-campo" id="rp-crear-para-caja">Para quién <small>(opcional: los novios, el bautizado, el difunto…)</small>
+            <input type="text" id="rp-crear-intencion" maxlength="120" autocomplete="off" placeholder="Por ejemplo: Juan Pérez"></label>
+          <div id="rp-crear-habituales"></div>
           <p class="rp-aviso">Te sugerimos un canto para cada momento según las lecturas de ese día: el salmo del día,
             el aleluya si corresponde y la comunión según el Evangelio. Los domingos, los mismos de Inicio. Después elegís uno de cada momento.</p>
         </section>
@@ -282,6 +288,7 @@
             <input type="search" id="rp-crear-buscar" placeholder="Buscar otra canción en la Biblioteca" autocomplete="off" aria-label="Buscar otra canción">
           </label>
           <div id="rp-crear-estantes"></div>
+          <label class="rp-campo rp-crear-agregar">Agregar un momento <select id="rp-crear-agregar"></select></label>
         </section>
         <section data-paso="crear" hidden>
           <label class="rp-campo">Nombre del cancionero <input type="text" id="rp-crear-nombre" maxlength="120" autocomplete="off"></label>
@@ -296,9 +303,6 @@
       </footer>
     </form>
   </dialog>
-
-  <!-- El cancionero de misa que suena, en el editor -->
-  <a class="rp-editar-misa" id="rp-editar-misa" href="/editor/" hidden title="Abrir este cancionero en el editor: transponer, cambiar canciones y editar la letra" data-ico="editar">Editar en el editor</a>
 
   <!-- Colores -->
   <dialog class="rp-dlg" id="rp-dlg-colores">

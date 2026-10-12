@@ -27,8 +27,8 @@ if (location.hash === '#pantalla' && !location.search) {
 <meta name="apple-mobile-web-app-title" content="Editor">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a73e8'/%3E%3Ctext x='16' y='24' font-size='22' text-anchor='middle' fill='white'%3E%E2%99%AA%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/canciotras.css?v=5">
-<link rel="stylesheet" href="css/ytm.css?v=3">
+<link rel="stylesheet" href="css/canciotras.css?v=6">
+<link rel="stylesheet" href="css/ytm.css?v=4">
 </head>
 <body class="mode-atril">
 
@@ -85,6 +85,9 @@ if (location.hash === '#pantalla' && !location.search) {
         <button data-action="underline" class="edit-only" title="Subrayado (Ctrl+U)"><u>S</u></button>
         <button data-action="clearFormat" class="edit-only" title="Texto normal (Ctrl+\)">T<sub>x</sub></button>
         <button data-action="comment" class="edit-only" title="Comentario (Ctrl+Alt+M)">💬</button>
+        <div class="separator"></div>
+        <button data-action="insertScore" title="Agregar una partitura (imagen, PDF o MusicXML)">🎼+</button>
+        <button data-action="insertTab" title="Agregar una tablatura (Guitar Pro, MusicXML o imagen)">🎸+</button>
         <div class="separator"></div>
         <button data-action="fontDown" title="Reducir letra">A−</button>
         <button data-action="fontUp" title="Aumentar letra">A+</button>

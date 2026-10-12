@@ -4,13 +4,14 @@
 // reproductor) y los archivos comunes (/css, /js, /editor/js, /icons): ni el servidor (/api), ni las demás páginas,
 // ni YouTube, ni los audios.
 
-const CACHE = 'mc-app-4';
+const CACHE = 'mc-app-5';
 const NET_TIMEOUT = 3000;
 const SHELL = [
   '/', '/app.webmanifest', '/js/config.js?v=2',
   '/icons/reproductor-180.png', '/icons/reproductor-192.png', '/icons/reproductor-512.png',
-  ...['site', 'posturas', 'partituras', 'voces', 'reproductor'].map((n) => `/css/${n}.css`),
-  ...['reproductor', 'auth', 'comunidades', 'liturgia', 'posturas', 'partituras', 'voces', 'youtube-embed', 'misas-shim', 'sala', 'lector-qr'].map((n) => `/js/${n}.js`),
+  ...['site', 'posturas', 'partituras', 'voces', 'dialogos', 'reproductor'].map((n) => `/css/${n}.css`),
+  ...['reproductor', 'auth', 'comunidades', 'liturgia', 'posturas', 'partituras', 'voces', 'youtube-embed', 'misas-shim', 'sala', 'lector-qr',
+    'cambiar-cancion', 'momento-nuevo'].map((n) => `/js/${n}.js`),
   '/js/vendor/qrcode.mjs',
   ...['acordes', 'markdown', 'etiquetas', 'buscar', 'instrumentos', 'rasgueos', 'render', 'caratula'].map((n) => `/editor/js/${n}.js`)
 ];

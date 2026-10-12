@@ -168,7 +168,8 @@ Después de la mudanza, el Drive queda como respaldo: el sitio ya no lo usa.
 | `js/youtube-embed.js` | Reproductor de YouTube insertado (IFrame API) para los enlaces de video (Misas y reproductor) |
 | `js/posturas.js`, `js/partituras.js`, `js/voces.js` | Posturas al tocar un acorde, partituras y el mezclador «Aprender las voces» (Misas y reproductor) |
 | `inicio.html` + `js/inicio.js` | Inicio: actividades, calendario litúrgico, próximo domingo, libro de visitas y Colaborar |
-| `js/liturgia.js` | Calendario litúrgico y cantos sugeridos (común a Misas e Inicio) |
+| `js/liturgia.js` | Calendario litúrgico, cantos sugeridos, Canto a María según el tiempo y celebraciones (común a Misas, Inicio, reproductor y editor) |
+| `js/cambiar-cancion.js`, `js/momento-nuevo.js`, `css/dialogos.css` | Cambiar una canción de un cancionero hecho; crear un momento y los momentos habituales de la comunidad (reproductor, Misas y editor) |
 | `ver.html` | Muestra un cancionero publicado (`ver.html?id=…`) |
 | `js/config.js` | Dirección del sitio y de la API, ID de cliente de Google y la redirección desde github.io |
 | `scripts/video-a-webm.py` | Comando: audio de videos o enlaces a AAC (.m4a) y subida a la Biblioteca |
@@ -241,11 +242,14 @@ hoja blanca); solo el Atril es oscuro. Con la música de la parroquia:
   misa** (`guardarMisa`, campos `desplazamiento`, `capo`, `velocidad` y `scroll` de cada canción): la canción
   de la Biblioteca no cambia. Misas se actualiza sola si está abierta en el mismo navegador
   (`localStorage` `mc-misa-guardada`) y muestra «Capo N · 0,9×» en cada canción; el reproductor usa esa velocidad.
-- **Cambiar una canción**: doble clic en una canción del cancionero de misa (en la cola de la derecha) abre la
-  Biblioteca con las canciones de ese momento (por etiqueta y por letra; con **Toda la Biblioteca** y el buscador
-  se elige cualquiera). La elegida reemplaza a la anterior en el mismo lugar, queda marcada ● y **Guardar en la
-  misa** la deja en el mismo cancionero (`mcCambiarCancion` en `editor/js/nube.js`). Si el cancionero ya estaba
-  publicado, su página se actualiza al volver a **Publicar** en Misas.
+- **Cambiar una canción**: **⇄** en una canción del cancionero de misa (en la cola de la derecha), doble clic o
+  **Archivo → Cambiar esta canción en la misa…** abre la Biblioteca con las canciones de ese momento, ordenadas
+  según el tiempo litúrgico y la celebración (con **Toda la Biblioteca** y el buscador se elige cualquiera). La
+  elegida reemplaza a la anterior en el mismo lugar y pregunta **¿Guardar el cambio en la misa ahora?**; si no,
+  queda marcada ● hasta **Guardar en la misa** (`mcCambiarCancion` en `editor/js/nube.js`). Si el cancionero ya
+  estaba publicado, su página se actualiza al volver a **Publicar** en Misas.
+- Al agregar una canción de la Biblioteca a la misa, el momento se elige de una lista agrupada (los de la misa,
+  los de cada celebración) o se escribe uno nuevo (**Otro**), y va en su lugar (`posicionMomento`).
 - **▶ Atril** de Misas (`&atril=1`) abre el atril directo, sin guardar nada en el editor.
 
 ### Canción nueva (grabar o escribir, pensada para el teléfono)
@@ -265,6 +269,12 @@ Biblioteca** o con **Canción nueva con esta toma…** en el panel Grabar) abre 
   video, o la letra en `.md`, `.txt` o ChordPro; **desde una web**, un enlace (queda como audio) o un texto
   seleccionado (queda como letra). Todo lo que entra se pasa a notación latina y el ChordPro (`[Sol]Noche…`) a
   la línea de acordes de arriba. Si ya había letra o audio, pregunta antes de reemplazar.
+- **Tono**: el tono detectado en latino, los 12 tonos, **−½ / +½** y **Original**; traspone solo las líneas de
+  acordes (quedan en sus columnas). **💬** en la barra de acordes pone o quita un comentario (`> `) en la línea
+  del cursor.
+- **🎼 Partitura…** y **🎸 Tablatura…**: un archivo (PDF, foto, MusicXML, Guitar Pro, alphaTex) o un enlace;
+  también se pueden arrastrar o pegar. Quedan como fichas (tocarla cambia partitura ↔ tablatura) y pasan a la
+  pestaña; al guardar en la Biblioteca se suben con la canción.
 - **Solo en una pestaña** la deja en el cancionero; **Guardar en la Biblioteca** además la sube como
   **Guardar canción en la Biblioteca** (el audio grabado pasa a .m4a). Si hay un cancionero de misa abierto,
   ofrece **Agregar a «…»**: la pone en ese momento de la misa (si la misa no lo tenía, lo agrega en su orden).
@@ -312,10 +322,11 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
   después se elige otra, avisa con un botón para volver a la del nombre. Debajo, un **buscador de fechas**:
   la lista de los próximos domingos y fiestas (con su ciclo) y, al escribir, busca la celebración
   («cristo rey», «ramos», «XXIX domingo») o la fecha («18 de octubre») en el próximo año. Entonces se despliegan los momentos (Entrada, Acto penitencial, Gloria, Salmo, Aleluya,
-  **Post evangelio**, Ofertorio, Santo, Cordero, Comunión, Acción de gracias y Salida), cada uno con un
+  **Post evangelio**, Ofertorio, Santo, Cordero, Comunión, Acción de gracias, Salida y Canto a María), cada uno con un
   **canto sugerido** (marcado «sugerida») que se cambia tocando el momento. Los momentos se **reordenan
   arrastrando** su asa ⠿ (con el mouse o el dedo; con el teclado, flechas ↑ ↓), por si el sacerdote o la
-  liturgia piden otro orden.
+  liturgia piden otro orden. El diálogo nuevo también pide la **Celebración** y **Para quién**, y muestra los
+  momentos que la comunidad suele agregar. **⇄** en un momento cambia su canción en un paso.
 - **▶ Atril**: abre las canciones del cancionero, en orden y en el tono elegido, en el atril del editor
   (pestaña nueva, `editor/?atril=1&misa=<id>`), incluso con cambios todavía sin guardar. No toca las
   pestañas que cada uno tenga abiertas en el editor.
@@ -375,6 +386,32 @@ entre las que lo sugieren por el título o la letra), la de mayor puntaje:
 - −3 si la comunidad lo usó en sus últimos 3 cancioneros, para no repetir siempre los mismos.
 - Hasta +3 por palabras del título o las etiquetas que aparecen en las lecturas del día.
 - En Cuaresma no se sugieren cantos con «aleluya», y en Adviento y Cuaresma el cancionero se arma sin Gloria (salvo en las solemnidades).
+- Un villancico (etiqueta Villancico) cuenta como de Navidad: fuera de Navidad y Epifanía resta.
+- +6 a los cantos con las etiquetas de la celebración (un canto de Matrimonio en la Comunión de un casamiento).
+
+**Canto a María**: toda misa nueva termina con él. Se elige entre los marianos según el tiempo
+(`MARIA_POR_TIEMPO` en `js/liturgia.js`): en Adviento, la Virgen de la espera; en Navidad y Epifanía, un
+villancico del nacimiento (aunque no sea mariano); en Cuaresma y Semana Santa, la Madre dolorosa (etiqueta
+**Dolorosa**); en Pascua, Regina caeli; en Pentecostés, María en el cenáculo; del 8 de noviembre al 8 de
+diciembre, el Mes de María. +8 si calza con el tiempo y −8 si es de otro (un villancico en Cuaresma).
+
+### Celebraciones y momentos propios
+
+- **Celebración** (`CELEBRACIONES` en `js/liturgia.js`; Misas → **+ Agregar nuevo** y Crear nueva misa del
+  reproductor): Bautizo, Matrimonio, Confirmación, Funeral, Misa por un difunto, Corpus Christi, Cristo Rey,
+  Sagrado Corazón, Fiesta mariana, Fiesta patronal, Aniversario sacerdotal, Renovación de votos, Consagración y
+  Bendición. Cada una pone sus momentos propios en su lugar (por ejemplo «Rito del Bautismo» después del Post
+  evangelio, «Entrada de los novios» en lugar de la Entrada, «Último adiós» antes de la Salida), lleva o no
+  Gloria, y sugiere cantos por sus etiquetas y palabras. Se guarda en la misa (`celebracion`) junto con
+  **Para quién** (`intencion`).
+- **+ Agregar momento** (Misas, reproductor y editor): lista agrupada (De tu comunidad, De la misa, cada
+  celebración, Costumbres de las comunidades) y **Otro: crear un momento…**, que abre el asistente
+  `js/momento-nuevo.js`: nombre (con ideas: Saludo a los cumpleañeros, Bienvenida a los nuevos…), **Va después
+  de** (lo propone según el nombre) y el canto: el que la comunidad usó la última vez en ese momento, los que
+  calzan por etiqueta o palabras, un buscador o **Sin canto**.
+- **Momentos habituales de la comunidad**: los propios que la comunidad usó en sus últimas misas (calculados de
+  las misas guardadas, sin guardar nada nuevo) aparecen ya marcados al crear una misa, en el mismo lugar y con
+  el canto de la última vez.
 
 El tiempo litúrgico sale del título de las lecturas o, si todavía no están, de la fecha (calculada desde
 la Pascua; en Chile la Epifanía y la Ascensión van en domingo). **Volver a sugerir** cambia solo los
@@ -435,14 +472,19 @@ quedan como elegidas.
 
 ### Partituras
 
-- Debajo de la canción, en Misas, los botones **𝄞 Partitura · Soprano**… abren la partitura dentro de la
-  página (los PDF los dibuja pdf.js, `editor/vendor/pdfjs/`; el celular no pregunta con qué app
-  abrirlos), y **Descargar**.
-- Quien puede editar la canción tiene **+ Partitura**: sube un PDF o una foto PNG o JPG (hasta 15 MB),
-  elige la voz, y desde el mismo diálogo puede **Quitar** las que ya tiene.
-- Quedan en R2 (`GET /api/archivo/<id>`) y en la canción (`partituras: [{fileId, nombre, voz, mime}]`);
-  volver a guardar la canción desde el editor las conserva. Se suben con `PUT /api/subir?tipo=partitura`
-  y se quitan con la acción `quitarPartitura`.
+- Debajo de la canción, en Misas y en el reproductor, los botones **𝄞 Partitura · Soprano**… y **🎸 Tablatura**
+  abren la hoja dentro de la página (los PDF los dibuja pdf.js, `editor/vendor/pdfjs/`; MusicXML, Guitar Pro
+  y alphaTex, alphaTab, `editor/vendor/alphatab/`), y **Descargar**. En el reproductor, MusicXML y Guitar Pro
+  se trasponen al tono que suena (las fotos y los PDF no se trasponen y lo dicen).
+- Quien puede editar la canción tiene **+ Partitura**: sube un PDF, una foto (PNG, JPG, WEBP), MusicXML
+  (`.musicxml`, `.xml`, `.mxl`), Guitar Pro (`.gp`, `.gp3`–`.gp5`, `.gpx`, `.gp7`) o alphaTex (hasta 15 MB),
+  elige si es partitura o tablatura y la voz, y desde el mismo diálogo puede **Quitar** las que ya tiene.
+- Quedan en R2 (`GET /api/archivo/<id>`) y en la canción (`partituras: [{fileId, nombre, voz, mime, tipo,
+  formato, tono}]`; `tono` es el de la letra al subirla, para trasponer). Se suben con
+  `PUT /api/subir?tipo=partitura&clase=partitura|tablatura&tono=0-11` y se quitan con la acción `quitarPartitura`.
+- En el editor (también en el teléfono) las de la Biblioteca aparecen como hojas de la canción (Letra /
+  Partitura / Tablatura, se trasponen con ella); **🎼+** y **🎸+** de la barra agregan otras (archivo o enlace).
+  **Guardar canción en la Biblioteca** sube las nuevas y quita de la Biblioteca las que se quitaron.
 - Las páginas `.html` de los cancioneros y el reproductor tienen el enlace **Partitura**.
 
 ### Aprender las voces
@@ -541,9 +583,11 @@ Tiene el aspecto del editor («YouTube Music»): el menú a la izquierda (abajo 
 cola a la derecha (en el celular sube desde el botón ≡♪ de la barra, con aleatorio y repetir) y la barra
 de reproducción abajo con la carátula. El acento del tema **Noche** es el color litúrgico del próximo domingo.
 
-- **Inicio**: el próximo domingo (con **Crear nueva misa** y **Seguir en vivo**) y estanterías:
-  cancioneros de misa, tus listas, sugeridas para el domingo, las del tiempo litúrgico y las de cada
-  momento. Tocar una tarjeta hace sonar esa estantería desde esa canción.
+- **Inicio**: la página con que abre siempre (también después de identificarse). El próximo domingo (con
+  **Crear nueva misa** y **Seguir en vivo**) y estanterías: cancioneros de misa, tus listas, sugeridas para el
+  domingo, las del tiempo litúrgico y las de cada momento; la última es **Canto a María**, ordenada según el
+  tiempo (villancicos en Navidad, la Dolorosa en Cuaresma…). Tocar una tarjeta hace sonar esa estantería desde
+  esa canción.
 - **Canciones**: el buscador de la Biblioteca (título, frase de la letra, autor o etiqueta) y **Solo con
   audio o video**. Tocar una canción la hace sonar; la cola es la lista que se está viendo. **+** la agrega a una
   lista.
@@ -559,8 +603,9 @@ de reproducción abajo con la carátula. El acento del tema **Noche** es el colo
   posturas al tocar un acorde, **Partitura** y **Aprender las voces**. Si la canción tiene varios audios,
   un selector de voz. **+ Lista** agrega la canción que suena a una lista. Abajo, una barra mínima:
   aleatorio, anterior, reproducir/pausa, siguiente, repetir, **+** (agregar a una lista) y avance.
-- Al refrescar o volver a abrir, sigue en la misma cola y canción, en pausa y en el mismo segundo
-  (`localStorage` `mc-rp-sonando`, por 7 días; con aviso «Seguís en…»). La cola cambia solo al elegir otra
+- Al refrescar o volver a abrir, abre en Inicio con la misma cola y canción lista en la barra de abajo, en
+  pausa y en el mismo segundo (`localStorage` `mc-rp-sonando`, por 7 días; con aviso «Seguís en «…»: tocá ▶
+  abajo para continuar»). Tocar la barra lleva a Sonando. La cola cambia solo al elegir otra
   canción, lista o cancionero, o al abrir un enlace `#l=` / `#misa=` distinto; escribir en el buscador no la cambia.
 - **Agregar a una lista**: el diálogo sugiere primero **Lista de {nombre}** (el nombre de la sesión, o el
   que se pide una sola vez y queda en el equipo, `mc-mi-nombre`); si todavía no existe, la crea al tocarla.
@@ -594,22 +639,41 @@ de reproducción abajo con la carátula. El acento del tema **Noche** es el colo
 En Inicio, **Crear nueva misa** abre un diálogo de tres pasos (sección «CREAR NUEVA MISA» de `js/reproductor.js`):
 
 1. **Fecha**: por defecto el próximo domingo; muestra el nombre litúrgico del día, el tiempo y su color.
-2. **Cantos**: un estante por momento de la misa, como en Inicio, con la sugerida primero (marcada ✓), las
-   canciones con la etiqueta del momento y, si son pocas, las que lo nombran en el título o la letra
-   (hasta 30), más **Sin canto**. Un domingo con lecturas publicadas tiene las mismas sugeridas que su estante
+   **Celebración**: Misa del día o una de las de la lista (ver «Celebraciones y momentos propios»); Corpus,
+   Cristo Rey, Sagrado Corazón y las fiestas de la Virgen se proponen solas según las lecturas. **Para quién**
+   (opcional) va al nombre del cancionero y queda como `intencion`. Si la comunidad donde se va a guardar
+   suele agregar momentos propios (saludo a los cumpleañeros, bienvenida a los nuevos…), aparecen marcados.
+2. **Cantos**: un estante por momento de la misa, como en Inicio, con la sugerida primero (marcada ✓) y las
+   del momento (por etiqueta, título o letra), ordenadas según el tiempo litúrgico y la celebración (hasta 30),
+   más **Sin canto**. Un domingo sin celebración con lecturas publicadas tiene las mismas sugeridas que su estante
    de Inicio (`sugerirDomingos`). Otro día se arma con las lecturas de ese día (`momentosDeMisa` +
    `sugerirCantos`): el salmo del día, el aleluya (en Cuaresma, **Aclamación al Evangelio**) y la comunión
-   según el Evangelio; el Gloria solo va los domingos, en fiestas y solemnidades. ▶ en una tarjeta la escucha
-   sin elegirla; el buscador trae cualquier canción de la Biblioteca. **Crear cancionero** se activa cuando
-   todos los momentos tienen una canción o «Sin canto».
-3. **Cancionero**: el nombre («Misa domingo 18 de octubre») y dónde se guarda. Con una cuenta que puede
-   editar alguna comunidad, en **Cancioneros de esa comunidad** (`guardarMisa`, las sugeridas sin cambiar
+   según el Evangelio; el Gloria va los domingos, en fiestas, solemnidades y en las celebraciones que lo llevan.
+   ✕ quita un momento y **Agregar un momento** suma otro (lista agrupada, o **Otro: crear un momento…**).
+   ▶ en una tarjeta la escucha sin elegirla; el buscador trae cualquier canción de la Biblioteca.
+   **Crear cancionero** se activa cuando todos los momentos tienen una canción o «Sin canto».
+3. **Cancionero**: el nombre («Misa domingo 18 de octubre», «Matrimonio · Juan y Ana · sábado 14 de noviembre»,
+   «Misa por Juan Pérez · …») y dónde se guarda. Con una cuenta que puede editar alguna comunidad, en
+   **Cancioneros de esa comunidad** (`guardarMisa` con `celebracion` e `intencion`; las sugeridas sin cambiar
    quedan con `sugerida: true`) y se abre en el reproductor; sin permiso o sin sesión, en **Mis listas** de
-   ese equipo.
+   ese equipo. Si se elige otra comunidad y esa suele agregar otros momentos, avisa y ofrece **Agregarlos**.
 
-Mientras suena un cancionero de misa que la cuenta puede editar, la pestaña lateral **Editar en el editor**
-(`#rp-editar-misa`, a la izquierda en el PC y abajo a la derecha en el celular) lo abre en el editor en la
-canción que suena (`/editor/?misa=<id>&foco=<momento>.<canción>`): ahí se cambian tonos, letras y canciones.
+En el menú, junto a **Pantalla**, el botón **Editor** abre el editor. Mientras suena un cancionero de misa
+que la cuenta puede editar, dice **Modificar en editor** (en el color de acento) y lo abre en la canción que
+suena (`/editor/?misa=<id>&foco=<momento>.<canción>`): ahí se cambian tonos, letras y canciones.
+
+### Cambiar una canción en un cancionero ya hecho (emergencias)
+
+- **Reproductor**: cada canción de la cola de un cancionero de misa o de una lista tiene **⇄**, y en Sonando
+  está **⇄ Cambiar esta canción**. Abre `js/cambiar-cancion.js`: primero las del momento (según el tiempo
+  litúrgico y la celebración, `candidatosMomento`), un buscador y toda la Biblioteca; se toca una y listo.
+  Con permiso en la comunidad se guarda en el cancionero para todos (vuelve a leerlo y lo guarda sin tocar
+  la página publicada ni las lecturas); sin permiso, pregunta y cambia **solo en este equipo**; en Mis listas,
+  cambia la lista guardada en el equipo.
+- **Editor**: **⇄** en cada canción de la cola de un cancionero de misa (o doble clic), y **Archivo → Cambiar
+  esta canción en la misa…**. Al elegir pregunta **¿Guardar el cambio en la misa ahora?**.
+- **Misas**: **⇄** en cada momento con canción la reemplaza en un paso (la que se está mirando, o la primera);
+  después, **Guardar cambios** como siempre.
 
 ### App del reproductor (instalable)
 

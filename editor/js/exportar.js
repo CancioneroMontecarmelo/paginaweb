@@ -175,9 +175,9 @@ function songExportData(d, n, latin, embedded, pos) {
     ...au.players.map(p => `<div class="audio"><span class="au-name">🎵 ${escapeHtml(p.name)}</span><audio controls preload="none" src="${escapeHtml(p.src)}" data-speed="${p.speed}" data-name="${escapeHtml(p.name)}"></audio>${p.page ? `<a class="orig" href="${escapeHtml(p.page)}" target="_blank" rel="noopener" title="Abrir la página original">↗</a>` : ''}</div>`),
     ...au.links.map(l => `<div class="audio"><a href="${escapeHtml(l.url)}" target="_blank" rel="noopener">▶ Escuchar ${l.site ? 'en ' + escapeHtml(l.site) : 'en su página'}</a><span>${escapeHtml(l.name)}</span></div>`),
     ...au.missing.map(m => `<div class="note">El audio «${escapeHtml(m)}» es un archivo de este equipo y no va incluido.</div>`),
-    ...(d.partituras || []).filter(p => p.fileId).map(p => {
-      const voz = p.voz && p.voz !== 'todas' ? VOICES[p.voz]?.label || p.voz : '';
-      return `<div class="audio"><a href="${escapeHtml(exportApi() + '/archivo/' + encodeURIComponent(p.fileId))}" target="_blank" rel="noopener">𝄞 Partitura${voz ? ' · ' + escapeHtml(voz) : ''}</a></div>`;
+    ...(d.sheets || []).filter(h => h.fileId).map(h => {
+      const voz = h.voz && h.voz !== 'todas' ? VOICES[h.voz]?.label || h.voz : '';
+      return `<div class="audio"><a href="${escapeHtml(exportApi() + '/archivo/' + encodeURIComponent(h.fileId))}" target="_blank" rel="noopener">${h.tipo === 'tablatura' ? '🎸 Tablatura' : '𝄞 Partitura'}${voz ? ' · ' + escapeHtml(voz) : ''}</a></div>`;
     })
   ].join('');
   const html = `<article class="song" id="c${n}">

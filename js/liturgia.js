@@ -8,7 +8,7 @@ const grupoCatolico = (nombre) => TAG_FAMILIES.catolico.groups.find((g) => g.nam
 export const MOMENTOS_MISA = grupoCatolico("Momentos de la misa");
 export const TIEMPOS = grupoCatolico("Tiempos litúrgicos");
 export const MOMENTOS_BASE = ["Entrada", "Acto penitencial", "Gloria", "Salmo responsorial", "Aleluya", "Post evangelio",
-  "Ofertorio", "Santo", "Cordero de Dios", "Comunión", "Acción de gracias", "Salida"];
+  "Ofertorio", "Santo", "Cordero de Dios", "Comunión", "Acción de gracias", "Salida", "Canto a María"];
 
 // Etiquetas que valen para el mismo momento (la primera es la que se muestra)
 export const SINONIMOS = [
@@ -52,7 +52,7 @@ const PALABRAS_MOMENTO = {
   "Comunión": ["pan de vida", "cuerpo", "sangre", "cena", "comunion", "pan del cielo", "banquete", "mesa del señor", "caliz", "comulgar"],
   "Acción de gracias": ["te damos gracias", "gracias", "alabanza", "alabare", "te alabo", "bendecid"],
   "Salida": ["id por el mundo", "enviados", "envio", "misioneros", "mision", "anunciar", "anunciad", "id"],
-  "Canto a María": ["ave maria", "maria", "virgen", "madre", "señora"]
+  "Canto a María": ["ave maria", "maria", "virgen"]
 };
 const PALABRAS_POR_CLAVE = new Map(Object.entries(PALABRAS_MOMENTO).map(([m, l]) => [claveMomento(m), l]));
 const nombresMomento = (k) => [...(SINONIMOS.find((g) => tagNorm(g[0]) === k) || []), ...MOMENTOS_MISA.filter((x) => claveMomento(x) === k)];
@@ -86,6 +86,131 @@ export const ordenMomento = (nombre) => {
   const i = MOMENTOS_MISA.findIndex((x) => claveMomento(x) === claveMomento(nombre));
   return i < 0 ? 999 : i;
 };
+
+// ============ CELEBRACIONES Y MOMENTOS PROPIOS ============
+// Misas que no son la del día: cada una con las etiquetas de sus cantos, si lleva Gloria (true / false; sin el campo,
+// según el día) y sus momentos propios. Cada momento propio va «despues» o «antes» de otro, o «reemplaza» uno; se le
+// sugieren los cantos con sus etiquetas o sus palabras en el título o la letra, y si no hay, los del momento «como».
+export const CELEBRACIONES = [
+  { id: "bautizo", nombre: "Bautizo", etiquetas: ["Bautismo"], momentos: [
+    { nombre: "Rito del Bautismo", despues: "Post evangelio", palabras: ["bautismo", "agua viva", "hijos de dios", "fuente", "renacer"] },
+    { nombre: "Luz bautismal", despues: "Rito del Bautismo", palabras: ["luz", "ilumina", "lampara"] }] },
+  { id: "matrimonio", nombre: "Matrimonio", gloria: true, etiquetas: ["Matrimonio"], momentos: [
+    { nombre: "Entrada de los novios", reemplaza: "Entrada", como: "Entrada", palabras: ["novios", "esposos", "boda"] },
+    { nombre: "Consentimiento y anillos", despues: "Post evangelio", palabras: ["anillo", "para siempre", "esposos", "uno solo", "fiel"] },
+    { nombre: "Firma del acta", despues: "Acción de gracias", palabras: ["familia", "hogar", "amor"] },
+    { nombre: "Salida de los novios", reemplaza: "Salida", como: "Salida", palabras: ["alegria", "fiesta"] }] },
+  { id: "confirmacion", nombre: "Confirmación", gloria: true, etiquetas: ["Confirmación", "Espíritu Santo"], momentos: [
+    { nombre: "Ven, Espíritu Santo (Crismación)", despues: "Post evangelio", etiquetas: ["Espíritu Santo", "Pentecostés"],
+      palabras: ["ven espiritu", "espiritu santo", "fuego", "uncion"] }] },
+  { id: "funeral", nombre: "Funeral", gloria: false, etiquetas: ["Exequias", "Fieles difuntos"], momentos: [
+    { nombre: "Último adiós", antes: "Salida", palabras: ["reciban su alma", "descanso eterno", "descansa en paz", "resurreccion", "vida eterna", "casa del padre", "no tengas miedo"] }] },
+  { id: "difunto", nombre: "Misa por un difunto", gloria: false, etiquetas: ["Fieles difuntos", "Exequias"], momentos: [
+    { nombre: "Recuerdo del difunto", antes: "Salida", palabras: ["descanso eterno", "descansa en paz", "resurreccion", "vida eterna", "casa del padre"] }] },
+  { id: "corpus", nombre: "Corpus Christi", gloria: true, etiquetas: ["Corpus Christi", "Eucarístico", "Adoración eucarística"], momentos: [
+    { nombre: "Secuencia", antes: "Aleluya", etiquetas: ["Secuencia"], palabras: ["lauda sion", "alaba sion", "pan de los angeles", "corpus christi"] },
+    { nombre: "Procesión eucarística", despues: "Acción de gracias", etiquetas: ["Adoración eucarística", "Procesión", "Eucarístico"],
+      palabras: ["amor de los amores", "pange lingua", "tantum ergo", "adoremos"] }] },
+  { id: "cristo-rey", nombre: "Cristo Rey", gloria: true, etiquetas: ["Cristo Rey"], momentos: [
+    { nombre: "Consagración a Cristo Rey", despues: "Acción de gracias", palabras: ["cristo rey", "rey de reyes", "reinara", "rey del universo"] }] },
+  { id: "sagrado-corazon", nombre: "Sagrado Corazón", gloria: true, etiquetas: ["Sagrado Corazón"], momentos: [
+    { nombre: "Consagración al Sagrado Corazón", despues: "Acción de gracias", palabras: ["corazon de jesus", "sagrado corazon"] }] },
+  { id: "mariana", nombre: "Fiesta mariana", gloria: true, etiquetas: ["Mariano", "Virgen del Carmen", "Inmaculada Concepción", "Asunción", "Virgen de Guadalupe", "Mes de María"], momentos: [
+    { nombre: "Ofrenda floral a María", antes: "Canto a María", etiquetas: ["Mariano", "Mes de María"], palabras: ["flores", "venid y vamos todos"] }] },
+  { id: "patronal", nombre: "Fiesta patronal", gloria: true, etiquetas: ["Santos patronos", "Procesión"], momentos: [
+    { nombre: "Himno al patrono", antes: "Salida", etiquetas: ["Santos patronos"], palabras: ["patrono", "patrona", "protector", "intercede"] },
+    { nombre: "Procesión", despues: "Salida", etiquetas: ["Procesión", "Peregrinación"], palabras: ["caminamos", "peregrino", "caminando"] }] },
+  { id: "aniversario-sacerdotal", nombre: "Aniversario sacerdotal", gloria: true, etiquetas: ["Aniversario sacerdotal", "Ordenación", "Vocacional"], momentos: [
+    { nombre: "Renovación de las promesas", despues: "Post evangelio", etiquetas: ["Vocacional", "Ordenación"], palabras: ["aqui estoy", "heme aqui", "me has seducido", "sacerdote"] },
+    { nombre: "Acción de gracias por el sacerdote", antes: "Salida", palabras: ["sacerdote", "pastor", "gracias"] }] },
+  { id: "renovacion-votos", nombre: "Renovación de votos", gloria: true, etiquetas: ["Renovación de votos", "Matrimonio"], momentos: [
+    { nombre: "Renovación de los votos", despues: "Post evangelio", palabras: ["para siempre", "esposos", "uno solo", "fiel"] },
+    { nombre: "Bendición de los esposos", antes: "Salida", palabras: ["bendice", "bendicion", "familia", "hogar"] }] },
+  { id: "consagracion", nombre: "Consagración", etiquetas: ["Consagración"], momentos: [
+    { nombre: "Rito de consagración", despues: "Post evangelio", palabras: ["me consagro", "consagro", "todo tuyo", "totus tuus"] }] },
+  { id: "bendicion", nombre: "Bendición", etiquetas: ["Bendición"], momentos: [
+    { nombre: "Bendición", despues: "Acción de gracias", palabras: ["bendice", "bendicion", "bendiga", "bendito"] }] }
+];
+export const celebracionPorId = (id) => CELEBRACIONES.find((c) => c.id === id) || null;
+
+// Costumbres de las comunidades (ideas para «Crear un momento»): dónde suelen ir y qué cantos les calzan
+export const MOMENTOS_COMUNIDAD = [
+  { nombre: "Saludo a los cumpleañeros", antes: "Salida", etiquetas: ["Cumpleaños"], palabras: ["cumpleaños", "que dios te bendiga", "las mañanitas", "bendiga"] },
+  { nombre: "Bienvenida a los nuevos", antes: "Salida", etiquetas: ["Bienvenida"], palabras: ["bienvenido", "bienvenidos", "acogida", "hermano"] },
+  { nombre: "Aniversarios de matrimonio", antes: "Salida", etiquetas: ["Matrimonio"], palabras: ["esposos", "para siempre", "fiel"] },
+  { nombre: "Bendición de las mamás", antes: "Salida", etiquetas: ["Bendición"], palabras: ["madre", "mama", "bendice"] },
+  { nombre: "Bendición de los papás", antes: "Salida", etiquetas: ["Bendición"], palabras: ["padre bueno", "papa", "bendice"] },
+  { nombre: "Envío de misioneros", antes: "Salida", etiquetas: ["Misionero"], palabras: ["id por el mundo", "enviados", "mision"] },
+  { nombre: "Ofrenda de la comunidad", despues: "Ofertorio", etiquetas: [], palabras: ["ofrenda", "te ofrecemos", "compartir"] }
+];
+
+// Las etiquetas de las canciones con otros nombres: «Bautizo» es Bautismo, «Boda» es Matrimonio…
+const ALIAS_ETIQUETA = new Map([["bautizo", "bautismo"], ["bautizos", "bautismo"], ["casamiento", "matrimonio"], ["boda", "matrimonio"],
+  ["bodas", "matrimonio"], ["funeral", "exequias"], ["funerales", "exequias"], ["difuntos", "fieles difuntos"],
+  ["confirmaciones", "confirmacion"], ["cumpleanos", "cumpleaños"], ["villancicos", "villancico"], ["marianos", "mariano"], ["maria", "mariano"],
+  ["corpus cristi", "corpus christi"], ["secuencias", "secuencia"]].map(([a, b]) => [tagNorm(a), tagNorm(b)]));
+const normEtiqueta = (t) => ALIAS_ETIQUETA.get(tagNorm(t)) || tagNorm(t);
+export const tieneEtiqueta = (c, lista) => {
+  if (!lista?.length) return false;
+  const quiero = new Set(lista.map(normEtiqueta));
+  return (c.etiquetas || []).some((t) => quiero.has(normEtiqueta(t)));
+};
+
+// Nombres escritos a mano que se parecen a una costumbre conocida («Cumpleaños del mes» → Saludo a los cumpleañeros)
+const PISTAS_COMUNIDAD = [[/cumple/, 0], [/bienvenid|nuevos|acogida/, 1], [/aniversario.*(matrimonio|boda|esposos)|bodas de/, 2],
+  [/mama|madre/, 3], [/papa|padre/, 4], [/mision|envio/, 5], [/ofrenda|colecta/, 6]];
+
+// Momento propio por su nombre (de la celebración, de cualquier celebración o de las costumbres de las comunidades)
+export function momentoPropio(nombre, celebracion = null) {
+  const k = claveMomento(nombre);
+  const de = (lista) => lista.find((m) => claveMomento(m.nombre) === k);
+  const exacto = (celebracion && de(celebracion.momentos)) || de(CELEBRACIONES.flatMap((c) => c.momentos)) || de(MOMENTOS_COMUNIDAD);
+  if (exacto || ordenMomento(nombre) < 999) return exacto || null;
+  const t = sinTildes(nombre).toLowerCase();
+  const pista = PISTAS_COMUNIDAD.find(([re]) => re.test(t));
+  if (pista) return MOMENTOS_COMUNIDAD[pista[1]];
+  // Uno nuevo del todo: se buscan cantos con su nombre como etiqueta o sus palabras largas en el título o la letra
+  const palabras = t.split(/[^a-zñ]+/).filter((w) => w.length >= 5 && !/^(saludo|momento|canto|antes|despues|durante)$/.test(w));
+  return palabras.length ? { nombre, ...lugarPorNombre(nombre), etiquetas: [nombre], palabras } : null;
+}
+
+// Dónde va un momento nuevo que no se conoce, según su nombre
+function lugarPorNombre(nombre) {
+  const t = sinTildes(nombre).toLowerCase();
+  if (/ofrenda|colecta|ofrec/.test(t)) return { despues: "Ofertorio" };
+  if (/entrada|bienvenida inicial|procesion de entrada/.test(t)) return { despues: "Entrada" };
+  return { antes: "Salida" };
+}
+
+// Índice donde va «nombre» en la lista de momentos de una misa
+export function posicionMomento(momentos, nombre) {
+  const claves = momentos.map((m) => claveMomento(m.momento));
+  const en = (x) => claves.indexOf(claveMomento(x));
+  if (ordenMomento(nombre) < 999) {
+    const o = ordenMomento(nombre);
+    const i = momentos.findIndex((m) => ordenMomento(m.momento) > o && ordenMomento(m.momento) < 999);
+    return i < 0 ? momentos.length : i;
+  }
+  const def = momentoPropio(nombre) || lugarPorNombre(nombre);
+  if (def.despues && en(def.despues) >= 0) return en(def.despues) + 1;
+  if (def.antes && en(def.antes) >= 0) return en(def.antes);
+  if (def.reemplaza && en(def.reemplaza) >= 0) return en(def.reemplaza);
+  const salida = en("Salida");
+  return salida >= 0 ? salida : momentos.length;
+}
+
+// Pone los momentos propios de la celebración en la lista (agrega o reemplaza)
+export function aplicarCelebracion(momentos, celebracion) {
+  const cel = typeof celebracion === "string" ? celebracionPorId(celebracion) : celebracion;
+  const lista = momentos.slice();
+  for (const p of cel?.momentos || []) {
+    if (lista.some((m) => claveMomento(m.momento) === claveMomento(p.nombre))) continue;
+    const i = p.reemplaza ? lista.findIndex((m) => claveMomento(m.momento) === claveMomento(p.reemplaza)) : -1;
+    if (i >= 0) lista[i] = { momento: p.nombre, canciones: [] };
+    else lista.splice(posicionMomento(lista, p.nombre), 0, { momento: p.nombre, canciones: [] });
+  }
+  return lista;
+}
 
 // ============ FECHAS ============
 
@@ -281,7 +406,7 @@ const TIEMPO_FAMILIA = {
 
 const FIESTAS = grupoCatolico("Solemnidades y fiestas");
 const FIESTA_CLAVES = {
-  "Santísima Trinidad": ["TRINIDAD"], "Corpus Christi": ["CUERPO Y LA SANGRE", "CORPUS CHRISTI"],
+  "Santísima Trinidad": ["TRINIDAD"], "Corpus Christi": ["CUERPO Y LA SANGRE", "CUERPO Y SANGRE", "CORPUS CHRISTI"],
   "Sagrado Corazón": ["SAGRADO CORAZON"], "Cristo Rey": ["REY DEL UNIVERSO", "CRISTO REY"],
   "Todos los Santos": ["TODOS LOS SANTOS"], "Fieles difuntos": ["DIFUNTOS"], "Inmaculada Concepción": ["INMACULADA"],
   "Asunción": ["ASUNCION"], "Virgen del Carmen": ["CARMEN"], "Virgen de Guadalupe": ["GUADALUPE"],
@@ -320,14 +445,24 @@ export function semanaDelTitulo(titulo) {
   return m ? "Semana " + m[1] : "";
 }
 
-// Momentos de una misa nueva según el día: sin Gloria en Adviento y Cuaresma (salvo fiestas)
-export function momentosDeMisa(fecha, lecturas) {
+// La celebración que propone el día (Corpus, Cristo Rey, Sagrado Corazón o una fiesta de la Virgen), o ""
+// Sin lecturas publicadas vale el nombre del día según el calendario
+export function celebracionDelDia(lecturas, fecha = "") {
+  const d = etiquetasDelDia(lecturas?.titulo || (fecha ? nombreDelDia(fecha) : ""));
+  if (d.fiestas.includes("Corpus Christi")) return "corpus";
+  if (d.fiestas.includes("Cristo Rey")) return "cristo-rey";
+  if (d.fiestas.includes("Sagrado Corazón")) return "sagrado-corazon";
+  return d.mariano ? "mariana" : "";
+}
+
+// Momentos de una misa nueva según el día: sin Gloria en Adviento y Cuaresma (salvo fiestas). Con una celebración,
+// sus momentos propios y su Gloria (sí en un matrimonio, no en un funeral).
+export function momentosDeMisa(fecha, lecturas, celebracion = "") {
   const tiempo = lecturas?.tiempo || tiempoPorFecha(fecha);
-  const sinGloria = TIEMPOS_SIN_GLORIA.includes(tiempo) && !etiquetasDelDia(lecturas?.titulo).fiestas.length;
-  return {
-    tiempo,
-    momentos: MOMENTOS_BASE.filter((m) => !(sinGloria && m === "Gloria")).map((momento) => ({ momento, canciones: [] }))
-  };
+  const cel = celebracionPorId(celebracion);
+  const sinGloria = cel?.gloria === false || (cel?.gloria !== true && TIEMPOS_SIN_GLORIA.includes(tiempo) && !etiquetasDelDia(lecturas?.titulo).fiestas.length);
+  const momentos = MOMENTOS_BASE.filter((m) => !(sinGloria && m === "Gloria")).map((momento) => ({ momento, canciones: [] }));
+  return { tiempo, momentos: cel ? aplicarCelebracion(momentos, cel) : momentos };
 }
 
 // ============ CANTOS SUGERIDOS ============
@@ -503,14 +638,87 @@ function recientesDeComunidad(misa, misas) {
     .flatMap((m) => m.momentos.flatMap((x) => x.canciones.map((c) => c.cancionId))));
 }
 
+// ============ CANTO A MARÍA SEGÚN EL TIEMPO ============
+// En Navidad un villancico del nacimiento, en Cuaresma la Madre dolorosa… «fuertes»: palabras que dicen que el canto
+// es de ese tiempo (en otro tiempo resta). abre: en ese tiempo también valen cantos que no son marianos (villancicos).
+export const MARIA_POR_TIEMPO = [
+  { tiempos: ["Adviento"], nombre: "la Virgen de la espera", corto: "María en Adviento", etiquetas: ["Adviento"],
+    palabras: ["virgen de la espera", "magnificat", "proclama mi alma", "anunciacion", "hagase", "llena de gracia", "espera"], fuertes: ["virgen de la espera"] },
+  { tiempos: ["Navidad", "Epifanía"], nombre: "un villancico del nacimiento", corto: "villancico", etiquetas: ["Navidad", "Villancico", "Epifanía"], abre: true,
+    palabras: ["villancico", "pesebre", "belen", "noche de paz", "ha nacido", "nacio", "niño dios", "portal", "arrorro"], fuertes: ["villancico", "pesebre", "belen", "noche de paz"] },
+  { tiempos: ["Cuaresma", "Miércoles de Ceniza", "Domingo de Ramos", "Semana Santa", "Jueves Santo", "Viernes Santo"], nombre: "la Madre dolorosa",
+    corto: "la Dolorosa", etiquetas: ["Dolorosa", "Cuaresma", "Semana Santa", "Viernes Santo"],
+    palabras: ["dolorosa", "stabat", "al pie de la cruz", "junto a la cruz", "traspasada", "espada", "llanto", "lagrimas", "dolor"], fuertes: ["dolorosa", "stabat", "al pie de la cruz"] },
+  { tiempos: ["Vigilia Pascual", "Pascua", "Ascensión"], nombre: "la Reina del cielo, alegre por la Resurrección", corto: "Regina caeli",
+    etiquetas: ["Pascua"], palabras: ["regina", "reina del cielo", "alegrate", "resucito"], fuertes: ["regina caeli", "regina coeli", "reina del cielo alegrate"] },
+  { tiempos: ["Pentecostés"], nombre: "María en el cenáculo", corto: "Pentecostés", etiquetas: ["Pentecostés", "Espíritu Santo"], palabras: ["cenaculo", "espiritu"], fuertes: ["cenaculo"] }
+];
+const MES_DE_MARIA = { nombre: "el Mes de María", corto: "Mes de María", etiquetas: ["Mes de María"],
+  palabras: ["mes de maria", "venid y vamos todos", "flores"], fuertes: ["mes de maria"] };
+// En Chile el Mes de María va del 8 de noviembre al 8 de diciembre
+export const esMesDeMaria = (iso) => { const md = String(iso || "").slice(5, 10); return md >= "11-08" && md <= "12-08"; };
+export const temaMarianoDe = (tiempo, fecha) => (esMesDeMaria(fecha) ? MES_DE_MARIA : MARIA_POR_TIEMPO.find((g) => g.tiempos.includes(tiempo)) || null);
+
+const MARIANAS = ["Mariano", "Canto a María", "Mes de María", "Dolorosa", "Virgen del Carmen", "Inmaculada Concepción", "Asunción", "Virgen de Guadalupe"];
+// «María» en la letra de un canto que ya es de otro momento («por Madre diste a María» en un canto de perdón) no lo hace mariano
+const deOtroMomento = (c) => MOMENTOS_MISA.some((m) => claveMomento(m) !== claveMomento("Canto a María") && esDelMomento(c, m))
+  || tieneEtiqueta(c, ["Secuencia", "Pregón Pascual"]);
+const esMariano = (c) => {
+  if (esDelMomento(c, "Canto a María") || tieneEtiqueta(c, MARIANAS)) return true;
+  if (/\b(mar[ií]a|virgen|madre|se[ñn]ora|reina)\b/i.test(c.titulo || "")) return true;
+  const p = momentoPorLetra(c, "Canto a María");
+  return !!p && (p.como === "titulo" || !deOtroMomento(c));
+};
+const ETIQUETAS_FUERTES = ["Dolorosa", "Villancico", "Mes de María"];
+const coincideMaria = (c, g) => tieneEtiqueta(c, g.etiquetas) || g.palabras.some((f) => fraseEnCancion(c, f));
+// En Navidad también valen los villancicos que no son marianos, pero no un aleluya o un gloria con etiqueta Navidad
+const abreMaria = (c, g) => !!g?.abre && !deOtroMomento(c) && (tieneEtiqueta(c, ["Villancico"]) || coincideMaria(c, g));
+function puntajeMariano(c, g) {
+  if (!g) return 0;
+  if (g.fuertes.some((f) => fraseEnCancion(c, f)) || tieneEtiqueta(c, g.etiquetas.filter((t) => ETIQUETAS_FUERTES.includes(t)))) return 14;
+  if (coincideMaria(c, g)) return 8;
+  return [...MARIA_POR_TIEMPO, MES_DE_MARIA].some((x) => x !== g && (tieneEtiqueta(c, x.etiquetas.slice(0, 2)) || x.fuertes.some((f) => fraseEnCancion(c, f)))) ? -8 : 0;
+}
+
+const coincidePropio = (c, p) => tieneEtiqueta(c, p.etiquetas) || (p.palabras || []).some((f) => fraseEnCancion(c, f));
+// La etiqueta del momento pesa más que una frase, y una frase más que una palabra suelta
+const puntajePropio = (c, p) => {
+  if (tieneEtiqueta(c, p.etiquetas)) return 10;
+  const fr = (p.palabras || []).filter((f) => fraseEnCancion(c, f));
+  const frases = fr.filter((f) => f.includes(" ")).length;
+  return frases ? Math.min(3 + frases * 2, 9) : fr.length ? 2 : 0;
+};
+
+// Qué cantos sirven para un momento y cuánto suman además de puntajeCanto
+function criterioMomento(momento, ctx) {
+  if (claveMomento(momento) === claveMomento("Canto a María")) {
+    return { filtro: (c) => esMariano(c) || abreMaria(c, ctx.maria), extra: (c) => puntajeMariano(c, ctx.maria) };
+  }
+  const p = momentoPropio(momento, ctx.cel);
+  if (p) {
+    // Los cantos de la celebración (Exequias, Matrimonio…) sirven para sus momentos; los salmos, santos… no
+    const deCel = ctx.cel?.momentos?.includes(p) && !p.etiquetas?.length ? ctx.cel.etiquetas : [];
+    const enTitulo = (c) => posicionEnTitulo(c.titulo, p.nombre) >= 0;
+    return {
+      filtro: (c) => (!esParteFija(c) && (coincidePropio(c, p) || enTitulo(c) || tieneEtiqueta(c, deCel))) || (!!p.como && esDelMomento(c, p.como)),
+      extra: (c) => puntajePropio(c, p) + (enTitulo(c) ? 4 : 0) + (tieneEtiqueta(c, deCel) ? 2 : 0)
+    };
+  }
+  return { filtro: (c) => esDelMomento(c, momento) || !!momentoPorLetra(c, momento), extra: (c) => (esDelMomento(c, momento) ? 2 : 0) };
+}
+
+const VILLANCICO = tagNorm("Villancico"), NAVIDAD = tagNorm("Navidad");
+
 export function puntajeCanto(c, ctx) {
-  const tags = (c.etiquetas || []).map(tagNorm);
+  const tags = (c.etiquetas || []).map(normEtiqueta);
   let p = 0;
-  const tiempos = tags.filter((t) => ctx.todosLosTiempos.has(t));
+  // Un villancico es de Navidad aunque no lo diga
+  const tiempos = tags.filter((t) => ctx.todosLosTiempos.has(t)).concat(tags.includes(VILLANCICO) && !tags.includes(NAVIDAD) ? [NAVIDAD] : []);
   if (ctx.tiempo && tiempos.includes(ctx.tiempo)) p += 5;
-  else if (tags.some((t) => ctx.familia.has(t))) p += 3;
+  else if (tags.some((t) => ctx.familia.has(t)) || tiempos.some((t) => ctx.familia.has(t))) p += 3;
   else if (tiempos.length) p -= 4;
   if (tags.some((t) => ctx.fiestas.has(t))) p += 6;
+  if (ctx.celebracion?.size && (c.etiquetas || []).some((t) => ctx.celebracion.has(normEtiqueta(t)))) p += 6;
   if (ctx.mariano && tags.some((t) => ctx.marianas.has(t))) p += 4;
   // En Cuaresma no se canta el aleluya (la aclamación al Evangelio es otra)
   if (ctx.sinAleluya && /aleluya/i.test(c.titulo)) p -= 10;
@@ -529,21 +737,41 @@ export function puntajeCanto(c, ctx) {
 // En Post evangelio y Comunión va primero un canto del tema del Evangelio, y en el Salmo el del día; con
 // `motivos` (un Map), anota momento → { texto, corto } (aparte, para no guardar nada nuevo en el cancionero).
 // `evitar`: cancionId que no se sugieren (los de los domingos anteriores del mes).
-export function sugerirCantos(misa, lecturas, { reemplazar = false, biblioteca = [], misas = [], motivos = null, evitar = null } = {}) {
+function contexto(misa, lecturas, misas) {
   const tiempo = misa.tiempoLiturgico || tiempoPorFecha(misa.fechaUso);
   const dia = etiquetasDelDia(lecturas?.titulo);
-  const ctx = {
+  const cel = celebracionPorId(misa.celebracion);
+  return {
+    nombreTiempo: tiempo,
     tiempo: tagNorm(tiempo),
     familia: new Set((TIEMPO_FAMILIA[tiempo] || []).map(tagNorm)),
     todosLosTiempos: new Set(TIEMPOS.map(tagNorm)),
     fiestas: new Set(dia.fiestas.map(tagNorm)),
-    mariano: dia.mariano,
-    marianas: new Set(["Mariano", "Canto a María", "Mes de María"].map(tagNorm)),
+    mariano: dia.mariano || cel?.id === "mariana",
+    marianas: new Set(MARIANAS.map(tagNorm)),
+    cel,
+    celebracion: new Set((cel?.etiquetas || []).map(normEtiqueta)),
+    maria: temaMarianoDe(tiempo, misa.fechaUso),
     sinAleluya: TIEMPOS_SIN_ALELUYA.includes(tiempo),
     recientes: recientesDeComunidad(misa, misas),
     palabras: palabrasDe(textoLecturas(lecturas)),
     temas: temasDelEvangelio(lecturas)
   };
+}
+
+// Las canciones de la Biblioteca que sirven para un momento, de la mejor a la peor (para cambiar una canción
+// en una emergencia). Con pocas del momento, completa con el resto ordenado por el tiempo.
+export function candidatosMomento(biblioteca, momento, { fechaUso = "", tiempoLiturgico = "", celebracion = "", comunidad = "", lecturas = null, misas = [], limite = 0 } = {}) {
+  const ctx = contexto({ fechaUso, tiempoLiturgico, celebracion, comunidad, id: "" }, lecturas, misas);
+  const { filtro, extra } = criterioMomento(momento, ctx);
+  const lista = biblioteca.map((c) => ({ c, del: filtro(c), p: puntajeCanto(c, ctx) + extra(c) }));
+  lista.sort((a, b) => b.del - a.del || b.p - a.p || String(a.c.titulo).localeCompare(String(b.c.titulo), "es"));
+  const r = lista.map((x) => ({ cancion: x.c, delMomento: x.del, puntaje: x.p }));
+  return limite ? r.slice(0, limite) : r;
+}
+
+export function sugerirCantos(misa, lecturas, { reemplazar = false, biblioteca = [], misas = [], motivos = null, evitar = null } = {}) {
+  const ctx = contexto(misa, lecturas, misas);
   const gemelas = gemelasDe(biblioteca), usadas = new Set();
   const usar = (id) => (gemelas.get(id) || [id]).forEach((x) => usadas.add(x));
   [...(evitar || []), ...misa.momentos.flatMap((m) => m.canciones.filter((c) => !c.sugerida).map((c) => c.cancionId))].forEach(usar);
@@ -568,12 +796,23 @@ export function sugerirCantos(misa, lecturas, { reemplazar = false, biblioteca =
     return { texto: `Tema: ${tema.nombre} · el canto dice «${frase}»`, corto: tema.nombre };
   };
   const claveComunion = claveMomento("Comunión"), clavePost = claveMomento("Post evangelio"), claveSalmo = claveMomento("Salmo responsorial");
+  const claveMaria = claveMomento("Canto a María");
   let sugeridos = 0;
   for (const m of misa.momentos) {
     if (m.canciones.some((c) => !c.sugerida) || (m.canciones.length && !reemplazar)) continue;
     const k = claveMomento(m.momento), delMomento = (c) => esDelMomento(c, m.momento) || !!momentoPorLetra(c, m.momento);
+    const propio = k === claveMaria ? null : momentoPropio(m.momento, ctx.cel);
     let mejor = null, motivo = null;
-    if (ctx.temas.length && k === clavePost) {
+    if (k === claveMaria) {
+      const { filtro, extra } = criterioMomento(m.momento, ctx);
+      mejor = elegir(filtro, extra);
+      if (mejor && ctx.maria && coincideMaria(mejor, ctx.maria)) motivo = { texto: esMesDeMaria(misa.fechaUso) ? "Para el Mes de María" : `En ${ctx.nombreTiempo}: ${ctx.maria.nombre}`, corto: ctx.maria.corto };
+    } else if (propio) {
+      const { filtro, extra } = criterioMomento(m.momento, ctx);
+      mejor = elegir((c) => filtro(c) && !(propio.como && esDelMomento(c, propio.como) && !coincidePropio(c, propio)), (c) => extra(c) + (esDelMomento(c, m.momento) ? 2 : 0))
+        || (propio.como ? elegir((c) => esDelMomento(c, propio.como)) : null);
+      if (mejor) motivo = { texto: ctx.cel ? `Para ${ctx.cel.nombre.toLowerCase()}: ${m.momento}` : m.momento, corto: ctx.cel?.nombre || m.momento };
+    } else if (ctx.temas.length && k === clavePost) {
       mejor = elegir((c) => temaDeCanto(c) && !esParteFija(c), (c) => pesoTema(c) + (esDelMomento(c, m.momento) ? 2 : 0));
       if (mejor) motivo = motivoTema(mejor);
     } else if (ctx.temas.length && k === claveComunion) {

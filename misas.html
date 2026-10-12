@@ -10,11 +10,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/site.css">
-  <link rel="stylesheet" href="/css/misas.css?v=2">
+  <link rel="stylesheet" href="/css/misas.css?v=3">
   <link rel="stylesheet" href="/css/coros.css">
   <link rel="stylesheet" href="/css/posturas.css">
   <link rel="stylesheet" href="/css/partituras.css">
   <link rel="stylesheet" href="/css/voces.css">
+  <link rel="stylesheet" href="/css/dialogos.css">
 </head>
 <body class="pagina-misas">
   <nav class="nav-sitio scrolled" aria-label="Principal">
@@ -150,7 +151,14 @@
             <label id="n-comunidad-caja">Comunidad
               <select id="n-comunidad"></select>
             </label>
+            <label>Celebración
+              <select id="n-celebracion"></select>
+            </label>
+            <label>Para quién <small>(opcional)</small>
+              <input type="text" id="n-intencion" maxlength="120" placeholder="Los novios, el bautizado, el difunto…" autocomplete="off">
+            </label>
           </div>
+          <div class="n-habituales" id="n-habituales"></div>
           <p class="n-dia" id="n-dia" aria-live="polite"></p>
           <p class="n-aviso-fecha" id="n-aviso-fecha" hidden></p>
           <label class="n-buscar-fecha">Buscar fecha o celebración
@@ -306,6 +314,6 @@
   <script src="/editor/js/instrumentos.js"></script>
   <script src="/editor/js/rasgueos.js"></script>
   <script src="/editor/js/render.js"></script>
-  <script type="module" src="/js/misas.js?v=2"></script>
+  <script type="module" src="/js/misas.js?v=3"></script>
 </body>
 </html>

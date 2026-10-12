@@ -7,13 +7,10 @@ const atril = { abierto: false, vista: 'letra', scrollOn: false, acc: 0, last: 0
 
 const atrilCuerpo = () => $('#atrilCuerpo');
 
-// Partituras de la canción: las de la Biblioteca (servidor) y las hojas vinculadas en el editor
+// Partituras y tablaturas de la canción: las de la Biblioteca (con fileId) y las vinculadas en el editor
 function partiturasDe(d) {
   const voz = v => (v && v !== 'todas' ? VOICES[v]?.label || v : '');
-  return [
-    ...(d.partituras || []).map(p => ({ web: p, nombre: 'Partitura' + (voz(p.voz) ? ' · ' + voz(p.voz) : '') })),
-    ...(d.sheets || []).map(h => ({ hoja: h, nombre: h.name || (h.tipo === 'tablatura' ? 'Tablatura' : 'Partitura') }))
-  ];
+  return (d.sheets || []).map(h => ({ hoja: h, nombre: (h.name || sheetLabel(h.tipo)) + (voz(h.voz) ? ' · ' + voz(h.voz) : '') }));
 }
 
 // ============ ABRIR Y CERRAR ============
@@ -147,16 +144,7 @@ async function atrilHojas(d, hojas) {
     : '';
   const x = hojas[n];
   host.innerHTML = '<div class="sheet-loading">Cargando la partitura…</div>';
-  if (x.web) {
-    try {
-      const m = await import(new URL('../js/partituras.js', document.baseURI).href);
-      if (t === atril.turno) await m.dibujarPartitura(x.web, host);
-    } catch (e) {
-      if (t === atril.turno) host.innerHTML = `<p class="atril-vacio">No se pudo mostrar la partitura: ${escapeHtml(e.message || String(e))}</p>`;
-    }
-  } else {
-    await drawSheet(x.hoja, host, { semis: sheetSemis(x.hoja, detectedKey), view: x.hoja.tipo, stale: () => t !== atril.turno || !atril.abierto });
-  }
+  await drawSheet(x.hoja, host, { semis: sheetSemis(x.hoja, detectedKey), view: x.hoja.tipo, stale: () => t !== atril.turno || !atril.abierto });
 }
 
 function atrilControles() {

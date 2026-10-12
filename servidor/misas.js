@@ -94,6 +94,9 @@ async function guardarMisa(c, d) {
     fechaUso: fechaValida(m.fechaUso), fechaLecturas: fechaValida(m.fechaLecturas),
     lecturasPropias: nuevasLecturas === undefined ? !!(previa && previa.lecturasPropias) : !!nuevasLecturas,
     tiempoLiturgico: texto(m.tiempoLiturgico, 60), coroId: texto(m.coroId, 40),
+    // Sin el campo (clientes que no lo conocen) se conserva el anterior
+    celebracion: m.celebracion === undefined ? (previa?.celebracion || '') : String(m.celebracion || '').replace(/[^a-z-]/g, '').slice(0, 40),
+    intencion: m.intencion === undefined ? (previa?.intencion || '') : texto(m.intencion, 120),
     momentos: limpiarMomentos(m.momentos),
     autor: previa ? previa.autor : u.email, autorNombre: previa ? previa.autorNombre : u.nombre,
     creado: previa ? previa.creado : ahora(), actualizado: ahora()

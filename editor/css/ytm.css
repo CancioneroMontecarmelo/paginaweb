@@ -291,7 +291,7 @@ body.ytm .ytm-cola .tabs {
   flex: 1; display: block; overflow-y: auto; padding: 6px 8px; background: none; border: none; overscroll-behavior: contain;
 }
 body.ytm .ytm-cola .tab {
-  display: grid; grid-template-columns: 22px 40px minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
+  display: grid; grid-template-columns: 22px 40px minmax(0, 1fr); grid-auto-flow: column; grid-auto-columns: auto; gap: 12px; align-items: center;
   width: 100%; min-width: 0; max-width: none; margin: 0; padding: 8px; border: none; border-radius: 6px;
   background: none; color: var(--texto); font-size: 14px; font-weight: 400;
 }
@@ -310,6 +310,11 @@ body.ytm .tab-dirty { color: #b06000; font-size: 11px; }
 body.ytm .ytm-cola .tab-close { opacity: 0; width: 28px; height: 28px; font-size: 18px; }
 body.ytm .ytm-cola .tab:hover .tab-close, body.ytm .ytm-cola .tab.active .tab-close { opacity: 1; }
 @media (hover: none) { body.ytm .ytm-cola .tab-close { opacity: .7; } }
+.tab-cambiar {
+  width: 32px; height: 32px; border: none; border-radius: 50%; background: none;
+  color: var(--texto-3, #5f6368); font: inherit; font-size: 17px; line-height: 1; cursor: pointer;
+}
+.tab-cambiar:hover, .tab-cambiar:focus-visible { background: var(--hover, #dadce0); color: var(--acento, #202124); }
 .cola-vacia { color: var(--texto-3); padding: 24px 12px; font-size: 14px; line-height: 1.5; }
 .cola-pie { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--linea); }
 .cola-pie .btn-borde { flex: 1; justify-content: center; height: 34px; padding: 0 10px; font-size: 13px; }

@@ -4,7 +4,9 @@
  *
  *  - Inicio: el próximo domingo y estanterías (cancioneros de misa, tus listas, sugeridas, cada momento), y
  *    «Crear nueva misa»: un canto por momento según las lecturas de la fecha elegida, guardado como cancionero.
- *    El cancionero que suena se abre en el editor con «Editar en el editor» (botón al costado).
+ *    Se puede elegir una celebración (bautizo, matrimonio, funeral…) con sus momentos propios, agregar o quitar
+ *    momentos y crear uno nuevo (js/momento-nuevo.js). El cancionero que suena se abre en el editor con el botón
+ *    «Editor» del menú («Modificar en editor»), y sus canciones se cambian con ⇄ (js/cambiar-cancion.js).
  *  - Canciones: buscador de la Biblioteca y «Solo con audio». Tocar una canción la hace sonar (la cola es
  *    lo que se ve en la lista); «+» la agrega a una lista.
  *  - Listas: «Mis listas» en este equipo (localStorage mc-listas: crear, renombrar, ordenar, quitar, borrar)
@@ -28,6 +30,8 @@ import { COMUNIDADES, PARROQUIA } from "./comunidades.js";
 import * as lit from "./liturgia.js";
 import { activarPosturas, cerrar as cerrarPostura } from "./posturas.js";
 import { botonesPartituras } from "./partituras.js";
+import { elegirReemplazo } from "./cambiar-cancion.js";
+import { momentosHabituales, ponerHabituales, lugarHabitual, gruposDeMomentos, opcionesMomento, crearMomento } from "./momento-nuevo.js";
 import { crearMezclador, pistasDeVoces } from "./voces.js";
 import { crearReproductorYT, esYoutube, youtubeId } from "./youtube-embed.js";
 import { conectarSala, codigoValido } from "./sala.js";
@@ -273,7 +277,7 @@ async function cargarBiblioteca() {
 // domingo y los de cada momento. Tocar una tarjeta hace sonar esa estantería desde esa canción.
 
 const MOMENTOS_INICIO = ["Entrada", "Acto penitencial", "Gloria", "Aleluya", "Ofertorio", "Santo", "Cordero de Dios",
-  "Comunión", "Acción de gracias", "Canto a María", "Salida"];
+  "Comunión", "Acción de gracias", "Salida", "Canto a María"];
 
 let misasPublicas = null;
 const todasLasMisas = () => (misasPublicas ||= leer({ accion: "misas" }).then((r) => r.misas || [])
@@ -372,7 +376,12 @@ async function pintarInicio() {
     html += deCanciones("Del tiempo: " + tiempoDomingo, "Tiempo litúrgico",
       lista.filter((c) => (c.etiquetas || []).some((x) => x.toLowerCase() === t)).sort(ordenInicio).map((c) => [c]));
     for (const m of MOMENTOS_INICIO) {
-      html += deCanciones(m, "Momentos de la misa", lista.filter((c) => lit.esDelMomento(c, m)).sort(ordenInicio).map((c) => [c, m]));
+      if (m === "Canto a María") {
+        // Los de María según el tiempo: en Navidad villancicos, en Cuaresma la Dolorosa…
+        const tema = lit.temaMarianoDe(tiempoDomingo, domingo);
+        html += deCanciones(m, tema ? "Para " + tema.nombre : "Momentos de la misa", lit.candidatosMomento(lista, m, { fechaUso: domingo, tiempoLiturgico: tiempoDomingo })
+          .filter((x) => x.delMomento).map((x) => [x.cancion, m]));
+      } else html += deCanciones(m, "Momentos de la misa", lista.filter((c) => lit.esDelMomento(c, m)).sort(ordenInicio).map((c) => [c, m]));
     }
   }
   $("#rp-estantes").innerHTML = html || `<p class="rp-aviso">${esc($("#rp-estado-bib").textContent || "Todavía no hay canciones.")}</p>`;
@@ -397,7 +406,7 @@ function accionInicio(e) {
   } else if (d.inicioLista) {
     const l = st.listas.find((x) => x.id === d.inicioLista);
     if (!l) return;
-    colaPropia({ nombre: l.nombre, tipo: "lista", items: l.items.map((x) => ({ ...x })) });
+    colaPropia({ nombre: l.nombre, tipo: "lista", listaId: l.id, items: l.items.map((x) => ({ ...x })) });
     reproducir(0);
     mostrarVista("sonando");
   } else if (d.crearMisa) abrirCrear();
@@ -520,7 +529,7 @@ function accionLista(e) {
   if (!l) return;
   if (d.lTocar) {
     if (!l.items.length) return;
-    colaPropia({ nombre: l.nombre, tipo: "lista", items: l.items.map((x) => ({ ...x })) });
+    colaPropia({ nombre: l.nombre, tipo: "lista", listaId: l.id, items: l.items.map((x) => ({ ...x })) });
     reproducir(i);
     mostrarVista("sonando");
     return;
@@ -630,14 +639,18 @@ async function abrirMisa(id, tocar = true) {
   return true;
 }
 
-// El cancionero de misa que suena se edita en el editor (tono, letra, canciones), en la canción que suena
+// Botón Editor del menú: con un cancionero de misa sonando que la cuenta puede editar, lo abre en la canción que suena
 function pintarEditarMisa() {
-  const c = st.cola, b = $("#rp-editar-misa");
-  const si = st.vista === "sonando" && c?.tipo === "misa" && !!c.misaId && !tv && puedeEditar(c.comunidad);
-  b.hidden = !si;
-  if (!si) return;
-  const it = c.items[st.indice];
-  b.href = "/editor/?misa=" + encodeURIComponent(c.misaId) + (it?.mi != null ? "&foco=" + it.mi + "." + it.ci : "");
+  const c = st.cola, b = $("#rp-editor-menu");
+  if (!b) return;
+  b.hidden = tv;
+  const si = c?.tipo === "misa" && !!c.misaId && !tv && puedeEditar(c.comunidad);
+  const it = si ? c.items[st.indice] : null;
+  b.href = si ? "/editor/?misa=" + encodeURIComponent(c.misaId) + (it?.mi != null ? "&foco=" + it.mi + "." + it.ci : "") : "/editor/";
+  b.classList.toggle("con-misa", si);
+  b.title = si ? "Abrir este cancionero en el editor: transponer, cambiar canciones y editar la letra"
+    : "Editar canciones y audios, transponer, grabar, partituras y tablaturas";
+  b.querySelector(".rp-no-celular").textContent = si ? "Modificar en editor" : "Editor";
 }
 
 // ============ CREAR NUEVA MISA ============
@@ -645,7 +658,8 @@ function pintarEditarMisa() {
 // de los estantes de Inicio, el mismo de ese estante); elegir uno de cada momento y guardar el cancionero: en la
 // comunidad si la cuenta puede editarla, si no en «Mis listas» de este equipo.
 
-const crear = { paso: "fecha", fecha: "", lecturas: null, tiempo: "", momentos: [], motivos: new Map(), sugeridas: [], eleccion: [], candidatos: [], turno: 0 };
+const crear = { paso: "fecha", fecha: "", lecturas: null, tiempo: "", momentos: [], motivos: new Map(), sugeridas: [], eleccion: [], candidatos: [], turno: 0,
+  celebracion: "", celTocada: false, intencion: "", misas: [], habituales: [], habComunidad: "" };
 const oido = new Audio();
 let oyendo = "";
 
@@ -659,9 +673,32 @@ const completa = () => crear.momentos.length > 0 && crear.eleccion.every((x) => 
 function abrirCrear() {
   if (!crear.fecha) crear.fecha = domingo;
   $("#rp-crear-fecha").value = crear.fecha;
+  const sel = $("#rp-crear-celebracion");
+  if (!sel.options.length) {
+    sel.innerHTML = `<option value="">Misa del día</option>` + lit.CELEBRACIONES.map((c) => `<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join("");
+  }
+  sel.value = crear.celebracion;
+  $("#rp-crear-intencion").value = crear.intencion;
   pintarDiaCrear();
   pasoCrear("fecha");
   $("#rp-dlg-crear").showModal();
+  // Los momentos que la comunidad suele agregar (la que se propone después para guardar)
+  todasLasMisas().then((misas) => {
+    crear.misas = misas;
+    const com = comunidadPorDefecto()?.slug || "";
+    if (com !== crear.habComunidad || !crear.habituales.length) {
+      crear.habComunidad = com;
+      crear.habituales = momentosHabituales(misas, com);
+    }
+    pintarHabituales();
+  }).catch(() => {});
+}
+
+function pintarHabituales() {
+  const box = $("#rp-crear-habituales"), com = COMUNIDADES.find((c) => c.slug === crear.habComunidad);
+  box.innerHTML = crear.habituales.length ? `<fieldset class="rp-crear-hab"><legend>Momentos que suele agregar ${esc(com?.nombre || "tu comunidad")}</legend>
+    ${crear.habituales.map((h, k) => `<label><input type="checkbox" data-c-hab="${k}"${h.marcado ? " checked" : ""}> ${esc(h.momento)}${h.cancionId && st.porId.get(h.cancionId)
+      ? ` <small>· con «${esc(st.porId.get(h.cancionId).titulo)}»</small>` : ""}</label>`).join("")}</fieldset>` : "";
 }
 
 function pintarDiaCrear() {
@@ -673,6 +710,23 @@ function pintarDiaCrear() {
   const tiempo = lit.tiempoPorFecha(f), color = lit.colorPorTiempo(tiempo);
   box.innerHTML = `<b>${esc(fechaDia(f))}</b><span>${esc(lit.nombreDelDia(f))}</span>
     <span><span class="rp-punto" style="background:${COLOR_LITURGICO[color] || acentoLiturgico}"></span>${esc(tiempo)} · color ${esc(color.toLowerCase())}</span>`;
+  // Corpus, Cristo Rey, Sagrado Corazón o una fiesta de la Virgen: se propone sola (si no se eligió otra)
+  if (!crear.celTocada) {
+    lecturasDelDia(f).catch(() => null).then((l) => {
+      if (crear.celTocada || $("#rp-crear-fecha").value !== f) return;
+      crear.celebracion = lit.celebracionDelDia(l, f);
+      $("#rp-crear-celebracion").value = crear.celebracion;
+    });
+  }
+}
+
+// La comunidad donde se propone guardar: la elegida en el reproductor, la de la cuenta o la sede de la parroquia
+function comunidadPorDefecto() {
+  const s = sesionActual();
+  const propias = COMUNIDADES.filter((c) => puedeEditar(c.slug));
+  const plano = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const sede = propias.find((c) => c.nombre && plano(PARROQUIA.nombre).includes(plano(c.nombre)));
+  return propias.find((c) => c.slug === st.comunidad) || propias.find((c) => c.slug === s?.comunidad) || sede || propias[0] || null;
 }
 
 function pasoCrear(p) {
@@ -692,26 +746,32 @@ function pasoCrear(p) {
 async function sugerenciasDe(fecha) {
   const biblioteca = st.biblioteca, misas = (await todasLasMisas()).filter(cuantas);
   const esDomingo = new Date(fecha + "T12:00:00").getDay() === 0;
-  const listo = esDomingo && domingosListos?.some((d) => d.fecha === fecha)
+  const cel = lit.celebracionPorId(crear.celebracion);
+  const habituales = crear.habituales.filter((h) => h.marcado);
+  // Un domingo sin celebración: los mismos cantos del estante de Inicio
+  const listo = !cel && esDomingo && domingosListos?.some((d) => d.fecha === fecha)
     && lit.sugerirDomingos(domingosListos, { biblioteca, misas }).find((d) => d.fecha === fecha);
   let lecturas, tiempo, momentos, motivos;
+  const borrador = () => ({ id: "nueva-" + fecha, comunidad: crear.habComunidad, fechaUso: fecha, tiempoLiturgico: tiempo,
+    celebracion: crear.celebracion, momentos });
   if (listo) {
     ({ lecturas } = listo);
     tiempo = listo.misa.tiempoLiturgico;
     motivos = new Map(listo.motivos);
-    momentos = listo.misa.momentos.map((m) => ({ momento: m.momento, canciones: m.canciones.map((c) => ({ ...c })) }));
+    momentos = ponerHabituales(listo.misa.momentos.map((m) => ({ momento: m.momento, canciones: m.canciones.map((c) => ({ ...c })) })), habituales);
+    if (habituales.length) lit.sugerirCantos(borrador(), lecturas, { biblioteca, misas, motivos });
   } else {
     lecturas = await lecturasDelDia(fecha).catch(() => null);
-    const base = lit.momentosDeMisa(fecha, lecturas);
+    const base = lit.momentosDeMisa(fecha, lecturas, crear.celebracion);
     tiempo = base.tiempo;
-    // El Gloria va los domingos (fuera de Adviento y Cuaresma), en las solemnidades y en las fiestas
+    // El Gloria va los domingos (fuera de Adviento y Cuaresma), en las solemnidades, en las fiestas y en las celebraciones que lo llevan
     const fiesta = lit.etiquetasDelDia(lecturas?.titulo).fiestas.length || /SOLEMNIDAD|FIESTA/i.test(lecturas?.titulo || "");
-    momentos = base.momentos.filter((m) => esDomingo || fiesta || m.momento !== "Gloria");
+    momentos = ponerHabituales(base.momentos.filter((m) => esDomingo || fiesta || cel?.gloria === true || m.momento !== "Gloria"), habituales);
     motivos = new Map();
-    const evitar = esDomingo ? await lit.evitadosDelMes(fecha, lecturasDelDia, { biblioteca, misas }).catch(() => null) : null;
-    lit.sugerirCantos({ id: "nueva-" + fecha, comunidad: "", fechaUso: fecha, tiempoLiturgico: tiempo, momentos }, lecturas,
-      { biblioteca, misas, motivos, evitar });
+    const evitar = esDomingo && !cel ? await lit.evitadosDelMes(fecha, lecturasDelDia, { biblioteca, misas }).catch(() => null) : null;
+    lit.sugerirCantos(borrador(), lecturas, { biblioteca, misas, motivos, evitar });
   }
+  for (const h of habituales) if (h.cancionId) motivos.set(h.momento, { texto: "El que cantaron la última vez", corto: "como la última vez" });
   // En Cuaresma no se canta el aleluya: la aclamación al Evangelio es otra
   if (lit.TIEMPOS_SIN_ALELUYA.includes(tiempo)) {
     for (const m of momentos.filter((x) => x.momento === "Aleluya")) {
@@ -722,19 +782,36 @@ async function sugerenciasDe(fecha) {
   return { lecturas, tiempo, momentos, motivos };
 }
 
-// La sugerida primero; después las del momento por su etiqueta y, si son pocas, las que lo nombran en el título o la letra
+// La sugerida primero; después las del momento (por su etiqueta, el título o la letra) según el tiempo y la celebración
 function candidatosDe(momento, sugerida) {
-  const fuera = (c) => c.id === sugerida;
-  const por = st.biblioteca.filter((c) => !fuera(c) && lit.esDelMomento(c, momento)).sort(ordenInicio);
-  let lista = por;
-  if (por.length < 12) {
-    const ya = new Set(por.map((c) => c.id));
-    lista = por.concat(st.biblioteca.filter((c) => !fuera(c) && !ya.has(c.id))
-      .map((c) => [c, lit.momentoPorLetra(c, momento)]).filter(([, x]) => x)
-      .sort((a, b) => a[1].orden - b[1].orden || ordenInicio(a[0], b[0])).map(([c]) => c));
-  }
+  const lista = lit.candidatosMomento(st.biblioteca, momento, { fechaUso: crear.fecha, tiempoLiturgico: crear.tiempo,
+    celebracion: crear.celebracion, lecturas: crear.lecturas }).filter((x) => x.delMomento && x.cancion.id !== sugerida).map((x) => x.cancion);
   const s = sugerida && st.porId.get(sugerida);
   return [...(s ? [s] : []), ...lista.slice(0, 30)];
+}
+
+// Agrega un momento en el paso «Cantos»: con su canto (cancionId; "" = sin canto) o con el primero que le calce
+function agregarEnCrear(nombre, pos = lit.posicionMomento(crear.momentos, nombre), cancionId = null) {
+  if (crear.momentos.some((m) => lit.claveMomento(m.momento) === lit.claveMomento(nombre))) return;
+  const sug = cancionId ?? (candidatosDe(nombre, "")[0]?.id || "");
+  crear.momentos.splice(pos, 0, { momento: nombre, canciones: [] });
+  crear.sugeridas.splice(pos, 0, cancionId == null ? sug : "");
+  crear.eleccion.splice(pos, 0, cancionId != null ? cancionId : sug || undefined);
+  crear.candidatos.splice(pos, 0, candidatosDe(nombre, sug));
+  pintarElegir();
+  $(`#rp-crear-estantes [data-c-momento="${pos}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+}
+
+function quitarEnCrear(i) {
+  for (const k of ["momentos", "sugeridas", "eleccion", "candidatos"]) crear[k].splice(i, 1);
+  pintarElegir();
+}
+
+async function agregarMomentoCrear(valor) {
+  if (valor !== "__otro") return agregarEnCrear(valor);
+  const r = await crearMomento({ momentos: crear.momentos, biblioteca: st.biblioteca, misas: crear.misas, comunidad: crear.habComunidad,
+    fechaUso: crear.fecha, tiempoLiturgico: crear.tiempo, celebracion: crear.celebracion });
+  if (r) agregarEnCrear(r.nombre, r.posicion, r.cancionId);
 }
 
 async function sugerirParaFecha() {
@@ -797,8 +874,11 @@ function pintarElegir() {
     tarjetas.push(`<div class="rp-tj rp-tj-sin${elegida === "" ? " elegida" : ""}" data-c-elegir="${i}" data-id="">
       <div class="rp-tj-cara"><span class="cara grande rp-cara-sin" aria-hidden="true">—</span></div>
       <button type="button" class="rp-tj-titulo">Sin canto</button><div class="rp-tj-sub">Dejar este momento vacío</div></div>`);
-    return `<div data-c-momento="${i}">${estante(m.momento, estadoMomento(i), tarjetas)}</div>`;
+    return `<div class="rp-crear-momento" data-c-momento="${i}"><button type="button" class="rp-ico rp-crear-quitar" data-c-quitar="${i}"
+      title="Quitar «${esc(m.momento)}» de esta misa" aria-label="Quitar ${esc(m.momento)}">✕</button>${estante(m.momento, estadoMomento(i), tarjetas)}</div>`;
   }).join("");
+  $("#rp-crear-agregar").innerHTML = opcionesMomento(gruposDeMomentos(crear.momentos, { habituales: crear.habituales, celebracion: crear.celebracion }),
+    "Elegí uno o creá uno nuevo…");
 }
 
 function elegirEnCrear(tj) {
@@ -829,22 +909,28 @@ const pintarOido = () => document.querySelectorAll("#rp-crear-estantes [data-c-o
   }
 });
 
+// «Matrimonio · Juan y Ana · sábado 14 de noviembre», «Misa por Juan Pérez · …»
+function nombreCrear() {
+  const cel = lit.celebracionPorId(crear.celebracion), para = crear.intencion.trim(), dia = fechaDia(crear.fecha).toLowerCase();
+  if (!cel) return para ? `Misa por ${para} · ${dia}` : "Misa " + dia;
+  return [cel.nombre, para, dia].filter(Boolean).join(" · ");
+}
+
 function pintarPasoGuardar() {
-  const nombre = $("#rp-crear-nombre");
-  if (nombre.dataset.para !== crear.fecha) {
-    nombre.value = "Misa " + fechaDia(crear.fecha).toLowerCase();
-    nombre.dataset.para = crear.fecha;
+  const nombre = $("#rp-crear-nombre"), para = [crear.fecha, crear.celebracion, crear.intencion].join("|");
+  if (nombre.dataset.para !== para) {
+    nombre.value = nombreCrear();
+    nombre.dataset.para = para;
   }
   const s = sesionActual();
   const propias = COMUNIDADES.filter((c) => puedeEditar(c.slug));
   if (propias.length) {
-    // Con permiso en toda la parroquia, parte en la sede: la comunidad que da su nombre a la parroquia
-    const plano = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const sede = propias.find((c) => c.nombre && plano(PARROQUIA.nombre).includes(plano(c.nombre)));
-    const def = propias.find((c) => c.slug === st.comunidad) || propias.find((c) => c.slug === s?.comunidad) || sede || propias[0];
+    // Al volver a este paso queda la que se había elegido
+    const previo = $("#rp-crear-comunidad")?.value;
+    const def = previo != null ? propias.find((c) => c.slug === previo) || null : comunidadPorDefecto();
     $("#rp-crear-donde").innerHTML = `<label class="rp-campo">Guardar en
       <select id="rp-crear-comunidad">${propias.map((c) => `<option value="${esc(c.slug)}"${c === def ? " selected" : ""}>Cancioneros de ${esc(c.nombre)}</option>`).join("")}
-        <option value="">Mis listas (solo en este equipo)</option></select></label>`;
+        <option value=""${def ? "" : " selected"}>Mis listas (solo en este equipo)</option></select></label><div id="rp-crear-aviso-com"></div>`;
   } else {
     $("#rp-crear-donde").innerHTML = `<p class="rp-aviso">Se guarda en <b>Mis listas</b> de este equipo. ${s
       ? "Tu cuenta todavía no tiene permiso para guardar cancioneros de misa: pedíselo a un responsable de la parroquia."
@@ -878,7 +964,8 @@ async function guardarCrear() {
   try {
     const r = await llamarApi("guardarMisa", {
       token: sesionActual()?.token || "",
-      misa: { nombre, comunidad, fechaUso: crear.fecha, tiempoLiturgico: crear.tiempo, momentos }
+      misa: { nombre, comunidad, fechaUso: crear.fecha, tiempoLiturgico: crear.tiempo, celebracion: crear.celebracion,
+        intencion: crear.intencion.trim(), momentos }
     });
     misasPublicas = null;
     st.misas = null;
@@ -887,7 +974,7 @@ async function guardarCrear() {
     $("#rp-dlg-crear").close();
     history.replaceState(null, "", location.pathname + location.search + "#misa=" + encodeURIComponent(r.misa.id));
     await abrirMisa(r.misa.id, false);
-    avisar(`Se creó «${r.misa.nombre}». Con «Editar en el editor» cambiás tonos, letras y canciones.`);
+    avisar(`Se creó «${r.misa.nombre}». Con «Modificar en editor» del menú cambiás tonos, letras y canciones.`);
   } catch (e) {
     avisar(e.message);
   } finally {
@@ -905,6 +992,39 @@ function conectarCrear() {
     oyendo = "";
   });
   $("#rp-crear-fecha").addEventListener("input", pintarDiaCrear);
+  $("#rp-crear-celebracion").addEventListener("change", (e) => {
+    crear.celebracion = e.target.value;
+    crear.celTocada = true;
+  });
+  $("#rp-crear-intencion").addEventListener("input", (e) => (crear.intencion = e.target.value));
+  $("#rp-crear-habituales").addEventListener("change", (e) => {
+    const k = e.target.dataset.cHab;
+    if (k != null && crear.habituales[+k]) crear.habituales[+k].marcado = e.target.checked;
+  });
+  $("#rp-crear-agregar").addEventListener("change", (e) => {
+    const v = e.target.value;
+    e.target.value = "";
+    if (v) agregarMomentoCrear(v);
+  });
+  // Otra comunidad en el paso 3: sus momentos habituales son otros, se ofrece agregarlos
+  $("#rp-crear-donde").addEventListener("change", (e) => {
+    if (e.target.id !== "rp-crear-comunidad") return;
+    const slug = e.target.value, caja = $("#rp-crear-aviso-com");
+    const otros = slug && slug !== crear.habComunidad ? momentosHabituales(crear.misas, slug)
+      .filter((h) => !crear.momentos.some((m) => lit.claveMomento(m.momento) === lit.claveMomento(h.momento))) : [];
+    caja.innerHTML = otros.length ? `<p class="rp-aviso">${esc(COMUNIDADES.find((c) => c.slug === slug)?.nombre || "Esa comunidad")} suele agregar
+      ${otros.map((h) => "«" + esc(h.momento) + "»").join(", ")}. <button type="button" class="rp-btn" data-c-hab-agregar="${esc(slug)}">Agregarlos</button></p>` : "";
+  });
+  $("#rp-crear-donde").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-c-hab-agregar]");
+    if (!b) return;
+    const slug = b.dataset.cHabAgregar;
+    for (const h of momentosHabituales(crear.misas, slug)) agregarEnCrear(h.momento, lugarHabitual(crear.momentos, h), h.cancionId || null);
+    crear.habComunidad = slug;
+    crear.habituales = momentosHabituales(crear.misas, slug);
+    $("#rp-crear-aviso-com").innerHTML = "";
+    pintarPasoGuardar();
+  });
   $("#rp-crear-seguir").addEventListener("click", () => {
     if (crear.paso === "fecha") sugerirParaFecha();
     else if (crear.paso === "elegir" && completa()) pasoCrear("crear");
@@ -924,6 +1044,8 @@ function conectarCrear() {
     }
     const oir = e.target.closest("[data-c-oir]");
     if (oir) return escuchar(oir.dataset.cOir);
+    const q = e.target.closest("[data-c-quitar]");
+    if (q) return quitarEnCrear(+q.dataset.cQuitar);
     const tj = e.target.closest("[data-c-elegir]");
     if (tj) elegirEnCrear(tj);
   });
@@ -981,9 +1103,8 @@ function recuperarSonando(s) {
     orden = s.orden;
     ordenDe = st.cola;
   }
-  mostrarVista("sonando");
   reproducir(s.indice, false, s.segundo || 0);
-  avisar(`Seguís en «${s.cola.nombre}»: tocá ▶ para continuar.`);
+  avisar(`Seguís en «${s.cola.nombre}»: tocá ▶ abajo para continuar.`);
 }
 
 // Al abrir: un enlace distinto arma su cola; si no, sigue con la guardada
@@ -1191,14 +1312,89 @@ function pintarCola() {
     box.innerHTML = "";
     return;
   }
+  const cambia = sePuedeCambiar(c);
   box.innerHTML = c.items.map((it, i) => {
     const e = st.porId.get(it.cancionId) || { titulo: "Canción que ya no está en la Biblioteca" };
     const sub = it.momento || subCancion(e);
-    return `<li class="${i === st.indice ? "sonando" : ""}"><button type="button" class="rp-cola-item" data-cola-i="${i}">
+    return `<li class="${[i === st.indice ? "sonando" : "", cambia ? "con-cambiar" : ""].join(" ").trim()}"><button type="button" class="rp-cola-item" data-cola-i="${i}">
       <span class="rp-cola-num">${i + 1}</span>${cara(e, "chica", it.momento)}<span class="rp-cola-txt"><b>${esc(e.titulo)}</b><small>${esc(sub)}</small></span>
-    </button></li>`;
+    </button>${cambia ? `<button type="button" class="rp-cola-cambiar" data-cola-cambiar="${i}" title="Cambiar por otra canción" aria-label="Cambiar «${esc(e.titulo)}» por otra">⇄</button>` : ""}</li>`;
   }).join("");
   centrarCola();
+}
+
+// ⇄ en los cancioneros de misa y en las listas (emergencias: cambiar una canción por otra)
+const sePuedeCambiar = (c) => !tv && !!c && (c.tipo === "misa" || c.tipo === "lista");
+
+async function misaDeServidor(id) {
+  const m = ((await leer({ accion: "misas" })).misas || []).find((x) => x.id === id);
+  if (!m) throw new Error("ese cancionero ya no está en el servidor");
+  return m;
+}
+
+// Reemplaza la canción en el cancionero guardado (vuelve a leerlo para no pisar otros cambios)
+async function cambiarEnMisa(c, it, id) {
+  const m = await misaDeServidor(c.misaId);
+  let mi = it.mi, ci = it.ci;
+  if (m.momentos[mi]?.canciones[ci]?.cancionId !== it.cancionId) {
+    mi = m.momentos.findIndex((x) => x.momento === it.momento && x.canciones.some((y) => y.cancionId === it.cancionId));
+    if (mi < 0) mi = m.momentos.findIndex((x) => x.canciones.some((y) => y.cancionId === it.cancionId));
+    if (mi < 0) throw new Error("esa canción ya no está en el cancionero");
+    ci = m.momentos[mi].canciones.findIndex((y) => y.cancionId === it.cancionId);
+  }
+  m.momentos[mi].canciones[ci] = { cancionId: id, desplazamiento: 0 };
+  const { drive, lecturas, ...misa } = m;
+  const r = await llamarApi("guardarMisa", { token: sesionActual()?.token || "", misa });
+  misasPublicas = null;
+  st.misas = null;
+  inicioViejo = true;
+  guardar("mc-reproducir", JSON.stringify({ ...r.misa, t: Date.now() }));
+  Object.assign(it, { mi, ci });
+}
+
+async function cambiarEnCola(i) {
+  const c = st.cola, it = c?.items[i];
+  if (!it || !sePuedeCambiar(c)) return;
+  if (!st.biblioteca.length) return avisar("La Biblioteca todavía no está cargada.");
+  const esMisa = c.tipo === "misa" && !!c.misaId;
+  const misa = esMisa ? await misaDeServidor(c.misaId).catch(() => null) : null;
+  const id = await elegirReemplazo({
+    biblioteca: st.biblioteca, momento: it.momento || "", actual: it.cancionId,
+    fechaUso: misa?.fechaUso || lit.hoyIso(), tiempoLiturgico: misa?.tiempoLiturgico || "", celebracion: misa?.celebracion || ""
+  });
+  if (!id || id === it.cancionId || st.cola !== c || c.items[i] !== it) return;
+  const vieja = st.porId.get(it.cancionId)?.titulo || "la canción";
+  let aviso;
+  if (esMisa && puedeEditar(c.comunidad)) {
+    try {
+      avisar("Guardando el cambio en el cancionero…");
+      await cambiarEnMisa(c, it, id);
+      aviso = `Cambiada en «${c.nombre}» para todos.`;
+    } catch (e) {
+      if (!confirm(`No se pudo guardar en el cancionero (${e.message}).\n\n¿Cambiar «${vieja}» solo en este equipo?`)) return;
+      aviso = "Cambiada solo en este equipo.";
+    }
+  } else if (esMisa) {
+    if (!confirm(`Tu cuenta no puede modificar «${c.nombre}».\n\n¿Cambiar «${vieja}» solo en este equipo?`)) return;
+    aviso = "Cambiada solo en este equipo: el cancionero sigue igual para los demás.";
+  } else {
+    const l = c.listaId && st.listas.find((x) => x.id === c.listaId);
+    const k = l ? l.items.findIndex((x, n) => x.cancionId === it.cancionId && (n === i || x.momento === it.momento)) : -1;
+    if (k >= 0) {
+      l.items[k] = { cancionId: id, desplazamiento: 0, ...(it.momento ? { momento: it.momento } : {}) };
+      guardarListas();
+      pintarListas();
+    }
+    aviso = k >= 0 ? `Cambiada en «${l.nombre}».` : "Cambiada en esta cola.";
+  }
+  Object.assign(it, { cancionId: id, desplazamiento: 0, capo: 0, velocidad: 1 });
+  delete it.scroll;
+  if (i === st.indice) reproducir(i, !motor().paused);
+  else {
+    pintarCola();
+    guardarSonando();
+  }
+  avisar(aviso);
 }
 
 function centrarCola() {
@@ -1224,6 +1420,7 @@ function htmlCancion({ doc, cancion }, desplazamiento, entrada = {}) {
   const d = desplazamiento || 0;
   const tono = orig ? { idx: mod12(orig.idx + d), minor: orig.minor } : null;
   const texto = orig && d ? transposeText(doc.text, d, keyPrefersFlats(tono.idx, tono.minor)) : doc.text;
+  tonoSonando = { original: orig ? orig.idx : null, actual: tono ? tono.idx : null };
   mcCancionActual = {
     tags: [],
     credits: normalizeCredits({ letra: doc.credits?.letra || entrada.letraDe || cancion.letraDe, musica: doc.credits?.musica || entrada.musicaDe || cancion.musicaDe })
@@ -1231,6 +1428,9 @@ function htmlCancion({ doc, cancion }, desplazamiento, entrada = {}) {
   return doc.text.trim() ? renderSong(titulo, texto, tono)
     : `<div class="rp-vacio"><p><b>${esc(titulo)}</b></p><p>Esta canción todavía no tiene la letra cargada.</p></div>`;
 }
+
+// Tono de la letra en la Biblioteca y el que suena: para trasponer las tablaturas y partituras MusicXML/Guitar Pro
+let tonoSonando = { original: null, actual: null };
 
 function pintarExtras(entrada) {
   const box = $("#rp-extras");
@@ -1250,10 +1450,19 @@ function pintarExtras(entrada) {
     });
     box.append(b);
   }
-  const p = botonesPartituras(entrada);
+  const p = botonesPartituras(entrada, { tono: () => tonoSonando });
   if (p) {
     p.querySelectorAll("button").forEach((x) => x.classList.add("rp-btn"));
     box.prepend(p);
+  }
+  if (sePuedeCambiar(st.cola) && st.indice >= 0) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "rp-btn rp-cambiar-sonando";
+    b.textContent = "⇄ Cambiar esta canción";
+    b.title = "Reemplazarla por otra en " + (st.cola.tipo === "misa" ? "el cancionero" : "la lista");
+    b.addEventListener("click", () => cambiarEnCola(st.indice));
+    box.append(b);
   }
 }
 
@@ -2598,6 +2807,8 @@ function conectar() {
   $("#rp-estantes").addEventListener("click", accionInicio);
   $("#rp-portada-acciones").addEventListener("click", accionInicio);
   $("#rp-cola-lista").addEventListener("click", (e) => {
+    const x = e.target.closest("[data-cola-cambiar]");
+    if (x) return cambiarEnCola(+x.dataset.colaCambiar);
     const b = e.target.closest("[data-cola-i]");
     if (!b) return;
     reproducir(+b.dataset.colaI);

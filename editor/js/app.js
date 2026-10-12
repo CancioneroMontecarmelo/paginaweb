@@ -437,6 +437,7 @@ const MENUS = [
     { sep: true },
     { group: 'Guardar (en la nube de la parroquia)' },
     { label: 'Guardar tono, cejilla y velocidades en la misa', action: 'guardarMisa', key: 'Ctrl+S', disabled: () => !state.mcMisa || !mcCambiosMisa().length },
+    { label: 'Cambiar esta canción en la misa…', action: 'cambiarEnMisa', disabled: () => !state.mcMisa || !cur()?.mc || EFIMERO },
     { label: 'Guardar canción en la Biblioteca', action: 'saveSongBib', key: 'Ctrl+S' },
     { label: 'Guardar cancionero en la nube…', action: 'driveSave', key: 'Ctrl+Alt+S' },
     { label: 'Guardar como (en este equipo)', submenu: [
@@ -586,6 +587,7 @@ const ACTIONS = {
   openLocalCollection,
   openMisa: ytmElegirMisa,
   guardarMisa: mcGuardarEnMisa,
+  cambiarEnMisa: () => cur()?.mc && mcCambiarCancion(cur().id),
   atril: abrirAtrilDesdeMenu,
   capoMas: () => cambiarCapo(1),
   capoMenos: () => cambiarCapo(-1),

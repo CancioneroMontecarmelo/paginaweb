@@ -23,8 +23,9 @@ const TAG_FAMILIES = {
         'Transfiguración', 'Exaltación de la Cruz', 'Santos patronos'] },
       { name: 'Sacramentos y celebraciones', tags: ['Bautismo', 'Primera comunión', 'Confirmación', 'Matrimonio',
         'Reconciliación', 'Unción de los enfermos', 'Ordenación', 'Exequias', 'Adoración eucarística', 'Hora santa',
-        'Liturgia de las horas', 'Laudes', 'Vísperas', 'Completas', 'Rosario', 'Vía Crucis', 'Procesión', 'Peregrinación'] },
-      { name: 'Temas y estilo', tags: ['Alabanza', 'Adoración', 'Espíritu Santo', 'Mariano', 'Eucarístico', 'Misionero',
+        'Liturgia de las horas', 'Laudes', 'Vísperas', 'Completas', 'Rosario', 'Vía Crucis', 'Procesión', 'Peregrinación',
+        'Bendición', 'Consagración', 'Aniversario sacerdotal', 'Renovación de votos', 'Cumpleaños', 'Bienvenida'] },
+      { name: 'Temas y estilo', tags: ['Alabanza', 'Adoración', 'Espíritu Santo', 'Mariano', 'Dolorosa', 'Villancico', 'Eucarístico', 'Misionero',
         'Vocacional', 'Juvenil', 'Infantil', 'Taizé', 'Gregoriano', 'Canto popular', 'Mes de María', 'Retiro',
         'Renovación carismática'] }
     ]

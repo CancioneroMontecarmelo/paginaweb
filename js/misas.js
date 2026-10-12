@@ -19,13 +19,15 @@ import { leerEtiquetasAudio } from "./etiquetas-audio.js";
 import { activarPosturas } from "./posturas.js";
 import { abrirCoros } from "./coros.js";
 import { botonesPartituras } from "./partituras.js";
+import { elegirReemplazo } from "./cambiar-cancion.js";
 import { crearMezclador, pistasDeVoces } from "./voces.js";
 import { crearReproductorYT, esYoutube } from "./youtube-embed.js";
 import {
   MOMENTOS_MISA, TIEMPOS, claveMomento, esDelMomento, momentoPorLetra, ordenMomento, hoyIso, proximoDomingo, fechaLarga,
   tituloLiturgico, tiempoPorFecha, momentosDeMisa, sugerirCantos as sugerirDeLaBiblioteca,
-  fechaEscrita, calendarioLiturgico, nombreDelDia, evitadosDelMes
+  fechaEscrita, calendarioLiturgico, nombreDelDia, evitadosDelMes, CELEBRACIONES, celebracionDelDia, posicionMomento
 } from "./liturgia.js";
+import { momentosHabituales, ponerHabituales, gruposDeMomentos, opcionesMomento, crearMomento } from "./momento-nuevo.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => escapeHtml(s == null ? "" : s);
@@ -114,7 +116,7 @@ async function textoCancion(id) {
 // ============ UTILIDADES ============
 
 const firma = (a) => JSON.stringify([a.nombre, a.comunidad, a.fechaUso, a.fechaLecturas || "", a.lecturas === undefined ? "" : a.lecturas,
-  a.tiempoLiturgico, a.coroId, a.momentos]);
+  a.tiempoLiturgico, a.coroId, a.celebracion || "", a.intencion || "", a.momentos]);
 const sucio = () => !!st.actual && (st.actual.borrador || firma(st.actual) !== st.original);
 const editable = () => !!st.actual && puedeEditar(st.actual.comunidad || undefined);
 const momentoActual = () => st.actual?.momentos[st.momento] || null;
@@ -217,15 +219,14 @@ function momentosHtml() {
         <b>${esc(m.momento)}</b>
         <span class="canciones-momento${titulos ? "" : " vacio"}">${titulos || esc(ed ? "Elegí una canción →" : "Sin canción")}</span>
       </button>
+      ${ed && m.canciones.length && st.biblioteca.length ? `<button type="button" class="cambiar" data-accion="cambiar-cancion" data-i="${i}"
+        title="Cambiar «${esc(tituloDe(m.canciones[i === st.momento ? Math.min(st.indice, m.canciones.length - 1) : 0].cancionId))}» por otra canción">⇄</button>` : ""}
       ${ed ? `<button type="button" class="quitar" data-accion="quitar-momento" data-i="${i}" title="Quitar ${esc(m.momento)}">×</button>` : ""}
     </li>`;
   }).join("");
-  const presentes = new Set(a.momentos.map((m) => claveMomento(m.momento)));
-  const faltan = MOMENTOS_MISA.filter((m) => !presentes.has(claveMomento(m)));
+  const grupos = ed ? gruposDeMomentos(a.momentos, { habituales: momentosHabituales(st.misas, a.comunidad), celebracion: a.celebracion }) : [];
   return `<ul class="momentos">${items || '<li class="aviso">Sin momentos.</li>'}</ul>
-    ${ed ? `<div class="momento-agregar"><select id="nuevo-momento" aria-label="Agregar momento">
-      <option value="">+ Agregar momento…</option>${faltan.map((m) => `<option>${esc(m)}</option>`).join("")}
-      <option value="__otro">Otro…</option></select></div>` : ""}
+    ${ed ? `<div class="momento-agregar"><select id="nuevo-momento" aria-label="Agregar momento">${opcionesMomento(grupos)}</select></div>` : ""}
     <div class="misa-acciones">
       <button type="button" class="btn-chico btn-atril" data-accion="atril" title="Abre las canciones de este cancionero en el atril del editor, en una pestaña nueva">▶ Atril</button>
       ${ed && !a.borrador ? '<button type="button" class="btn-chico btn-atril" data-accion="editar-editor" title="Abre este cancionero en el editor, en la canción que estás mirando, para cambiar el tono, la cejilla o las velocidades">✎ Editar en el editor</button>' : ""}
@@ -292,9 +293,10 @@ function descartarCambios() {
 
 // Borrador con los momentos de la misa y un canto sugerido en cada uno (lecturas: null si no están;
 // evitar: los cantos sugeridos para los domingos anteriores del mes)
-function crearBorrador({ nombre, fecha, comunidad, lecturas, evitar }) {
+// celebracion: sus momentos propios y su Gloria; habituales: los momentos que la comunidad suele agregar, con su canto
+function crearBorrador({ nombre, fecha, comunidad, lecturas, evitar, celebracion = "", intencion = "", habituales = [] }) {
   const s = st.sesion || {};
-  const { tiempo, momentos } = momentosDeMisa(fecha, lecturas);
+  const { tiempo, momentos } = momentosDeMisa(fecha, lecturas, celebracion);
   st.actual = {
     id: "nuevo",
     borrador: true,
@@ -302,8 +304,10 @@ function crearBorrador({ nombre, fecha, comunidad, lecturas, evitar }) {
     comunidad,
     fechaUso: fecha,
     tiempoLiturgico: tiempo,
+    celebracion,
+    intencion,
     coroId: "",
-    momentos,
+    momentos: ponerHabituales(momentos, habituales),
     autorNombre: s.nombre || s.email || ""
   };
   st.original = "";
@@ -334,15 +338,24 @@ function elegirMomento(i) {
   }
 }
 
-function agregarMomento(nombre) {
+// pos: dónde va (si no, según la misa o lo que dice su nombre); cancionId: su canto
+function agregarMomento(nombre, pos = null, cancionId = "") {
   nombre = String(nombre || "").trim().slice(0, 60);
   if (!nombre || !st.actual) return;
   const momentos = st.actual.momentos;
   if (momentos.some((m) => claveMomento(m.momento) === claveMomento(nombre))) return;
-  let pos = momentos.findIndex((m) => ordenMomento(m.momento) > ordenMomento(nombre));
-  if (pos < 0) pos = momentos.length;
-  momentos.splice(pos, 0, { momento: nombre, canciones: [] });
+  pos ??= posicionMomento(momentos, nombre);
+  momentos.splice(pos, 0, { momento: nombre, canciones: cancionId ? [{ cancionId, desplazamiento: 0 }] : [] });
   elegirMomento(pos);
+}
+
+// «Otro: crear un momento…»: el asistente con su nombre, dónde va y su canto
+async function crearMomentoNuevo() {
+  const a = st.actual;
+  if (!a) return;
+  const r = await crearMomento({ momentos: a.momentos, biblioteca: st.biblioteca, misas: st.misas, comunidad: a.comunidad,
+    fechaUso: a.fechaUso, tiempoLiturgico: a.tiempoLiturgico, celebracion: a.celebracion || "" });
+  if (r && st.actual === a) agregarMomento(r.nombre, r.posicion, r.cancionId);
 }
 
 function quitarMomento(i) {
@@ -616,6 +629,27 @@ function marcarCancion(id, usar) {
   mostrarCancionDelMomento();
   pintarMisas();
   pintarBiblioteca();
+}
+
+// ⇄ en un momento: reemplaza su canción (la que se está mirando, o la primera) por otra en un solo paso
+async function cambiarCancion(i) {
+  const a = st.actual, m = a?.momentos[i];
+  if (!m?.canciones.length || !editable()) return;
+  const k = i === st.momento ? Math.min(st.indice, m.canciones.length - 1) : 0;
+  const vieja = m.canciones[k];
+  const id = await elegirReemplazo({
+    biblioteca: st.biblioteca, momento: m.momento, actual: vieja.cancionId, fechaUso: a.fechaUso,
+    tiempoLiturgico: a.tiempoLiturgico, celebracion: a.celebracion || "", lecturas: a.lecturas || st.lecturas.get(claveLecturas(a))?.datos || null, misas: st.misas
+  });
+  if (!id || st.actual !== a || m.canciones[k] !== vieja) return;
+  if (m.canciones.some((c, n) => n !== k && c.cancionId === id)) m.canciones.splice(k, 1);
+  else m.canciones[k] = { cancionId: id, desplazamiento: 0 };
+  st.momento = i;
+  st.indice = Math.max(0, m.canciones.findIndex((c) => c.cancionId === id));
+  mostrarCancionDelMomento();
+  pintarMisas();
+  pintarBiblioteca();
+  avisar(`«${tituloDe(id)}» en lugar de «${tituloDe(vieja.cancionId)}». Falta «Guardar cambios».`);
 }
 
 function verCancion(id) {
@@ -1175,7 +1209,7 @@ function pintarTodo() {
 // del cancionero abierto antes de publicarlo.
 
 // fechaTocada: la fecha ya se eligió (a mano, con el buscador o al abrir), así que el nombre no la cambia
-const nuevo = { paso: 1, editar: false, fechaTocada: false };
+const nuevo = { paso: 1, editar: false, fechaTocada: false, celTocada: false, habituales: [], habComunidad: null };
 
 function abrirNuevo({ editar = false, fecha = "" } = {}) {
   if (!editar && !confirmarDescartar()) return;
@@ -1192,9 +1226,27 @@ function abrirNuevo({ editar = false, fecha = "" } = {}) {
   $("#n-comunidad").innerHTML = (pre ? "" : '<option value="">Elegí la comunidad</option>') +
     opciones(comunidades.map((c) => [c.slug, c.nombre]), pre);
   $("#n-comunidad-caja").hidden = comunidades.length === 1 && !!pre;
+  $("#n-celebracion").innerHTML = opciones([["", "Misa del día"], ...CELEBRACIONES.map((c) => [c.id, c.nombre])], a?.celebracion || "");
+  $("#n-intencion").value = a?.intencion || "";
+  nuevo.celTocada = editar;
+  nuevo.habituales = [];
+  pintarHabitualesNuevo();
   mostrarError("#n-error", "");
   $("#dlg-nuevo").showModal();
   pasoNuevo(editar && a?.nombre ? 2 : 1);
+}
+
+// Los momentos que la comunidad suele agregar, ya marcados (solo en un cancionero nuevo)
+function pintarHabitualesNuevo() {
+  const slug = $("#n-comunidad").value;
+  if (!nuevo.editar && nuevo.habComunidad !== slug) {
+    nuevo.habComunidad = slug;
+    nuevo.habituales = momentosHabituales(st.misas, slug);
+  }
+  const lista = nuevo.editar ? [] : nuevo.habituales;
+  $("#n-habituales").innerHTML = lista.length ? `<fieldset><legend>Momentos que suele agregar ${esc(nombreComunidad(slug))}</legend>
+    ${lista.map((h, k) => `<label><input type="checkbox" data-hab="${k}"${h.marcado ? " checked" : ""}> ${esc(h.momento)}${h.cancionId
+      ? ` <small>· con «${esc(tituloDe(h.cancionId))}»</small>` : ""}</label>`).join("")}</fieldset>` : "";
 }
 
 function pasoNuevo(n) {
@@ -1248,6 +1300,8 @@ async function mostrarDiaNuevo() {
   if ($("#n-fecha").value !== fecha) return;
   el.textContent = l?.disponible ? `${fechaLarga(fecha)} · ${tituloLiturgico(l.titulo)}`
     : base + (l ? " · las lecturas de esta fecha todavía no están publicadas" : "");
+  // Corpus, Cristo Rey, Sagrado Corazón o una fiesta de la Virgen: se propone sola
+  if (!nuevo.celTocada) $("#n-celebracion").value = celebracionDelDia(l?.disponible ? l : null, fecha);
 }
 
 // Próximos domingos y fiestas (12 semanas), o los del próximo año que coinciden con lo escrito
@@ -1282,6 +1336,8 @@ async function enviarNuevo(e) {
   }
   const fecha = $("#n-fecha").value;
   const comunidad = $("#n-comunidad").value;
+  const celebracion = $("#n-celebracion").value, intencion = $("#n-intencion").value.trim();
+  const habituales = nuevo.habituales.filter((h) => h.marcado);
   if (!nombre) return pasoNuevo(1);
   if (!fecha) return mostrarError("#n-error", "Elegí la fecha de la misa.");
   if (!comunidad) return mostrarError("#n-error", "Elegí la comunidad.");
@@ -1303,17 +1359,23 @@ async function enviarNuevo(e) {
   if (nuevo.editar && st.actual) {
     const a = st.actual;
     if (a.fechaUso !== fecha || !a.tiempoLiturgico) a.tiempoLiturgico = lecturas?.tiempo || tiempoPorFecha(fecha);
-    Object.assign(a, { nombre, fechaUso: fecha, comunidad });
+    Object.assign(a, { nombre, fechaUso: fecha, comunidad, celebracion, intencion });
     pintarTodo();
     return publicarCancionero();
   }
-  crearBorrador({ nombre, fecha, comunidad, lecturas, evitar });
+  crearBorrador({ nombre, fecha, comunidad, lecturas, evitar: celebracion ? new Set() : evitar, celebracion, intencion, habituales });
 }
 
 function conectarNuevo() {
   $("#form-nuevo").addEventListener("submit", enviarNuevo);
   $("#n-atras").addEventListener("click", () => pasoNuevo(1));
   $("#n-fecha").addEventListener("change", () => elegirFechaNuevo($("#n-fecha").value));
+  $("#n-celebracion").addEventListener("change", () => (nuevo.celTocada = true));
+  $("#n-comunidad").addEventListener("change", pintarHabitualesNuevo);
+  $("#n-habituales").addEventListener("change", (e) => {
+    const h = nuevo.habituales[+e.target.dataset.hab];
+    if (h) h.marcado = e.target.checked;
+  });
   $("#n-buscar-fecha").addEventListener("input", pintarFechasNuevo);
   $("#n-buscar-fecha").addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
@@ -1361,7 +1423,8 @@ async function publicarCancionero() {
     let r = await llamarApi("guardarMisa", {
       token: token(),
       misa: { id: a.borrador ? undefined : a.id, nombre: a.nombre, comunidad: a.comunidad, fechaUso: a.fechaUso,
-        fechaLecturas: a.fechaLecturas || "", lecturas: a.lecturas, tiempoLiturgico: a.tiempoLiturgico, coroId: a.coroId, momentos }
+        fechaLecturas: a.fechaLecturas || "", lecturas: a.lecturas, tiempoLiturgico: a.tiempoLiturgico, coroId: a.coroId,
+        celebracion: a.celebracion || "", intencion: a.intencion || "", momentos }
     });
     await aplicarMisaGuardada(r.misa);
     pasoPublicar("Armando la página del cancionero…", 0.05);
@@ -1556,6 +1619,8 @@ async function guardarCancionero(e) {
       fechaUso: $("#g-fecha").value,
       fechaLecturas: a.fechaLecturas || "",
       lecturas: a.lecturas,
+      celebracion: a.celebracion || "",
+      intencion: a.intencion || "",
       tiempoLiturgico: $("#g-tiempo").value,
       coroId: $("#g-coro").value,
       momentos: a.momentos
@@ -2358,6 +2423,7 @@ function conectarEventos() {
     if (accion === "abrir") abrirMisa(b.dataset.id);
     else if (accion === "momento") elegirMomento(+b.dataset.i);
     else if (accion === "quitar-momento") quitarMomento(+b.dataset.i);
+    else if (accion === "cambiar-cancion") cambiarCancion(+b.dataset.i);
     else if (accion === "guardar") abrirGuardar();
     else if (accion === "sugerir") volverASugerir();
     else if (accion === "publicar") publicarCancionero();
@@ -2374,10 +2440,10 @@ function conectarEventos() {
   window.addEventListener("blur", guardarActivo);
   $("#lista-misas").addEventListener("change", (e) => {
     if (e.target.id !== "nuevo-momento") return;
-    let nombre = e.target.value;
-    if (nombre === "__otro") nombre = prompt("Nombre del momento (por ejemplo: Bautismo, Bendición de los ramos):") || "";
-    agregarMomento(nombre);
+    const nombre = e.target.value;
     e.target.value = "";
+    if (nombre === "__otro") crearMomentoNuevo();
+    else agregarMomento(nombre);
   });
 
   $("#lista-biblioteca").addEventListener("change", (e) => {

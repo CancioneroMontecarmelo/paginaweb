@@ -472,7 +472,7 @@ async function mcDocDeBiblioteca(id) {
   const data = parseMarkdown(r.texto, (r.cancion?.titulo || 'cancion') + '.md');
   if (!data.tags?.length && r.cancion?.etiquetas) data.tags = r.cancion.etiquetas;
   const d = makeDoc({ ...data, title: data.title || r.cancion?.titulo || 'Sin título' });
-  if (r.cancion?.partituras?.length) d.partituras = r.cancion.partituras;
+  addBibSheets(d, r.cancion?.partituras || []);
   d.bibId = id;
   markClean(d);
   return d;
@@ -555,20 +555,24 @@ async function mcGuardarCancion() {
       enMd.push({ name: a.nombre || 'Audio', src: a.fileId ? mcAudioUrl(a.fileId) : a.url, voice: a.voz || 'todas' });
     }
     avance('Guardando la canción en la Biblioteca…', locales.length / (locales.length + 1));
+    // Las partituras y tablaturas no van en el .md: quedan en la canción de la Biblioteca (cancion.partituras)
     const r = await mcApi('subirCancion', {
-      token: s.token, md: buildMarkdown(d, enMd), nombre: titulo + '.md', comunidad: previa?.comunidad || s.comunidad || '', audios: enviados
+      token: s.token, md: buildMarkdown({ ...d, sheets: [] }, enMd), nombre: titulo + '.md', comunidad: previa?.comunidad || s.comunidad || '', audios: enviados
     });
+    const hojas = await mcSubirHojas(d, r.cancion, s.token, avance);
     markClean(d);
     refresh();
     dlg.close();
-    const c = r.cancion;
+    const c = hojas.cancion || r.cancion;
+    const nHojas = (c.partituras || []).length;
     const momentos = (c.etiquetas || []).filter(t => typeof TAG_FAMILIES !== 'undefined' &&
       TAG_FAMILIES.catolico.groups[0].tags.some(m => tagNorm(m) === tagNorm(t)));
     // Una canción propia agregada a un cancionero de misa abierto: se ofrece dejarla también en la misa
     const aMisa = state.mcMisa && !d.mc && !EFIMERO;
     showModal({
       title: 'Guardada en la Biblioteca ✓',
-      body: `<p>«${escapeHtml(c.titulo)}» quedó en la Biblioteca de la parroquia con ${(c.audios || []).length} ${(c.audios || []).length === 1 ? 'audio' : 'audios'}${previa?.soloAudio ? ', ya unida a los audios que se habían subido solos' : ''}.</p>
+      body: `<p>«${escapeHtml(c.titulo)}» quedó en la Biblioteca de la parroquia con ${(c.audios || []).length} ${(c.audios || []).length === 1 ? 'audio' : 'audios'}${nHojas ? ` y ${nHojas} ${nHojas === 1 ? 'partitura o tablatura' : 'partituras y tablaturas'}` : ''}${previa?.soloAudio ? ', ya unida a los audios que se habían subido solos' : ''}.</p>
+        ${hojas.fallidas.length ? `<p class="hint">No se pudieron subir: ${escapeHtml(hojas.fallidas.join('; '))}. Siguen en esta pestaña.</p>` : ''}
         <p>${momentos.length ? `En la pantalla Misas aparece en: <b>${escapeHtml(momentos.join(', '))}</b>.`
           : 'Para que aparezca en los momentos de la pantalla Misas, ponle sus etiquetas (Editar → Tags: Entrada, Comunión…) y vuelve a guardarla.'}</p>
         ${faltan ? `<p class="hint">${faltan} audio(s) de este equipo no se encontraron (pulsa «Activar audios de la carpeta» y vuelve a guardar).</p>` : ''}`,
@@ -582,6 +586,54 @@ async function mcGuardarCancion() {
     if (dlg.open) dlg.close();
     mcError('No se pudo guardar en la Biblioteca', e);
   }
+}
+
+// El archivo que recibe el servidor: su nombre tiene que terminar en una extensión que acepta (servidor/biblioteca.js)
+const MC_HOJA_EXT = /\.(pdf|png|jpe?g|webp|musicxml|xml|mxl|gp|gp3|gp4|gp5|gpx|gp7|alphatex|atex)$/i;
+function mcArchivoHoja(h, bytes) {
+  const empieza = (...b) => b.every((x, i) => bytes[i] === x);
+  let ext;
+  if (h.formato === 'pdf') ext = 'pdf';
+  else if (h.formato === 'imagen') {
+    ext = empieza(0x89, 0x50, 0x4e, 0x47) ? 'png' : empieza(0xff, 0xd8) ? 'jpg' : empieza(0x52, 0x49, 0x46, 0x46) ? 'webp' : '';
+    if (!ext) throw new Error('la Biblioteca acepta fotos PNG, JPG o WEBP');
+  } else if (h.formato === 'musicxml') ext = empieza(0x50, 0x4b) ? 'mxl' : 'musicxml';
+  else if (h.formato === 'gp') ext = empieza(0x50, 0x4b) ? 'gp' : empieza(0x42, 0x43, 0x46) ? 'gpx' : 'gp5';
+  else if (h.formato === 'alphatex') ext = 'alphatex';
+  else throw new Error('formato desconocido');
+  const deSrc = fileBase(h.kind === 'url' ? h.src.split(/[?#]/)[0] : h.src, true);
+  const nombre = MC_HOJA_EXT.test(deSrc) && deSrc.toLowerCase().endsWith('.' + ext) ? deSrc : `${safeFileName(h.name || sheetLabel(h.tipo))}.${ext}`;
+  return new File([bytes], nombre, { type: 'application/octet-stream' });
+}
+
+// Sube las hojas de la pestaña que la canción todavía no tiene en la Biblioteca y quita las que estaban al abrirla
+// y se quitaron en el editor. Devuelve la canción actualizada (o null si no cambió nada).
+async function mcSubirHojas(d, c, token, avance) {
+  const enCancion = new Set((c.partituras || []).map(p => p.fileId));
+  const nuevas = d.sheets.filter(h => !h.fileId || !enCancion.has(h.fileId));
+  const fallidas = [];
+  let cancion = null;
+  for (const [i, h] of nuevas.entries()) {
+    avance(`${sheetLabel(h.tipo)} ${i + 1} de ${nuevas.length}: subiendo «${h.name}»…`, (i + 0.5) / nuevas.length);
+    try {
+      const archivo = mcArchivoHoja(h, await sheetBytes(h));
+      if (archivo.size > 15 * 1024 * 1024) throw new Error('pesa más de 15 MB');
+      const r = await mcSubir('partitura', { cancionId: c.id, nombre: archivo.name, clase: h.tipo, voz: h.voz || '',
+        ...(h.tono != null ? { tono: h.tono } : {}) }, archivo, token);
+      cancion = r.cancion;
+      const p = cancion.partituras[cancion.partituras.length - 1];
+      Object.assign(h, { fileId: p.fileId, kind: 'url', src: bibSheetSrc(p.fileId), formato: p.formato || h.formato });
+    } catch (e) {
+      fallidas.push(`${h.name} (${e.message || e})`);
+    }
+  }
+  const quedan = new Set(d.sheets.map(h => h.fileId).filter(Boolean));
+  for (const id of d.hojasBib || []) {
+    if (quedan.has(id) || !enCancion.has(id)) continue;
+    try { cancion = (await mcApi('quitarPartitura', { token, cancionId: c.id, fileId: id })).cancion; } catch (_) {}
+  }
+  d.hojasBib = [...quedan];
+  return { cancion, fallidas };
 }
 
 // ============ COMPARTIR (WhatsApp o correo) ============
@@ -672,7 +724,8 @@ async function mcCancionesDeMisa(misa, avance) {
     const d = makeDoc({ ...data, title: data.title || r.cancion?.titulo || 'Sin título', clean: true });
     if (c.velocidad && c.velocidad !== 1) d.audios.forEach(a => { a.speed = clampSpeed(c.velocidad); });
     if (c.scroll) d.scrollSpeed = clampLevel(c.scroll);
-    if (r.cancion?.partituras?.length) d.partituras = r.cancion.partituras;
+    addBibSheets(d, r.cancion?.partituras || []);
+    markClean(d);
     d.mc = {
       cancionId: c.cancionId, momento: c.momento, mi: c.mi, ci: c.ci, tonoOriginal: orig ? orig.idx : null,
       base: { desplazamiento: c.desplazamiento || 0, capo: c.capo || 0, velocidad: c.velocidad || 1, scroll: c.scroll || 0 }
@@ -716,10 +769,11 @@ async function mcCambiarCancion(docId) {
     toast('');
   } catch (e) { toast(''); mcError('No se pudo leer la Biblioteca', e); return; }
   const momento = d.mc.momento;
-  const conEtiqueta = lista.filter(c => lit.esDelMomento(c, momento));
-  const porLetra = lista.filter(c => !lit.esDelMomento(c, momento))
-    .map(c => ({ c, r: lit.momentoPorLetra(c, momento) })).filter(x => x.r).sort((a, b) => a.r.orden - b.r.orden).map(x => x.c);
-  const delMomento = [...conEtiqueta.sort((a, b) => a.titulo.localeCompare(b.titulo, 'es')), ...porLetra];
+  // Las del momento primero, según el tiempo litúrgico y la celebración de la misa (en Cuaresma la Dolorosa…)
+  const m = state.mcMisa;
+  const candidatas = lit.candidatosMomento(lista, momento, { fechaUso: m.fechaUso, tiempoLiturgico: m.tiempoLiturgico, celebracion: m.celebracion || '' });
+  const delMomento = candidatas.filter(x => x.delMomento).map(x => x.cancion);
+  const ordenadas = candidatas.map(x => x.cancion);
   const enCola = new Set(docs.filter(x => x !== d).map(x => x.mc?.cancionId || x.bibId).filter(Boolean));
   let elegida = null;
 
@@ -735,9 +789,8 @@ async function mcCambiarCancion(docId) {
   const pintar = dlg => {
     const q = dlg.querySelector('#mcCambiarBuscar').value;
     const todas = dlg.querySelector('#mcCambiarTodas').checked;
-    let halladas = todas ? lista : delMomento;
+    let halladas = todas ? ordenadas : delMomento;
     if (q.trim()) halladas = buscarCanciones(halladas, q);
-    else if (todas) halladas = halladas.slice().sort((a, b) => a.titulo.localeCompare(b.titulo, 'es'));
     dlg.querySelector('#mcCambiarCuenta').textContent = `${halladas.length} ${halladas.length === 1 ? 'canción' : 'canciones'}`;
     dlg.querySelector('#mcCambiarLista').innerHTML = halladas.slice(0, 150).map(fila).join('')
       || `<li><span><small>${todas ? 'No hay canciones que coincidan.' : `No hay canciones de «${escapeHtml(momento)}» que coincidan: marca «Toda la Biblioteca».`}</small></span></li>`;
@@ -785,7 +838,15 @@ async function mcCambiarCancion(docId) {
   revokeDocSheets(d);
   if (activa) activate(n.id); else refresh();
   scheduleSave();
-  toast(`«${n.title}» en lugar de «${d.title}». Toca «Guardar en la misa» para que quede en el cancionero.`, 5000);
+  const ahora = await showModal({
+    title: '¿Guardar el cambio en la misa ahora?',
+    body: `<p>«${escapeHtml(n.title)}» va en lugar de «${escapeHtml(d.title)}» (${escapeHtml(momento)}).</p>
+      <p class="hint">Si lo guardas, el cancionero «${escapeHtml(state.cancioneroName || 'de misa')}» cambia para todos. Si no, queda en este
+      editor hasta «Guardar en la misa».</p>`,
+    buttons: [{ label: 'Más tarde', value: 'despues' }, { label: 'Guardar en la misa', primary: true, value: 'guardar' }]
+  });
+  if (ahora === 'guardar') await mcGuardarEnMisa();
+  else toast(`«${n.title}» en lugar de «${d.title}». Toca «Guardar en la misa» para que quede en el cancionero.`, 5000);
 }
 
 async function mcPublicarMisa(id) {
@@ -881,7 +942,7 @@ async function mcAbrirMisa(id, foco = null, { atril = false, misa = null } = {})
     // Lo que se guarde en la nube desde aquí es un cancionero nuevo, no el que estaba abierto antes
     state.mcDrive = null;
     state.mcMisa = { id: misa.id, t: misa.t || Date.now(), comunidad: misa.comunidad || '', fechaUso: misa.fechaUso || '',
-      tiempoLiturgico: misa.tiempoLiturgico || '' };
+      tiempoLiturgico: misa.tiempoLiturgico || '', celebracion: misa.celebracion || '' };
     state.cancioneroClean = bookSignature();
     const enfocada = foco && songs.find(d => d.mc.mi === foco.momento && d.mc.ci === foco.indice);
     switchTab((enfocada || songs[0]).id);
@@ -975,13 +1036,33 @@ async function mcGuardarEnMisa() {
 // misa no lo tiene, se agrega en el orden de la misa). Desde ahí se guarda con «Guardar en la misa» como las demás.
 async function mcAgregarAMisa(d, cancionId, momento) {
   if (!state.mcMisa || d.mc) return;
-  const orden = TAG_FAMILIES.catolico.groups[0].tags;
+  let lit, mn;
+  try {
+    [lit, mn] = await Promise.all([ytmLiturgia(), import(new URL('../js/momento-nuevo.js', document.baseURI).href)]);
+  } catch (e) { mcError('No se pudo preparar el cancionero de misa', e); return; }
   if (!momento) {
+    // Los de esta misa, los que faltan, los de cada celebración y «Otro» (escrito)
+    const enMisa = [...new Set(docs.filter(x => x.mc).map(x => x.mc.momento))];
+    const grupos = mn.gruposDeMomentos(enMisa.map(m => ({ momento: m })), { celebracion: state.mcMisa.celebracion || '' });
+    const opciones = (enMisa.length ? `<optgroup label="De esta misa">${enMisa.map(m => `<option>${escapeHtml(m)}</option>`).join('')}</optgroup>` : '')
+      + mn.opcionesMomento(grupos).replace(/^<option value="">[^<]*<\/option>/, '');
     momento = await showModal({
       title: 'Agregar al cancionero de misa',
       body: `<label class="field"><span>¿En qué momento de la misa va «${escapeHtml(d.title)}»?</span>
-        <select id="mcMomentoNuevo">${orden.map(m => `<option>${escapeHtml(m)}</option>`).join('')}</select></label>`,
-      buttons: [{ label: 'Cancelar' }, { label: 'Agregar', primary: true, onClick: dlg => dlg.querySelector('#mcMomentoNuevo').value }]
+        <select id="mcMomentoNuevo">${opciones}</select></label>
+        <label class="field" id="mcMomentoOtroCaja" hidden><span>Nombre del momento nuevo</span>
+          <input type="text" id="mcMomentoOtro" maxlength="60" placeholder="Por ejemplo: Saludo a los cumpleañeros"></label>`,
+      onOpen: dlg => {
+        const sel = dlg.querySelector('#mcMomentoNuevo');
+        sel.addEventListener('change', () => {
+          dlg.querySelector('#mcMomentoOtroCaja').hidden = sel.value !== '__otro';
+          if (sel.value === '__otro') dlg.querySelector('#mcMomentoOtro').focus();
+        });
+      },
+      buttons: [{ label: 'Cancelar' }, { label: 'Agregar', primary: true, onClick: dlg => {
+        const v = dlg.querySelector('#mcMomentoNuevo').value;
+        return v === '__otro' ? dlg.querySelector('#mcMomentoOtro').value.trim().slice(0, 60) : v;
+      } }]
     });
     if (!momento) return;
   }
@@ -991,11 +1072,9 @@ async function mcAgregarAMisa(d, cancionId, momento) {
   try {
     const misa = ((await mcLeerPublico({ accion: 'misas' })).misas || []).find(m => m.id === state.mcMisa.id);
     if (!misa) throw new Error('El cancionero ya no está en la parroquia: puede que lo hayan borrado.');
-    let mi = misa.momentos.findIndex(m => tagNorm(m.momento) === tagNorm(momento));
+    let mi = misa.momentos.findIndex(m => lit.claveMomento(m.momento) === lit.claveMomento(momento));
     if (mi < 0) {
-      const pos = i => { const k = orden.findIndex(t => tagNorm(t) === tagNorm(i)); return k < 0 ? orden.length : k; };
-      mi = misa.momentos.findIndex(m => pos(m.momento) > pos(momento));
-      if (mi < 0) mi = misa.momentos.length;
+      mi = lit.posicionMomento(misa.momentos, momento);
       misa.momentos.splice(mi, 0, { momento, canciones: [] });
       for (const x of docs) if (x.mc && x.mc.mi >= mi) x.mc.mi++;
     }

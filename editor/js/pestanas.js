@@ -10,7 +10,7 @@ const cur = () => (previa && activeId === previa.id ? previa : docs.find(d => d.
 
 function makeDoc({ id, title = 'Sin título', text = '', audios = [], currentAudioId = null, clean = true, scrollSpeed = null,
   sheets = [], instruments = [], capos = {}, view = null, sheetSel = {}, panelInst = 0, tags = [], credits = null,
-  mc = null, partituras = null, bibId = null } = {}) {
+  mc = null, partituras = null, hojasBib = null, bibId = null } = {}) {
   const d = {
     id: id || uid(),
     title, text,
@@ -30,7 +30,8 @@ function makeDoc({ id, title = 'Sin título', text = '', audios = [], currentAud
   };
   // mc: canción de un cancionero de misa (cancionId, momento, posición y los ajustes guardados en la misa)
   if (mc) d.mc = mc;
-  if (partituras?.length) d.partituras = partituras;
+  if (hojasBib?.length) d.hojasBib = hojasBib;
+  if (partituras?.length) addBibSheets(d, partituras);
   if (bibId) d.bibId = bibId;
   if (!d.audios.some(a => a.id === d.currentAudioId)) d.currentAudioId = d.audios[0]?.id ?? null;
   if (clean) d.clean = docSignature(d);
@@ -159,6 +160,7 @@ function renderTabs() {
       <span class="tab-texto"><span class="tab-title">${escapeHtml(d.title.trim() || (isBlank(d) ? 'Canción nueva' : 'Sin título'))}</span>
       <small>${escapeHtml(colaSub(d))}</small></span>
       ${cambio ? `<span class="tab-dirty" title="${d.mc ? 'Cambió la canción, el tono, la cejilla o las velocidades: falta guardarlo en la misa' : 'Cambios sin guardar'}">●</span>` : ''}
+      ${d.mc && !EFIMERO ? `<button type="button" class="tab-cambiar" title="Cambiarla por otra canción de «${escapeHtml(d.mc.momento)}»" aria-label="Cambiar por otra canción">⇄</button>` : ''}
       <button type="button" class="tab-close" title="Quitar del cancionero">×</button>`;
     bar.appendChild(t);
   }
@@ -181,6 +183,7 @@ function bindTabs() {
     const t = e.target.closest('.tab');
     if (!t) return;
     if (e.target.closest('.tab-close')) closeTab(t.dataset.id);
+    else if (e.target.closest('.tab-cambiar')) mcCambiarCancion(t.dataset.id);
     else {
       switchTab(t.dataset.id);
       ytmIrA('cancionero');
@@ -188,7 +191,7 @@ function bindTabs() {
   });
   bar.addEventListener('dblclick', e => {
     const t = e.target.closest('.tab');
-    if (!t || e.target.closest('.tab-close')) return;
+    if (!t || e.target.closest('.tab-close, .tab-cambiar')) return;
     if (docs.find(d => d.id === t.dataset.id)?.mc) { e.preventDefault(); mcCambiarCancion(t.dataset.id); }
   });
   bar.addEventListener('auxclick', e => {
@@ -317,7 +320,7 @@ function saveNow() {
         tags: d.tags,
         credits: d.credits,
         mc: d.mc || null,
-        partituras: d.partituras || null,
+        hojasBib: d.hojasBib || null,
         bibId: d.bibId || null,
         clean: !isDirty(d)
       }))
