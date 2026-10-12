@@ -6,8 +6,23 @@
 
 const BUSCAR_COMUNES = new Set(['de', 'la', 'el', 'los', 'las', 'y', 'e', 'o', 'a', 'en', 'un', 'una', 'del', 'al', 'que', 'se', 'lo']);
 
+// Los mismos textos se normalizan muchas veces (las sugerencias recorren toda la Biblioteca por cada momento):
+// se recuerdan. Quien recibe el resultado no lo modifica.
+function buscarMemo(fn, max = 20000) {
+  const memo = new Map();
+  return (s) => {
+    let r = memo.get(s);
+    if (r === undefined) {
+      if (memo.size > max) memo.clear();
+      r = fn(s);
+      memo.set(s, r);
+    }
+    return r;
+  };
+}
+
 // Minúsculas, sin tildes ni signos, con un solo espacio. mapa[i] = posición en el texto original.
-function buscarPlanoConMapa(s) {
+const buscarPlanoConMapa = buscarMemo((s) => {
   s = String(s || '');
   let out = '';
   const mapa = [];
@@ -20,16 +35,14 @@ function buscarPlanoConMapa(s) {
   }
   if (out.endsWith(' ')) { out = out.slice(0, -1); mapa.pop(); }
   return { out, mapa };
-}
+});
 const buscarPlano = s => buscarPlanoConMapa(s).out;
 
 // Clave de una palabra que iguala las faltas más comunes del español: «habre» = «abre», «bive» = «vive»
-function buscarClave(w) {
-  return w.replace(/ch/g, '\u0001').replace(/h/g, '')
-    .replace(/g(?=[ei])/g, 'j').replace(/gu(?=[ei])/g, 'g').replace(/qu(?=[ei])/g, 'k')
-    .replace(/c(?=[ei])/g, 's').replace(/[cq]/g, 'k').replace(/z/g, 's').replace(/[vw]/g, 'b')
-    .replace(/ll/g, 'y').replace(/y$/, 'i').replace(/(.)\1+/g, '$1').replace(/\u0001/g, 'ch');
-}
+const buscarClave = buscarMemo((w) => w.replace(/ch/g, '\u0001').replace(/h/g, '')
+  .replace(/g(?=[ei])/g, 'j').replace(/gu(?=[ei])/g, 'g').replace(/qu(?=[ei])/g, 'k')
+  .replace(/c(?=[ei])/g, 's').replace(/[cq]/g, 'k').replace(/z/g, 's').replace(/[vw]/g, 'b')
+  .replace(/ll/g, 'y').replace(/y$/, 'i').replace(/(.)\1+/g, '$1').replace(/\u0001/g, 'ch'));
 
 // Distancia de edición con trasposición; corta en cuanto supera «tope»
 function buscarDistancia(a, b, tope) {

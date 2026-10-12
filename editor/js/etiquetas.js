@@ -93,7 +93,18 @@ const TAG_GENERAL_GROUPS = [
   { name: 'Dificultad', tags: ['Fácil', 'Intermedia', 'Difícil'] }
 ];
 
-const tagNorm = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+// Se llama miles de veces con las mismas etiquetas (las sugerencias del reproductor recorren toda la Biblioteca)
+const TAG_NORM = new Map();
+const tagNorm = s => {
+  s = String(s);
+  let n = TAG_NORM.get(s);
+  if (n === undefined) {
+    if (TAG_NORM.size > 5000) TAG_NORM.clear();
+    n = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    TAG_NORM.set(s, n);
+  }
+  return n;
+};
 const cleanTag = s => String(s).replace(/[,\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 // Índice: etiqueta normalizada → { canónica, tradiciones }
