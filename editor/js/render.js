@@ -1,11 +1,18 @@
 'use strict';
 // Dibuja la canción (atril / impresión) y los botones del transpositor.
 
+const chordSpan = core => `<span class="chord" data-chord="${escapeHtml(core)}">${escapeHtml(core)}</span>`;
+
+function chordTokenHtml(tok) {
+  const [pre, core, post] = splitPunct(tok);
+  const seq = chordSequence(core);
+  if (!seq) return `<span class="chord" data-chord="${escapeHtml(core)}">${escapeHtml(tok)}</span>`;
+  return escapeHtml(pre) + seq.map((p, i) => i % 2 ? escapeHtml(p) : chordSpan(p)).join('') + escapeHtml(post);
+}
+
 function chordLineHtml(line, latin = isLatin()) {
   return layoutChordLine(line, t => convertTokenNotation(t, latin))
-    .map(p => ' '.repeat(p.pad) + (p.isChord
-      ? `<span class="chord" data-chord="${escapeHtml(splitPunct(p.text)[1])}">${escapeHtml(p.text)}</span>`
-      : `<span class="chord-extra">${escapeHtml(p.text)}</span>`))
+    .map(p => ' '.repeat(p.pad) + (p.isChord ? chordTokenHtml(p.text) : `<span class="chord-extra">${escapeHtml(p.text)}</span>`))
     .join('');
 }
 

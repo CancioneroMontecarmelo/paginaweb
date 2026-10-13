@@ -6,13 +6,15 @@
  *    «Crear nueva misa»: un canto por momento según las lecturas de la fecha elegida, guardado como cancionero.
  *    Se puede elegir una celebración (bautizo, matrimonio, funeral…) con sus momentos propios, agregar o quitar
  *    momentos y crear uno nuevo (js/momento-nuevo.js). El cancionero que suena se abre en el editor con el botón
- *    «Editor» del menú («Modificar en editor»), y sus canciones se cambian con ⇄ (js/cambiar-cancion.js).
+ *    «Editor» del menú («Modificar en editor»), y sus canciones se cambian con ⇄ (js/cambiar-cancion.js). Si no es
+ *    una misa que la cuenta puede editar, el botón dice «Editar esta canción» y abre la que suena en su tono.
  *  - Canciones: buscador de la Biblioteca y «Solo con audio». Tocar una canción la hace sonar (la cola es
  *    lo que se ve en la lista); «+» la agrega a una lista.
  *  - Listas: «Mis listas» en este equipo (localStorage mc-listas: crear, renombrar, ordenar, quitar, borrar)
  *    que se comparten con un enlace #l=… (WhatsApp o Copiar), y los cancioneros de misa (#misa=<id>) con
  *    sus momentos y tonos.
- *  - Reproduciendo: la letra con acordes en el tono del cancionero, créditos, posturas al tocar un acorde,
+ *  - Reproduciendo: la letra con acordes en el tono del cancionero (Tono − / + lo cambia en este equipo), créditos,
+ *    posturas al tocar un acorde,
  *    partituras y «Aprender las voces». Un solo <audio>, que recibe los audios de la Biblioteca directo de
  *    /api/audio/<id> (empiezan a sonar mientras se bajan). Precarga la letra de la siguiente, Media Session
  *    (pantalla bloqueada y auriculares)
@@ -178,7 +180,7 @@ function mostrarVista(v) {
   }
   cerrarPostura();
   pedirPantalla();
-  pintarEditarMisa();
+  pintarBotonEditor();
   if (v === "sonando") alinear();
 }
 
@@ -639,18 +641,22 @@ async function abrirMisa(id, tocar = true) {
   return true;
 }
 
-// Botón Editor del menú: con un cancionero de misa sonando que la cuenta puede editar, lo abre en la canción que suena
-function pintarEditarMisa() {
+// Botón Editor del menú: con un cancionero de misa sonando que la cuenta puede editar, lo abre en la canción que suena;
+// si no, abre la canción que suena (como vista previa) en el tono de Sonando
+function pintarBotonEditor() {
   const c = st.cola, b = $("#rp-editor-menu");
   if (!b) return;
   b.hidden = tv;
-  const si = c?.tipo === "misa" && !!c.misaId && !tv && puedeEditar(c.comunidad);
-  const it = si ? c.items[st.indice] : null;
-  b.href = si ? "/editor/?misa=" + encodeURIComponent(c.misaId) + (it?.mi != null ? "&foco=" + it.mi + "." + it.ci : "") : "/editor/";
-  b.classList.toggle("con-misa", si);
-  b.title = si ? "Abrir este cancionero en el editor: transponer, cambiar canciones y editar la letra"
+  const it = c && !tv ? c.items[st.indice] : null;
+  const misa = !!it && c.tipo === "misa" && !!c.misaId && puedeEditar(c.comunidad);
+  b.href = misa ? "/editor/?misa=" + encodeURIComponent(c.misaId) + (it.mi != null ? "&foco=" + it.mi + "." + it.ci : "")
+    : it ? "/editor/?cancion=" + encodeURIComponent(it.cancionId) + (it.desplazamiento ? "&tono=" + it.desplazamiento : "")
+    : "/editor/";
+  b.classList.toggle("con-misa", !!it);
+  b.title = misa ? "Abrir este cancionero en el editor: transponer, cambiar canciones y editar la letra"
+    : it ? "Abrir la canción que suena en el editor, en el tono de Sonando"
     : "Editar canciones y audios, transponer, grabar, partituras y tablaturas";
-  b.querySelector(".rp-no-celular").textContent = si ? "Modificar en editor" : "Editor";
+  b.querySelector(".rp-no-celular").textContent = misa ? "Modificar en editor" : it ? "Editar esta canción" : "Editor";
 }
 
 // ============ CREAR NUEVA MISA ============
@@ -1232,6 +1238,7 @@ async function reproducir(i, tocar = true, desde = 0, desdeTv = false) {
   cerrarPostura();
   $("#rp-nada").hidden = true;
   $("#rp-sonando").hidden = false;
+  $("#rp-tono").hidden = true;
   $("#rp-barra").hidden = false;
   document.body.classList.add("con-barra");
   // La cejilla y la velocidad que eligieron en el editor para esta misa
@@ -1255,7 +1262,7 @@ async function reproducir(i, tocar = true, desde = 0, desdeTv = false) {
   pintarExtras(entrada);
   pintarCanciones();
   pintarCola();
-  pintarEditarMisa();
+  pintarBotonEditor();
   sesionDeMedios(entrada, item);
   if (escena.abierto) pintarEscenario();
   await pintarLetra(item, entrada);
@@ -1276,10 +1283,80 @@ async function pintarLetra(item, entrada) {
   }
   if (t !== turnoLetra) return;
   box.innerHTML = htmlCancion(r, item.desplazamiento, entrada);
+  pintarTono(item);
   box.scrollTop = 0;
   moverA(document.scrollingElement, 0);
   alinear();
   $("#rp-titulo").textContent = $("#rp-barra-titulo").textContent = r.doc.title || entrada.titulo || r.cancion.titulo || "";
+}
+
+// ============ TONO DE LA CANCIÓN QUE SUENA ============
+// Se cambia solo en este equipo (la cola, Sonando guardado y la lista propia); el cancionero del servidor no se toca.
+// item.tonoBase guarda el tono con que llegó para volver con «Tono original».
+const nombreTono = (idx, menor) => spell(idx, keyPrefersFlats(idx, menor), true) + (menor ? "m" : "");
+
+function pintarTono(item) {
+  const box = $("#rp-tono");
+  if (!box) return;
+  box.hidden = !!tv || !item || tonoSonando.actual == null;
+  if (box.hidden) return;
+  $("#rp-tono-nombre").textContent = nombreTono(tonoSonando.actual, tonoSonando.menor);
+  const cambiado = item.tonoBase != null && (item.desplazamiento || 0) !== item.tonoBase;
+  $("#rp-tono-original").hidden = $("#rp-tono-nota").hidden = !cambiado;
+}
+
+function cambiarTono(paso) {
+  const item = st.cola?.items[st.indice];
+  if (!item || tonoSonando.actual == null) return;
+  if (item.tonoBase == null) item.tonoBase = item.desplazamiento || 0;
+  aplicarTono(item, (item.desplazamiento || 0) + paso);
+}
+
+function restaurarTono() {
+  const item = st.cola?.items[st.indice];
+  if (item?.tonoBase != null) aplicarTono(item, item.tonoBase);
+}
+
+// De −5 a +6 semitonos: cualquier tono queda a un paso del original
+const semitonos = (d) => {
+  const m = mod12(Math.round(+d || 0));
+  return m > 6 ? m - 12 : m;
+};
+
+function aplicarTono(item, d) {
+  const c = st.cola;
+  item.desplazamiento = semitonos(d);
+  const l = c.listaId && st.listas.find((x) => x.id === c.listaId);
+  const k = l ? l.items.findIndex((x, n) => x.cancionId === item.cancionId && (n === st.indice || x.momento === item.momento)) : -1;
+  if (k >= 0) {
+    l.items[k].desplazamiento = item.desplazamiento;
+    guardarListas();
+  }
+  guardarSonando();
+  repintarLetra(item);
+  pintarBotonEditor();
+  if (remoto?.listo) ordenTv("tono", { indice: st.indice, cancionId: item.cancionId, desplazamiento: item.desplazamiento });
+}
+
+// La letra en el nuevo tono, sin recargar el audio ni perder la línea que se estaba leyendo
+async function repintarLetra(item) {
+  const entrada = st.porId.get(item.cancionId) || { id: item.cancionId, titulo: "" };
+  let r;
+  try {
+    r = await textoCancion(item.cancionId);
+  } catch (_) {
+    return;
+  }
+  if (st.cola?.items[st.indice] !== item) return;
+  mantenerLugar(() => {
+    $("#rp-letra").innerHTML = htmlCancion(r, item.desplazamiento, entrada);
+    if (escena.abierto) {
+      $("#rp-esc-letra").innerHTML = htmlCancion(r, item.desplazamiento, entrada);
+      ajustarEscenario();
+    }
+  });
+  pintarTono(item);
+  alinear();
 }
 
 // La carátula va en la cabecera de la canción y junto al ▶ de la barra; si el audio trae imagen, esa
@@ -1420,7 +1497,7 @@ function htmlCancion({ doc, cancion }, desplazamiento, entrada = {}) {
   const d = desplazamiento || 0;
   const tono = orig ? { idx: mod12(orig.idx + d), minor: orig.minor } : null;
   const texto = orig && d ? transposeText(doc.text, d, keyPrefersFlats(tono.idx, tono.minor)) : doc.text;
-  tonoSonando = { original: orig ? orig.idx : null, actual: tono ? tono.idx : null };
+  tonoSonando = { original: orig ? orig.idx : null, actual: tono ? tono.idx : null, menor: !!orig?.minor };
   mcCancionActual = {
     tags: [],
     credits: normalizeCredits({ letra: doc.credits?.letra || entrada.letraDe || cancion.letraDe, musica: doc.credits?.musica || entrada.musicaDe || cancion.musicaDe })
@@ -1430,7 +1507,7 @@ function htmlCancion({ doc, cancion }, desplazamiento, entrada = {}) {
 }
 
 // Tono de la letra en la Biblioteca y el que suena: para trasponer las tablaturas y partituras MusicXML/Guitar Pro
-let tonoSonando = { original: null, actual: null };
+let tonoSonando = { original: null, actual: null, menor: false };
 
 function pintarExtras(entrada) {
   const box = $("#rp-extras");
@@ -2153,6 +2230,13 @@ function ordenEnTv(o) {
     tv.ver = { indice: o.indice, i: o.i, f: o.f };
     return alinear(true);
   }
+  if (o.accion === "tono") {
+    const it = st.cola?.items[o.indice];
+    if (!it || it.cancionId !== o.cancionId) return;
+    it.desplazamiento = semitonos(o.desplazamiento);
+    if (o.indice === st.indice) repintarLetra(it);
+    return;
+  }
   if (o.modos) {
     modos.aleatorio = !!o.modos.aleatorio;
     modos.repetir = ["no", "lista", "una"].includes(o.modos.repetir) ? o.modos.repetir : "no";
@@ -2776,6 +2860,9 @@ function conectar() {
     guardar("mc-rp-letra", String(Math.max(12, Math.min(36, (+guardado("mc-rp-letra", "18") || 18) + d))));
     aplicarAjustes();
   };
+  $("#rp-tono-menos").addEventListener("click", () => cambiarTono(-1));
+  $("#rp-tono-mas").addEventListener("click", () => cambiarTono(1));
+  $("#rp-tono-original").addEventListener("click", restaurarTono);
   $("#rp-menos").addEventListener("click", () => tam(-2));
   $("#rp-mas").addEventListener("click", () => tam(2));
   $("#rp-colores").addEventListener("click", () => $("#rp-dlg-colores").showModal());

@@ -11,9 +11,11 @@ function songChords(text) {
     if (!isChordLine(line)) continue;
     for (const tok of line.trim().split(/\s+/)) {
       const core = splitPunct(tok)[1];
-      if (!core || !parseChord(core)) continue;
-      const k = chordKey(core);
-      if (!seen.has(k)) { seen.add(k); out.push(core); }
+      const cores = !core ? [] : parseChord(core) ? [core] : (chordSequence(core) || []).filter((_, i) => i % 2 === 0);
+      for (const c of cores) {
+        const k = chordKey(c);
+        if (!seen.has(k)) { seen.add(k); out.push(c); }
+      }
     }
   }
   return out;

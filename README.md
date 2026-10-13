@@ -660,7 +660,18 @@ En Inicio, **Crear nueva misa** abre un diálogo de tres pasos (sección «CREAR
 
 En el menú, junto a **Pantalla**, el botón **Editor** abre el editor. Mientras suena un cancionero de misa
 que la cuenta puede editar, dice **Modificar en editor** (en el color de acento) y lo abre en la canción que
-suena (`/editor/?misa=<id>&foco=<momento>.<canción>`): ahí se cambian tonos, letras y canciones.
+suena (`/editor/?misa=<id>&foco=<momento>.<canción>`): ahí se cambian tonos, letras y canciones. Con otra
+canción sonando (una lista, una misa sin permiso, la Biblioteca) dice **Editar esta canción** y la abre como
+vista previa en modo Editar (`/editor/?cancion=<id>&tono=<semitonos>`, `ytmAbrirParaEditar`), traspuesta al
+tono de Sonando; si ya estaba en el cancionero del editor, abre su pestaña. Al abrir se limpia la URL.
+
+### Tono en Sonando
+
+Bajo el título de la canción que suena: **Tono − NOMBRE +** (en latino, con «m» si es menor) cambia de a medio
+tono la letra y los acordes sin cortar el audio ni perder la línea que se está leyendo (también en Escenario,
+las partituras y el TV conectado, con la orden `tono`). **Tono original** vuelve al tono con que llegó la
+canción (`item.tonoBase`). El cambio queda **solo en este equipo**: en la cola guardada (Sonando) y, si es una
+de Mis listas, en la lista; el cancionero de misa del servidor no se toca. Sin acordes detectados no aparece.
 
 ### Cambiar una canción en un cancionero ya hecho (emergencias)
 

@@ -382,6 +382,12 @@ a.rp-pestana[hidden] { display: none; }
 .rp-titulo { font-size: 32px; font-weight: 700; line-height: 1.2; margin: 4px 0 2px; overflow-wrap: anywhere; }
 .rp-donde { margin: 0 0 14px; color: var(--rp-suave); font-size: 14px; }
 .rp-ajustes { display: flex; flex-wrap: wrap; gap: 8px; }
+.rp-tono { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: -6px 0 12px; }
+.rp-tono[hidden] { display: none; }
+.rp-tono-rotulo { color: var(--rp-suave); font-size: 14px; }
+.rp-tono-btn { width: 34px; height: 34px; border: 1px solid var(--rp-linea); font-size: 1.15rem; }
+.rp-tono-nombre { min-width: 4.5ch; text-align: center; color: var(--rp-acento); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.rp-tono-nota { flex-basis: 100%; color: var(--rp-suave); font-size: 12px; }
 
 .rp-extras { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; min-width: 0; }
 .rp-extras:not(:has(> :not([hidden]):not(:empty))) { display: none; }

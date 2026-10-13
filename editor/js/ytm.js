@@ -383,6 +383,39 @@ async function ytmEscuchar(id, tocar = true) {
   if (tocar) ytmTocar();
 }
 
+// Desde «Editar esta canción» del reproductor (/editor/?cancion=<id>&tono=<semitonos>): la canción que suena,
+// como vista previa (o su pestaña si ya está en el cancionero), en el tono de Sonando y lista para editar
+async function ytmAbrirParaEditar(id, tono = 0) {
+  const enCola = docs.find(d => d.bibId === id || d.mc?.cancionId === id);
+  let base;
+  try {
+    toast('Abriendo la canción…', 30000);
+    const bib = await mcDocDeBiblioteca(id);
+    toast('');
+    base = detectKey(bib.text);
+    if (enCola) {
+      previa = null;
+      switchTab(enCola.id);
+    } else {
+      if (!previa || activeId !== previa.id) ytmAntesDePrevia = activeId;
+      leaveCurrent();
+      previa = bib;
+      activate(bib.id);
+    }
+  } catch (e) {
+    mcError('No se pudo abrir la canción', e);
+    return;
+  }
+  setMode('edit');
+  ytmIrA('cancionero');
+  const actual = detectKey(editor.value);
+  if (!base || !actual) return;
+  const destino = mod12(base.idx + tono);
+  if (actual.idx === destino) return;
+  transposeTo(destino);
+  toast(`En el tono de Sonando (${keyLabel({ idx: destino, minor: actual.minor })}). Si la guardas en la Biblioteca, queda en este tono.`, 6000);
+}
+
 async function ytmAgregar(id) {
   if (docs.some(d => d.bibId === id || d.mc?.cancionId === id)) { toast('Ya está en el cancionero'); return; }
   syncFromEditor();

@@ -47,9 +47,19 @@ function splitPunct(tok) {
   return m ? [m[1], m[2], m[3]] : ['', tok, ''];
 }
 
+// Acordes unidos con guiones («DO-FA-SOL-FA»): las partes, con los guiones en las posiciones impares.
+// «la-la-la» (todas iguales) es letra cantada, no acordes.
+function chordSequence(core) {
+  if (!core || !core.includes('-') || CHORD_RE.test(core)) return null;
+  const parts = core.split(/(-+)/);
+  const chords = parts.filter((_, i) => i % 2 === 0);
+  if (chords.length < 2 || !chords.every(p => p && CHORD_RE.test(p))) return null;
+  return new Set(chords.map(p => p.toLowerCase())).size > 1 ? parts : null;
+}
+
 function isChordToken(tok) {
   const core = splitPunct(tok)[1];
-  return !!core && CHORD_RE.test(core);
+  return !!core && (CHORD_RE.test(core) || !!chordSequence(core));
 }
 
 function noteIndex(root, acc) {
@@ -79,7 +89,9 @@ function renderNote(root, acc, semis, flats, targetLatin) {
 function mapChordToken(tok, fn) {
   const [pre, core, post] = splitPunct(tok);
   const c = core && parseChord(core);
-  return c ? pre + fn(c) + post : tok;
+  if (c) return pre + fn(c) + post;
+  const seq = chordSequence(core);
+  return seq ? pre + seq.map((p, i) => i % 2 ? p : fn(parseChord(p))).join('') + post : tok;
 }
 
 function transposeToken(tok, semis, flats) {
@@ -202,7 +214,8 @@ function detectKey(text) {
   for (const line of text.split('\n')) {
     if (!isChordLine(line)) continue;
     for (const tok of line.trim().split(/\s+/)) {
-      const core = splitPunct(tok)[1];
+      let core = splitPunct(tok)[1];
+      if (core && !parseChord(core)) core = chordSequence(core)?.[0];
       const c = core && parseChord(core);
       if (c) return { idx: noteIndex(c.root, c.acc), minor: isMinorQuality(c.mqual), chord: core };
     }

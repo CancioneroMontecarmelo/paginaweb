@@ -751,11 +751,16 @@ function init() {
   if (state.cancioneroClean == null) state.cancioneroClean = bookSignature();
   // Cancionero que llega de Misas («Editar en el editor») o del botón «Editar» de un .html compartido.
   // Si no hay nada abierto se empieza en Inicio, con la música de la parroquia
-  const driveId = MC_PARAMS.get('drive'), misaId = MC_PARAMS.get('misa');
+  // La canción que suena en el reproductor («Editar esta canción»)
+  const driveId = MC_PARAMS.get('drive'), misaId = MC_PARAMS.get('misa'), cancionId = MC_PARAMS.get('cancion');
   const compartido = location.hash.startsWith(SHARE_HASH);
-  ytmIrA(bookSongs().length || compartido || driveId || misaId ? 'cancionero' : 'inicio');
+  ytmIrA(bookSongs().length || compartido || driveId || misaId || cancionId ? 'cancionero' : 'inicio');
   if (compartido) openSharedFromHash();
   else if (misaId) mcAbrirMisaDeUrl(misaId, MC_PARAMS.get('foco'));
+  else if (cancionId) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    ytmAbrirParaEditar(cancionId, Math.round(+MC_PARAMS.get('tono') || 0));
+  }
   else if (driveId) driveOpenFolder(driveId);
   relinkAll().then(() => refresh());
   driveInit();

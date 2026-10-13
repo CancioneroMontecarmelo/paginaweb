@@ -4,7 +4,7 @@
 // reproductor) y los archivos comunes (/css, /js, /editor/js, /icons): ni el servidor (/api), ni las demás páginas,
 // ni YouTube, ni los audios.
 
-const CACHE = 'mc-app-5';
+const CACHE = 'mc-app-6';
 const NET_TIMEOUT = 3000;
 const SHELL = [
   '/', '/app.webmanifest', '/js/config.js?v=2',
