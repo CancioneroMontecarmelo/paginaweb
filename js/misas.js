@@ -25,7 +25,7 @@ import { crearReproductorYT, esYoutube } from "./youtube-embed.js";
 import {
   MOMENTOS_MISA, TIEMPOS, claveMomento, esDelMomento, momentoPorLetra, ordenMomento, hoyIso, proximoDomingo, fechaLarga,
   tituloLiturgico, tiempoPorFecha, momentosDeMisa, sugerirCantos as sugerirDeLaBiblioteca,
-  fechaEscrita, calendarioLiturgico, nombreDelDia, evitadosDelMes, CELEBRACIONES, celebracionDelDia, posicionMomento
+  fechaEscrita, calendarioLiturgico, nombreDelDia, evitadosDelMes, celebracionesPorGrupo, celebracionDelDia, posicionMomento
 } from "./liturgia.js";
 import { momentosHabituales, ponerHabituales, gruposDeMomentos, opcionesMomento, crearMomento } from "./momento-nuevo.js";
 
@@ -227,6 +227,9 @@ function momentosHtml() {
   const grupos = ed ? gruposDeMomentos(a.momentos, { habituales: momentosHabituales(st.misas, a.comunidad), celebracion: a.celebracion }) : [];
   return `<ul class="momentos">${items || '<li class="aviso">Sin momentos.</li>'}</ul>
     ${ed ? `<div class="momento-agregar"><select id="nuevo-momento" aria-label="Agregar momento">${opcionesMomento(grupos)}</select></div>` : ""}
+    ${ed ? coroDeMisaHtml(a) : ""}
+    ${publicadaHtml(a)}
+    <div class="misa-pie">
     <div class="misa-acciones">
       <button type="button" class="btn-chico btn-atril" data-accion="atril" title="Abre las canciones de este cancionero en el atril del editor, en una pestaña nueva">▶ Atril</button>
       ${ed && !a.borrador ? '<button type="button" class="btn-chico btn-atril" data-accion="editar-editor" title="Abre este cancionero en el editor, en la canción que estás mirando, para cambiar el tono, la cejilla o las velocidades">✎ Editar en el editor</button>' : ""}
@@ -237,8 +240,8 @@ function momentosHtml() {
       ${ed && sucio() && !a.borrador ? '<button type="button" class="btn-chico" data-accion="descartar">Descartar cambios</button>' : ""}
       <button type="button" class="btn-chico" data-accion="cerrar">${a.borrador ? "Descartar" : "Cerrar"}</button>
     </div>
-    ${publicadaHtml(a)}
-    ${ed ? `<button type="button" class="btn btn-primario btn-publicar" data-accion="publicar">${a.drive ? sucio() ? "Publicar cambios" : "Publicar de nuevo" : "Publicar"}</button>` : ""}`;
+    ${ed ? `<button type="button" class="btn btn-primario btn-publicar" data-accion="publicar">${a.drive ? sucio() ? "Publicar cambios" : "Publicar de nuevo" : "Publicar"}</button>` : ""}
+    </div>`;
 }
 
 function publicadaHtml(a) {
@@ -1226,7 +1229,9 @@ function abrirNuevo({ editar = false, fecha = "" } = {}) {
   $("#n-comunidad").innerHTML = (pre ? "" : '<option value="">Elegí la comunidad</option>') +
     opciones(comunidades.map((c) => [c.slug, c.nombre]), pre);
   $("#n-comunidad-caja").hidden = comunidades.length === 1 && !!pre;
-  $("#n-celebracion").innerHTML = opciones([["", "Misa del día"], ...CELEBRACIONES.map((c) => [c.id, c.nombre])], a?.celebracion || "");
+  const cel = a?.celebracion || "";
+  $("#n-celebracion").innerHTML = `<optgroup label="Misa">${opciones([["", "Misa del día"]], cel)}</optgroup>` +
+    celebracionesPorGrupo().map(([g, l]) => `<optgroup label="${esc(g)}">${opciones(l.map((c) => [c.id, c.nombre]), cel)}</optgroup>`).join("");
   $("#n-intencion").value = a?.intencion || "";
   nuevo.celTocada = editar;
   nuevo.habituales = [];
@@ -1532,12 +1537,60 @@ function pintarCoroSelect() {
 }
 
 const coroElegido = () => (st.coros || []).find((c) => c.id === $("#g-coro").value) || null;
+const activosDe = (coro) => coro.integrantes.filter((p) => p.activo !== false);
+// cantan: ids guardados en los ensayos del cancionero; sin la lista cantan todos los activos
+const quienesCantan = (coro, cantan) => cantan ? activosDe(coro).filter((p) => cantan.includes(p.id)) : activosDe(coro);
+
+// «Coro: Nombre · 8 cantan» del cancionero abierto (lo de quiénes cantan es privado: se lee con los ensayos)
+const cantanDe = new Map();
+const pidiendoCantan = new Set();
+
+function coroDeMisaHtml(a) {
+  if (!a.coroId || a.borrador) return "";
+  if (!st.coros || !cantanDe.has(a.id)) {
+    if (!pidiendoCantan.has(a.id)) {
+      pidiendoCantan.add(a.id);
+      Promise.all([cargarCoros(), llamarApi("leerEnsayos", { token: token(), id: a.id })])
+        .then(([, r]) => { cantanDe.set(a.id, r.ensayos?.cantan || null); if (st.actual?.id === a.id) pintarMisas(); })
+        .catch(() => {});
+    }
+    return "";
+  }
+  const coro = st.coros.find((c) => c.id === a.coroId);
+  if (!coro) return "";
+  const n = quienesCantan(coro, cantanDe.get(a.id)).length;
+  return `<p class="misa-coro">Coro: ${esc(coro.nombre)} · ${n} ${n === 1 ? "canta" : "cantan"}</p>`;
+}
+
+function contarCantan() {
+  const coro = coroElegido();
+  if (!coro || !ensayos) return;
+  const marcados = [...$("#g-cantan").querySelectorAll("input:checked")].map((i) => i.value);
+  const total = activosDe(coro).length;
+  if (marcados.length === total) delete ensayos.cantan;
+  else ensayos.cantan = marcados;
+  $("#g-cantan-cuenta").textContent = total ? `${marcados.length} de ${total} cantan` : "";
+}
+
+function pintarCantan() {
+  const coro = coroElegido();
+  $("#g-cantan-caja").hidden = !coro;
+  if (!coro) return;
+  const lista = activosDe(coro);
+  const cantan = new Set(quienesCantan(coro, ensayos.cantan).map((p) => p.id));
+  $("#g-cantan").innerHTML = lista.map((p) =>
+    `<label><input type="checkbox" value="${esc(p.id)}" data-campo="canta"${cantan.has(p.id) ? " checked" : ""}> ${esc(p.nombre)}${p.voz ? ` <small>${esc(VOCES[p.voz] || p.voz)}</small>` : ""}</label>`).join("")
+    || '<p class="aviso">El coro no tiene integrantes cargados.</p>';
+  $("#g-cantan-todos").hidden = $("#g-cantan-ninguno").hidden = !lista.length;
+  contarCantan();
+}
 
 function pintarEnsayos() {
   const privado = !!ensayos;
   $("#g-privado").hidden = !privado;
   $("#g-privado-aviso").hidden = privado;
   if (!privado) return;
+  pintarCantan();
   $("#g-posibles").innerHTML = ensayos.fechasPosibles.map((f, i) =>
     `<span class="fecha-chip"><input type="date" value="${esc(f)}" data-posible="${i}" aria-label="Fecha posible de ensayo">` +
     `<button type="button" class="quitar" data-quitar-posible="${i}" title="Quitar fecha">×</button></span>`).join("") ||
@@ -1547,9 +1600,11 @@ function pintarEnsayos() {
   $("#g-ayuda-asistencia").textContent = coro
     ? `Marcá quiénes de «${coro.nombre}» estuvieron presentes en cada ensayo.`
     : "Elegí el coro arriba para marcar la asistencia de sus integrantes.";
+  const cantan = new Set(coro ? quienesCantan(coro, ensayos.cantan).map((p) => p.id) : []);
   $("#g-realizados").innerHTML = ensayos.realizados.map((r, i) => {
     const presentes = new Set(r.presentes);
-    const integrantes = coro ? coro.integrantes.filter((p) => p.activo !== false || presentes.has(p.id)) : [];
+    const integrantes = coro ? coro.integrantes.filter((p) => p.activo !== false || presentes.has(p.id))
+      .sort((x, y) => cantan.has(y.id) - cantan.has(x.id)) : [];
     const cuenta = coro ? `${integrantes.filter((p) => presentes.has(p.id)).length} de ${integrantes.length} presentes` : "";
     return `<div class="ensayo" data-ensayo="${i}">
       <div class="ensayo-cabeza">
@@ -1626,6 +1681,7 @@ async function guardarCancionero(e) {
       momentos: a.momentos
     };
     const r = await llamarApi("guardarMisa", { token: token(), misa, ensayos: ensayos || undefined });
+    if (ensayos) cantanDe.set(r.misa.id, ensayos.cantan || null);
     $("#dlg-guardar").close();
     await aplicarMisaGuardada(r.misa);
     avisar(`Se guardó «${r.misa.nombre}».`);
@@ -1677,8 +1733,17 @@ async function borrarCancionero() {
 function conectarGuardar() {
   $("#form-guardar").addEventListener("submit", guardarCancionero);
   $("#g-borrar").addEventListener("click", borrarCancionero);
-  $("#g-comunidad").addEventListener("change", () => { pintarCoroSelect(); pintarEnsayos(); });
-  $("#g-coro").addEventListener("change", pintarEnsayos);
+  // Otro coro: cantan todos sus integrantes hasta que se desmarque a alguien
+  const otroCoro = (antes) => { if (ensayos && $("#g-coro").value !== antes) delete ensayos.cantan; pintarEnsayos(); };
+  $("#g-comunidad").addEventListener("change", () => { const antes = $("#g-coro").value; pintarCoroSelect(); otroCoro(antes); });
+  $("#g-coro").addEventListener("change", () => otroCoro(null));
+  for (const [id, marcar] of [["#g-cantan-todos", true], ["#g-cantan-ninguno", false]]) {
+    $(id).addEventListener("click", () => {
+      $("#g-cantan").querySelectorAll("input").forEach((i) => { i.checked = marcar; });
+      contarCantan();
+      pintarEnsayos();
+    });
+  }
   $("#g-agregar-posible").addEventListener("click", () => {
     const ultima = ensayos.fechasPosibles[ensayos.fechasPosibles.length - 1];
     ensayos.fechasPosibles.push(ultima || hoyIso(1));
@@ -1705,6 +1770,7 @@ function conectarGuardar() {
   });
   privado.addEventListener("change", (e) => {
     const t = e.target;
+    if (t.dataset.campo === "canta") return contarCantan();
     if (t.dataset.posible != null) {
       ensayos.fechasPosibles[+t.dataset.posible] = t.value;
       return;

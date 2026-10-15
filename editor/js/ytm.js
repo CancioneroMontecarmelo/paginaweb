@@ -139,15 +139,16 @@ function ytmTarjeta(c, extra = '') {
   </div>`;
 }
 
-function ytmTarjetaMisa(m, lit) {
+function ytmTarjetaMisa(m, lit, cel = null) {
   const tiempo = m.tiempoLiturgico || lit.tiempoPorFecha(m.fechaUso);
   const color = COLOR_LITURGICO[lit.colorPorTiempo(tiempo)] || '#455a64';
   const n = m.momentos.reduce((s, x) => s + x.canciones.length, 0);
   const id = escapeHtml(m.id);
+  const titulo = cel ? cel.nombre + (m.intencion ? ': ' + m.intencion : '') : m.nombre || 'Cancionero de misa';
   return `<div class="tarjeta tarjeta-misa">
-    <div class="tarjeta-cara"><span class="cara grande cara-misa" style="--cara:${color}">${icono('iglesia')}<small>${escapeHtml(tiempo)}</small></span>
+    <div class="tarjeta-cara"><span class="cara grande cara-misa" style="--cara:${color}">${icono('iglesia')}<small>${escapeHtml(cel ? cel.nombre : tiempo)}</small></span>
       <button type="button" class="tarjeta-play" data-misa-abrir="${id}" title="Abrir en el cancionero">${icono('play')}</button></div>
-    <button type="button" class="tarjeta-titulo" data-misa-abrir="${id}">${escapeHtml(m.nombre || 'Cancionero de misa')}</button>
+    <button type="button" class="tarjeta-titulo" data-misa-abrir="${id}">${escapeHtml(titulo)}</button>
     <div class="tarjeta-sub">${escapeHtml([m.comunidadNombre, m.fechaUso ? lit.fechaLarga(m.fechaUso) : '', `${n} ${n === 1 ? 'canción' : 'canciones'}`].filter(Boolean).join(' · '))}</div>
   </div>`;
 }
@@ -228,6 +229,10 @@ async function ytmPintarInicio() {
     </section>
     <div class="chips">${MOMENTOS_INICIO.map(m => `<button type="button" class="chip" data-explorar="momento|${escapeHtml(m)}">${escapeHtml(m)}</button>`).join('')}</div>`;
     html += ytmEstante('Sugeridos para el domingo', sugeridos.map(([c, m]) => ytmTarjeta(c, m)), { sobre: 'Un canto para cada momento' });
+    const ceremonia = m => lit.celebracionPorId?.(m.celebracion)?.grupo === 'sacramento';
+    const desde = lit.hoyIso(-14);
+    html += ytmEstante('Celebraciones', [...proximas, ...pasadas.filter(m => (m.fechaUso || '') >= desde)].filter(ceremonia).slice(0, 16)
+      .map(m => ytmTarjetaMisa(m, lit, lit.celebracionPorId(m.celebracion))), { sobre: 'Bautizos, primeras comuniones, matrimonios…' });
     html += ytmEstante('Cancioneros de misa', [...proximas, ...pasadas].slice(0, 16).map(m => ytmTarjetaMisa(m, lit)),
       { sobre: proximas.length ? 'Los próximos y los últimos' : 'Los últimos' });
     if (tiempo) html += ytmEstante(`Para ${/^tiempo/i.test(tiempo) ? 'el ' + tiempo.toLowerCase() : tiempo}`, delTiempo.slice(0, 24).map(c => ytmTarjeta(c)),

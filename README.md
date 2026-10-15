@@ -355,6 +355,14 @@ modificar hace falta entrar con Google con permiso de editor o superior en esa c
   para verla, compartirla y **editarla en el editor**. Publicar de nuevo reemplaza la misma página.
 - **Guardar** («Fechas y ensayos…»): nombre, fecha de uso, tiempo litúrgico, coro, fechas posibles de
   ensayo y ensayos realizados con quiénes asistieron.
+  - **Cantan en esta celebración**: al elegir el coro aparecen sus integrantes activos, todos marcados; se
+    desmarca a quien no puede ir (contador «8 de 10 cantan», **Todos** / **Ninguno**). Al cambiar de coro se
+    vuelve a marcar a todos. Se guarda en lo privado del cancionero (`ensayos.cantan`, solo lo ven quienes
+    tienen permiso en la comunidad); sin la lista cantan todos los activos. En la asistencia de cada ensayo
+    aparecen primero quienes cantan, y el cancionero abierto muestra «Coro: Nombre · 8 cantan».
+- **Guardar…** y **Publicar** quedan siempre a la vista, pegados abajo del panel del cancionero. En pantallas
+  bajas de computadora (Chromebook, notebook: hasta 760 px de alto) la cabecera no queda fija y el panel de
+  cancioneros crece con la página; los diálogos tienen sus botones pegados abajo.
 - **Coro**: abre el mismo diálogo «Coros de la comunidad» de Identificarse (`js/coros.js`, `css/coros.css`):
   nombre del coro e integrantes (correo, rol en el coro, permisos en el sitio, comunidad, fecha de
   incorporación, voz, instrumentos, lectura de partitura, nivel). Ver «Coros de la comunidad» más arriba.
@@ -397,10 +405,14 @@ diciembre, el Mes de María. +8 si calza con el tiempo y −8 si es de otro (un 
 
 ### Celebraciones y momentos propios
 
-- **Celebración** (`CELEBRACIONES` en `js/liturgia.js`; Misas → **+ Agregar nuevo** y Crear nueva misa del
-  reproductor): Bautizo, Matrimonio, Confirmación, Funeral, Misa por un difunto, Corpus Christi, Cristo Rey,
-  Sagrado Corazón, Fiesta mariana, Fiesta patronal, Aniversario sacerdotal, Renovación de votos, Consagración y
-  Bendición. Cada una pone sus momentos propios en su lugar (por ejemplo «Rito del Bautismo» después del Post
+- **Celebración** (`CELEBRACIONES` en `js/liturgia.js`, con su `grupo`; los selectores usan
+  `celebracionesDisponibles()` / `celebracionesPorGrupo()`; Misas → **+ Agregar nuevo** y Armar cancionero para
+  celebración del reproductor), agrupadas: **Misa** (Misa del día); **Sacramentos y ceremonias**: Bautizo,
+  Primera Comunión, Confirmación, Matrimonio, Renovación de votos, Funeral, Misa por un difunto, Aniversario
+  sacerdotal, Consagración y Bendición; **Fiestas**: Corpus Christi, Cristo Rey, Sagrado Corazón, Fiesta mariana y
+  Fiesta patronal. La **Primera Comunión** lleva Gloria, «Renovación de las promesas bautismales» después del Post
+  evangelio y «Primera Comunión» en lugar de la Comunión (etiquetas Primera comunión, Comunión, Eucarístico).
+  Cada una pone sus momentos propios en su lugar (por ejemplo «Rito del Bautismo» después del Post
   evangelio, «Entrada de los novios» en lugar de la Entrada, «Último adiós» antes de la Salida), lleva o no
   Gloria, y sugiere cantos por sus etiquetas y palabras. Se guarda en la misa (`celebracion`) junto con
   **Para quién** (`intencion`).
@@ -575,8 +587,8 @@ scripts/video-a-webm.py ensayo.mov --sin-subir --salida ~/Música/m4a      # sol
 ## Reproductor (`reproductor.html`)
 
 Escuchar las canciones de la Biblioteca con su letra, en el celular o en la computadora, sin iniciar
-sesión. Oscuro por defecto (**Colores** cambia el tema). Lo hace `js/reproductor.js` con los mismos scripts
-del editor que usa Misas; todo son lecturas públicas de `/api`.
+sesión. Claro por defecto (tema **Litúrgico**, con el color litúrgico de hoy; **Configuración** cambia el
+tema). Lo hace `js/reproductor.js` con los mismos scripts del editor que usa Misas; todo son lecturas públicas de `/api`.
 
 Tiene el aspecto del editor («YouTube Music»): el menú a la izquierda (abajo en el celular), carátulas
 (`editor/js/caratula.js`: la imagen del audio, la miniatura del video o una con el color del momento), la
@@ -584,7 +596,10 @@ cola a la derecha (en el celular sube desde el botón ≡♪ de la barra, con al
 de reproducción abajo con la carátula. El acento del tema **Noche** es el color litúrgico del próximo domingo.
 
 - **Inicio**: la página con que abre siempre (también después de identificarse). El próximo domingo (con
-  **Crear nueva misa** y **Seguir en vivo**) y estanterías: cancioneros de misa, tus listas, sugeridas para el
+  **Armar cancionero para celebración** y **Seguir en vivo**) y estanterías: **Celebraciones** (los cancioneros de
+  sacramentos y ceremonias que vienen y los de las últimas dos semanas, con la ceremonia y para quién, la fecha,
+  la comunidad y un ícono y color propios: gota para el Bautizo, cáliz para la Primera Comunión, corazón para el
+  Matrimonio…; también en el Inicio del editor), cancioneros de misa, tus listas, sugeridas para el
   domingo, las del tiempo litúrgico y las de cada momento; la última es **Canto a María**, ordenada según el
   tiempo (villancicos en Navidad, la Dolorosa en Cuaresma…). Tocar una tarjeta hace sonar esa estantería desde
   esa canción.
@@ -615,8 +630,19 @@ de reproducción abajo con la carátula. El acento del tema **Noche** es el colo
   mezcla) y **esta canción** (↻1, vuelve a sonar). Quedan guardados en el equipo (`mc-rp-aleatorio`, `mc-rp-repetir`).
 - Si un video o un audio no se puede reproducir (YouTube no lo permite, el archivo o el enlace fallan),
   avisa **No disponible: pasando a la siguiente** y sigue; se detiene si ya probó toda la cola sin éxito.
-- **Colores**: seis temas (Noche, Día, Carmelo, Mariano, Litúrgico y Penitencial) y un **color de acento**
-  propio para botones y acordes, con **Restablecer**. Quedan en el equipo (`mc-rp-tema`, `mc-rp-acento`).
+- **Configuración** (en el menú, debajo de **En vivo**; en el celular **Ajustes**): **Colores** y **Letra**
+  (A− / A+ y Letra y acordes / Solo letra).
+  - Seis temas: **Litúrgico** (el predeterminado, claro), Noche, Día, Carmelo, Mariano y Penitencial, y un
+    **color de acento** propio para botones y acordes, con **Usar el color del tema**. Quedan en el equipo
+    (`mc-rp-tema`, `mc-rp-acento`, `mc-rp-letra`): cada celular puede tener los suyos.
+  - **Litúrgico** toma el color litúrgico **de hoy** (verde, morado, rojo, blanco —en dorado— o rosado) para el
+    acento y un tinte suave del fondo: primero por la fiesta o el tiempo (`colorDelDia` en `js/liturgia.js`), y
+    si las lecturas del día dicen su color, ese. Queda guardado para el día (`mc-rp-color-dia`), así la página
+    abre ya con el color. Un acento propio tiene prioridad. **Noche** sigue con el color del próximo domingo;
+    TV y Escenario siguen en negro.
+- **¿Por qué no se ve igual en todos los celulares?** Los colores y el tamaño de letra se guardan en cada
+  equipo; además cambian el tamaño de la pantalla, la letra y el zoom del teléfono, el modo oscuro forzado de
+  algunos navegadores (Samsung Internet) y si es la app instalada o el navegador con una versión vieja guardada.
 - Los audios suenan directo desde `/api/audio/<id>`, asignados en el mismo toque (así también suenan en
   iPhone); el navegador los guarda en su caché. Precarga la letra de la canción siguiente; las canciones
   sin audio no se saltan solas, para poder cantarlas. Si un audio sigue
@@ -634,12 +660,14 @@ de reproducción abajo con la carátula. El acento del tema **Noche** es el colo
   video) y la pantalla no se apaga mientras se lee la letra (Wake Lock, donde exista). La música sigue
   sonando al cambiar de pestaña o de app; al volver, la barra se pone al día.
 
-### Crear nueva misa
+### Armar cancionero para celebración
 
-En Inicio, **Crear nueva misa** abre un diálogo de tres pasos (sección «CREAR NUEVA MISA» de `js/reproductor.js`):
+En Inicio, **Armar cancionero para celebración** (antes «Crear nueva misa») abre un diálogo de tres pasos
+(sección «CREAR NUEVA MISA» de `js/reproductor.js`):
 
 1. **Fecha**: por defecto el próximo domingo; muestra el nombre litúrgico del día, el tiempo y su color.
-   **Celebración**: Misa del día o una de las de la lista (ver «Celebraciones y momentos propios»); Corpus,
+   **Celebración**, agrupada: **Misa** (Misa del día), **Sacramentos y ceremonias** y **Fiestas** (ver
+   «Celebraciones y momentos propios»); Corpus,
    Cristo Rey, Sagrado Corazón y las fiestas de la Virgen se proponen solas según las lecturas. **Para quién**
    (opcional) va al nombre del cancionero y queda como `intencion`. Si la comunidad donde se va a guardar
    suele agregar momentos propios (saludo a los cumpleañeros, bienvenida a los nuevos…), aparecen marcados.
@@ -659,8 +687,10 @@ En Inicio, **Crear nueva misa** abre un diálogo de tres pasos (sección «CREAR
    ese equipo. Si se elige otra comunidad y esa suele agregar otros momentos, avisa y ofrece **Agregarlos**.
 
 En el menú, junto a **Pantalla**, el botón **Editor** abre el editor. Mientras suena un cancionero de misa
-que la cuenta puede editar, dice **Modificar en editor** (en el color de acento) y lo abre en la canción que
-suena (`/editor/?misa=<id>&foco=<momento>.<canción>`): ahí se cambian tonos, letras y canciones. Con otra
+que la cuenta puede editar, dice **Editar esta canción** (en el color de acento) y abre el cancionero en el
+editor, en modo **Editar**, en la canción que suena y en el tono de Sonando
+(`/editor/?misa=<id>&foco=<momento>.<canción>&editar=1&tono=<semitonos sobre el de la misa>`,
+`mcAbrirMisaDeUrl` → `mcEditarEnTono`); **Guardar en la misa** deja el cambio para todo el coro. Con otra
 canción sonando (una lista, una misa sin permiso, la Biblioteca) dice **Editar esta canción** y la abre como
 vista previa en modo Editar (`/editor/?cancion=<id>&tono=<semitonos>`, `ytmAbrirParaEditar`), traspuesta al
 tono de Sonando; si ya estaba en el cancionero del editor, abre su pestaña. Al abrir se limpia la URL.

@@ -516,6 +516,25 @@
   margin: 0 0 0.75rem 0.55rem;
 }
 
+.misa-pie {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 0 -0.6rem;
+  padding: 0.55rem 0.6rem 0.05rem;
+  background: rgba(255, 254, 249, 0.97);
+  border-top: 1px solid var(--borde);
+  box-shadow: 0 -6px 14px rgba(42, 36, 28, 0.07);
+}
+
+.misa-pie .misa-acciones {
+  margin-bottom: 0.5rem;
+}
+
+.misa-pie .btn-publicar {
+  margin-bottom: 0.55rem;
+}
+
 .btn-chico.importante {
   background: var(--terracota);
   border-color: var(--terracota);
@@ -814,6 +833,7 @@
 .dlg-misas {
   width: min(44rem, 96vw);
   max-height: 92vh;
+  max-height: 92dvh;
   padding: 0;
   border: none;
   border-radius: 0.5rem;
@@ -964,6 +984,27 @@
   color: var(--texto-suave);
 }
 
+.dlg-h3 .cuenta {
+  margin-left: 0.4rem;
+  font-family: var(--fuente-texto, inherit);
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--texto-suave);
+}
+
+.cantan-ayuda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.misa-coro {
+  margin: 0 0 0.6rem 0.55rem;
+  font-size: 0.82rem;
+  color: var(--texto-suave);
+}
+
 .ensayo textarea {
   width: 100%;
   min-height: 2.4rem;
@@ -976,6 +1017,16 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 1.2rem;
+}
+
+.dlg-misas .dlg-acciones {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 1.2rem -1.2rem -1.2rem;
+  padding: 0.7rem 1.2rem;
+  background: var(--crema-clara);
+  border-top: 1px solid var(--borde);
 }
 
 .dlg-acciones .espacio {
@@ -1493,6 +1544,28 @@
 .misas-toast.visible {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+/* ============ PC CON PANTALLA BAJA (Chromebook, notebook) ============ */
+@media (min-width: 961px) and (max-height: 760px) {
+  .misas-cabecera {
+    position: static;
+  }
+
+  .panel-flotante {
+    top: calc(var(--nav-h) + 0.5rem);
+    max-height: calc(100dvh - var(--nav-h) - 1rem);
+  }
+
+  .panel-cancioneros {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .panel-cancioneros .panel-cuerpo {
+    overflow: visible;
+  }
 }
 
 /* ============ CELULAR: paneles como cajones ============ */

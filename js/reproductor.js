@@ -65,7 +65,14 @@ const ICONOS = {
   iglesia: "M18 12.22V9l-5-2.5V5h2V3h-2V1h-2v2H9v2h2v1.5L6 9v3.22L2 14v8h8v-3c0-1.1.9-2 2-2s2 .9 2 2v3h8v-8l-4-1.78zM12 13.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z",
   escenario: "M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z",
   pantalla: "M21 3H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11z",
-  qr: "M9.5 6.5v3h-3v-3h3M11 5H5v6h6V5zm-1.5 9.5v3h-3v-3h3M11 13H5v6h6v-6zm6.5-6.5v3h-3v-3h3M19 5h-6v6h6V5zm-6 8h1.5v1.5H13V13zm1.5 1.5H16V16h-1.5v-1.5zM16 13h1.5v1.5H16V13zm-3 3h1.5v1.5H13V16zm1.5 1.5H16V19h-1.5v-1.5zM16 16h1.5v1.5H16V16zm1.5-1.5H19V16h-1.5v-1.5zm0 3H19V19h-1.5v-1.5zM22 7h-2V4h-3V2h5v5zm0 15v-5h-2v3h-3v2h5zM2 22h5v-2H4v-3H2v5zM2 2v5h2V4h3V2H2z"
+  config: "M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z",
+  qr: "M9.5 6.5v3h-3v-3h3M11 5H5v6h6V5zm-1.5 9.5v3h-3v-3h3M11 13H5v6h6v-6zm6.5-6.5v3h-3v-3h3M19 5h-6v6h6V5zm-6 8h1.5v1.5H13V13zm1.5 1.5H16V16h-1.5v-1.5zM16 13h1.5v1.5H16V13zm-3 3h1.5v1.5H13V16zm1.5 1.5H16V19h-1.5v-1.5zM16 16h1.5v1.5H16V16zm1.5-1.5H19V16h-1.5v-1.5zm0 3H19V19h-1.5v-1.5zM22 7h-2V4h-3V2h5v5zm0 15v-5h-2v3h-3v2h5zM2 22h5v-2H4v-3H2v5zM2 2v5h2V4h3V2H2z",
+  gota: "M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8z",
+  caliz: "M12 1.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM6 8h12c0 3.6-2.2 6.3-5 6.9V19h3v2.5H8V19h3v-4.1C8.2 14.3 6 11.6 6 8z",
+  llama: "M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z",
+  corazon: "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z",
+  cruz: "M10 2h4v6h6v4h-6v10h-4V12H4V8h6z",
+  estrella: "M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
 };
 const icono = (n) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONOS[n]}"/></svg>`;
 const ponerIconos = () => document.querySelectorAll("[data-ico]").forEach((e) => {
@@ -84,6 +91,17 @@ document.documentElement.style.setProperty("--rp-liturgico", acentoLiturgico);
 // Carátula de una canción de la Biblioteca (editor/js/caratula.js)
 const cara = (c, clase = "", momento = "") => caraHtml({ titulo: c?.titulo, etiquetas: c?.etiquetas, audios: c?.audios, momento }, clase);
 const caraMisa = (m, clase = "") => `<span class="cara ${clase} cara-misa" style="--cara:${colorDeMisa(m)}" aria-hidden="true">${icono("iglesia")}</span>`;
+const CARA_CELEBRACION = {
+  bautizo: ["gota", "#2f7fb8"], "primera-comunion": ["caliz", "#b08a1e"], confirmacion: ["llama", "#c0392b"],
+  matrimonio: ["corazon", "#c2185b"], "renovacion-votos": ["corazon", "#ad5a83"], funeral: ["cruz", "#5d4a6e"],
+  difunto: ["cruz", "#6e6478"], "aniversario-sacerdotal": ["iglesia", "#8a6d1e"], consagracion: ["estrella", "#6b3fa0"],
+  bendicion: ["estrella", "#2f6b3a"], corpus: ["caliz", "#c9a227"], "cristo-rey": ["estrella", "#b3261e"],
+  "sagrado-corazon": ["corazon", "#b3261e"], mariana: ["estrella", "#3b6db3"], patronal: ["iglesia", "#9a4f2e"]
+};
+const caraCelebracion = (m, clase = "") => {
+  const [ico, color] = CARA_CELEBRACION[m.celebracion] || ["iglesia", colorDeMisa(m)];
+  return `<span class="cara ${clase} cara-misa" style="--cara:${color}" aria-hidden="true">${icono(ico)}</span>`;
+};
 const caraLista = (l, clase = "") => `<span class="cara ${clase} cara-misa" style="--cara:${caraColor([], l.nombre)}" aria-hidden="true">${icono("cola")}</span>`;
 const audio = $("#rp-audio");
 const reloj = (s) => {
@@ -336,7 +354,7 @@ async function pintarInicio() {
       else inicioViejo = true;
     });
   }
-  $("#rp-portada-acciones").innerHTML = `<button type="button" class="rp-btn rp-btn-claro" data-crear-misa="1">${icono("agregar")} Crear nueva misa</button>`
+  $("#rp-portada-acciones").innerHTML = `<button type="button" class="rp-btn rp-btn-claro" data-crear-misa="1">${icono("agregar")} Armar cancionero para celebración</button>`
     + `<button type="button" class="rp-btn" data-ir="vivo">${icono("vivo")} Seguir en vivo</button>`;
   const misas = (await todasLasMisas()).filter(cuantas);
 
@@ -354,7 +372,16 @@ async function pintarInicio() {
   const hoy = lit.hoyIso();
   const proximas = misas.filter((m) => (m.fechaUso || "") >= hoy).sort((a, b) => a.fechaUso.localeCompare(b.fechaUso));
   const pasadas = misas.filter((m) => !proximas.includes(m)).sort((a, b) => String(b.fechaUso || "").localeCompare(String(a.fechaUso || "")));
-  let html = estante("Cancioneros de misa", "Para escuchar y ensayar", [...proximas, ...pasadas].slice(0, 20).map((m) => {
+  // Bautizos, matrimonios, primeras comuniones…: los que vienen y los de las últimas dos semanas
+  const desde = lit.hoyIso(-14);
+  const ceremonia = (m) => lit.celebracionPorId(m.celebracion)?.grupo === "sacramento";
+  let html = estante("Celebraciones", "Lo que se cantará en cada una", [...proximas, ...pasadas.filter((m) => (m.fechaUso || "") >= desde)]
+    .filter(ceremonia).slice(0, 20).map((m) => {
+      const cel = lit.celebracionPorId(m.celebracion);
+      return tarjeta(caraCelebracion(m, "grande"), `data-misa="${esc(m.id)}"`, cel.nombre + (m.intencion ? ": " + m.intencion : ""),
+        [fechaCorta(m.fechaUso), nombreComunidad(m.comunidad)].filter(Boolean).join(" · "));
+    }));
+  html += estante("Cancioneros de misa", "Para escuchar y ensayar", [...proximas, ...pasadas].slice(0, 20).map((m) => {
     const n = cuantas(m);
     return tarjeta(caraMisa(m, "grande"), `data-misa="${esc(m.id)}"`, m.nombre || "Cancionero de misa",
       [nombreComunidad(m.comunidad), fechaCorta(m.fechaUso), n + (n === 1 ? " canción" : " canciones")].filter(Boolean).join(" · "));
@@ -649,14 +676,17 @@ function pintarBotonEditor() {
   b.hidden = tv;
   const it = c && !tv ? c.items[st.indice] : null;
   const misa = !!it && c.tipo === "misa" && !!c.misaId && puedeEditar(c.comunidad);
+  const dif = it ? (((it.desplazamiento || 0) - (it.tonoBase ?? (it.desplazamiento || 0))) % 12 + 12) % 12 : 0;
+  const extra = dif > 6 ? dif - 12 : dif;
   b.href = misa ? "/editor/?misa=" + encodeURIComponent(c.misaId) + (it.mi != null ? "&foco=" + it.mi + "." + it.ci : "")
+      + "&editar=1" + (extra ? "&tono=" + extra : "")
     : it ? "/editor/?cancion=" + encodeURIComponent(it.cancionId) + (it.desplazamiento ? "&tono=" + it.desplazamiento : "")
     : "/editor/";
   b.classList.toggle("con-misa", !!it);
-  b.title = misa ? "Abrir este cancionero en el editor: transponer, cambiar canciones y editar la letra"
+  b.title = misa ? "Editar la canción que suena dentro de su cancionero, en el tono de Sonando: «Guardar en la misa» lo deja para todo el coro"
     : it ? "Abrir la canción que suena en el editor, en el tono de Sonando"
     : "Editar canciones y audios, transponer, grabar, partituras y tablaturas";
-  b.querySelector(".rp-no-celular").textContent = misa ? "Modificar en editor" : it ? "Editar esta canción" : "Editor";
+  b.querySelector(".rp-no-celular").textContent = it ? "Editar esta canción" : "Editor";
 }
 
 // ============ CREAR NUEVA MISA ============
@@ -681,7 +711,8 @@ function abrirCrear() {
   $("#rp-crear-fecha").value = crear.fecha;
   const sel = $("#rp-crear-celebracion");
   if (!sel.options.length) {
-    sel.innerHTML = `<option value="">Misa del día</option>` + lit.CELEBRACIONES.map((c) => `<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join("");
+    sel.innerHTML = `<optgroup label="Misa"><option value="">Misa del día</option></optgroup>` + lit.celebracionesPorGrupo().map(([g, l]) =>
+      `<optgroup label="${esc(g)}">${l.map((c) => `<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join("")}</optgroup>`).join("");
   }
   sel.value = crear.celebracion;
   $("#rp-crear-intencion").value = crear.intencion;
@@ -2594,35 +2625,72 @@ function aplicarAjustes() {
   const soloLetra = guardado("mc-rp-acordes", "si") === "no";
   $("#rp-letra").classList.toggle("solo-letra", soloLetra);
   $("#rp-esc-letra").classList.toggle("solo-letra", soloLetra);
-  $("#rp-acordes").setAttribute("aria-pressed", !soloLetra);
-  $("#rp-acordes").textContent = soloLetra ? "Solo letra" : "Letra y acordes";
+  for (const b of [$("#rp-acordes"), $("#rp-cfg-acordes")]) {
+    b.setAttribute("aria-pressed", !soloLetra);
+    b.textContent = soloLetra ? "Solo letra" : "Letra y acordes";
+  }
   const tam = +guardado("mc-rp-letra", "18") || 18;
   document.documentElement.style.setProperty("--rp-letra", tam + "px");
+  $("#rp-cfg-tam").textContent = tam + " px";
   aplicarColores();
 }
 
 // ============ COLORES ============
 
+// Color litúrgico de hoy sobre fondo claro (tema Litúrgico): primero el calculado con el calendario y, cuando
+// llegan, el de las lecturas del día; queda guardado con la fecha para el próximo arranque
+const COLOR_CLARO = { Verde: "#2f6b3a", Morado: "#6b3fa0", Rojo: "#b3261e", Blanco: "#9a7414", Rosa: "#b4507f" };
+const HOY = lit.hoyIso();
+let colorHoy = (() => {
+  try {
+    const g = JSON.parse(guardado("mc-rp-color-dia", "null"));
+    if (g?.fecha === HOY && COLOR_CLARO[g.color]) return g.color;
+  } catch (_) { /* guardado roto */ }
+  return lit.colorDelDia(HOY);
+})();
+const fijarColorHoy = (color) => {
+  colorHoy = COLOR_CLARO[color] ? color : "Verde";
+  guardar("mc-rp-color-dia", JSON.stringify({ fecha: HOY, color: colorHoy, hex: COLOR_CLARO[colorHoy] }));
+};
+fijarColorHoy(colorHoy);
+lecturasDelDia(HOY).then((l) => {
+  const c = l && lit.colorDelDia(HOY, l);
+  if (c && c !== colorHoy) {
+    fijarColorHoy(c);
+    aplicarColores();
+  }
+}).catch(() => {});
+
+// Mezcla dos colores #rrggbb (para el color de la barra del navegador, que no entiende color-mix)
+const mezclarColor = (a, b, p) => "#" + [1, 3, 5].map((i) =>
+  Math.round(parseInt(a.substr(i, 2), 16) * p + parseInt(b.substr(i, 2), 16) * (1 - p)).toString(16).padStart(2, "0")).join("");
+
 const TEMAS = [
+  { id: "liturgico", nombre: "Litúrgico", fondo: "#f6f4ea", acento: "#2f6b3a" },
   { id: "noche", nombre: "Noche", fondo: "#030303", acento: acentoLiturgico, oscuro: true },
   { id: "dia", nombre: "Día", fondo: "#faf3e4", acento: "#9a4f2e" },
   { id: "carmelo", nombre: "Carmelo", fondo: "#241811", acento: "#d9b26a", oscuro: true },
   { id: "mariano", nombre: "Mariano", fondo: "#0e1a2e", acento: "#8fb8e8", oscuro: true },
-  { id: "liturgico", nombre: "Litúrgico", fondo: "#f3f1e7", acento: "#2f6b3a" },
   { id: "penitencial", nombre: "Penitencial", fondo: "#1a1322", acento: "#b58ad6", oscuro: true }
 ];
-const temaActual = () => TEMAS.find((t) => t.id === guardado("mc-rp-tema", "noche")) || TEMAS[0];
+const temaActual = () => TEMAS.find((t) => t.id === guardado("mc-rp-tema", "liturgico")) || TEMAS[0];
 
 function aplicarColores() {
+  const lit0 = TEMAS[0];
+  lit0.acento = COLOR_CLARO[colorHoy];
+  lit0.fondo = mezclarColor(lit0.acento, "#f6f4ea", 0.07);
   const t = temaActual(), acento = guardado("mc-rp-acento", "");
   const b = document.body;
   b.dataset.rpTema = t.id;
   b.classList.toggle("rp-oscuro", !!t.oscuro);
+  b.style.setProperty("--rp-dia", lit0.acento);
   for (const v of ["--rp-acento", "--rp-acorde"]) {
     if (acento) b.style.setProperty(v, acento);
     else b.style.removeProperty(v);
   }
   document.querySelector('meta[name="theme-color"]').content = t.fondo;
+  $("#rp-config-dia").textContent = t === lit0 && !acento
+    ? `Litúrgico usa el color de hoy: ${colorHoy === "Rosa" ? "rosado" : colorHoy.toLowerCase()}.` : "";
   $("#rp-acento-color").value = acento || t.acento;
   $("#rp-acento-restablecer").disabled = !acento;
   $("#rp-temas").innerHTML = TEMAS.map((x) =>
@@ -2852,7 +2920,7 @@ function conectar() {
     st.elegido.set(actualId(), +e.target.value);
     ordenTv("voz", { cancionId: actualId(), i: +e.target.value });
   });
-  $("#rp-acordes").addEventListener("click", () => {
+  for (const id of ["#rp-acordes", "#rp-cfg-acordes"]) $(id).addEventListener("click", () => {
     guardar("mc-rp-acordes", guardado("mc-rp-acordes", "si") === "no" ? "si" : "no");
     aplicarAjustes();
   });
@@ -2863,9 +2931,8 @@ function conectar() {
   $("#rp-tono-menos").addEventListener("click", () => cambiarTono(-1));
   $("#rp-tono-mas").addEventListener("click", () => cambiarTono(1));
   $("#rp-tono-original").addEventListener("click", restaurarTono);
-  $("#rp-menos").addEventListener("click", () => tam(-2));
-  $("#rp-mas").addEventListener("click", () => tam(2));
-  $("#rp-colores").addEventListener("click", () => $("#rp-dlg-colores").showModal());
+  for (const [id, d] of [["#rp-menos", -2], ["#rp-mas", 2], ["#rp-cfg-menos", -2], ["#rp-cfg-mas", 2]]) $(id).addEventListener("click", () => tam(d));
+  for (const id of ["#rp-colores", "#rp-config-menu"]) $(id).addEventListener("click", () => $("#rp-dlg-colores").showModal());
   $("#rp-temas").addEventListener("click", (e) => {
     const b = e.target.closest("[data-tema]");
     if (!b) return;

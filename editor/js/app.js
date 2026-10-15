@@ -756,7 +756,8 @@ function init() {
   const compartido = location.hash.startsWith(SHARE_HASH);
   ytmIrA(bookSongs().length || compartido || driveId || misaId || cancionId ? 'cancionero' : 'inicio');
   if (compartido) openSharedFromHash();
-  else if (misaId) mcAbrirMisaDeUrl(misaId, MC_PARAMS.get('foco'));
+  else if (misaId) mcAbrirMisaDeUrl(misaId, MC_PARAMS.get('foco'),
+    { editar: MC_PARAMS.get('editar') === '1', tono: Math.round(+MC_PARAMS.get('tono') || 0) });
   else if (cancionId) {
     history.replaceState(null, '', location.pathname + location.hash);
     ytmAbrirParaEditar(cancionId, Math.round(+MC_PARAMS.get('tono') || 0));

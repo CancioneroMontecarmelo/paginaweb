@@ -55,14 +55,17 @@
   --rp-acento: #8fb8e8;
   --rp-acorde: #b5d3f5;
 }
+/* Litúrgico (el predeterminado): claro, con el color litúrgico de hoy (--rp-dia, lo pone js/reproductor.js) en los
+   botones, los acordes y un tinte suave del fondo */
 .pagina-reproductor[data-rp-tema="liturgico"] {
-  --rp-fondo: #f3f1e7;
-  --rp-panel: #fcfbf5;
-  --rp-linea: rgba(47, 107, 58, 0.2);
-  --rp-texto: #1f2a1f;
-  --rp-suave: #4e5a4c;
-  --rp-acento: #2f6b3a;
-  --rp-acorde: #8a5a00;
+  --rp-dia: #2f6b3a;
+  --rp-fondo: color-mix(in srgb, var(--rp-dia) 7%, #f6f4ea);
+  --rp-panel: color-mix(in srgb, var(--rp-dia) 3%, #fdfcf7);
+  --rp-linea: color-mix(in srgb, var(--rp-dia) 22%, transparent);
+  --rp-texto: #1f261f;
+  --rp-suave: #4e564c;
+  --rp-acento: var(--rp-dia);
+  --rp-acorde: var(--rp-dia);
 }
 .pagina-reproductor[data-rp-tema="penitencial"] {
   --rp-fondo: #1a1322;
@@ -601,6 +604,7 @@ a.rp-pestana[hidden] { display: none; }
   }
   .rp-pestana.activa { background: none; color: var(--rp-texto); }
   .rp-pestana.rp-instalar { display: none !important; }
+  @media (max-width: 400px) { .rp-pestana { font-size: 9px; letter-spacing: -0.2px; } }
 
   .rp { padding: calc(var(--nav-h) + 12px) 12px calc(var(--rp-barra-h) + var(--rp-abajo) + 32px); }
   .rp-portada { padding: 20px 18px; border-radius: 12px; margin-bottom: 22px; }
@@ -813,7 +817,14 @@ body.rp-tv #rp-video { position: fixed; right: 2vw; bottom: 3vh; z-index: 160; w
   border: 1px solid rgba(128, 128, 128, 0.4);
   background: linear-gradient(135deg, var(--m-fondo) 50%, var(--m-acento) 50%);
 }
-.rp-acento-propio { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
+.rp-acento-propio { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
+.rp-config-h3 { margin: 1rem 0 0; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--rp-suave); }
+.rp-config-h3 + .rp-temas { margin-top: 0.5rem; }
+.rp-config-nota { margin: 0 0 0.6rem; font-size: 0.82rem; color: var(--rp-suave); }
+.rp-config-nota:empty { display: none; }
+.rp-config-letra { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.5rem 0 1rem; }
+.rp-config-letra b { min-width: 3.5rem; text-align: center; font-variant-numeric: tabular-nums; }
+#rp-dlg-colores { max-height: 92dvh; overflow: auto; }
 .rp-acento-propio input { width: 3rem; height: 2.2rem; padding: 0; border: 1px solid var(--rp-linea); border-radius: 0.4rem; background: none; }
 .rp-pasos { margin: 0.5rem 0 0.8rem; padding-left: 1.3rem; line-height: 1.6; }
 

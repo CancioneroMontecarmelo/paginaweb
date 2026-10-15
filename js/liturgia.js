@@ -91,47 +91,61 @@ export const ordenMomento = (nombre) => {
 // Misas que no son la del día: cada una con las etiquetas de sus cantos, si lleva Gloria (true / false; sin el campo,
 // según el día) y sus momentos propios. Cada momento propio va «despues» o «antes» de otro, o «reemplaza» uno; se le
 // sugieren los cantos con sus etiquetas o sus palabras en el título o la letra, y si no hay, los del momento «como».
+// grupo: «sacramento» (sacramentos y ceremonias) o «fiesta»; el orden de la lista es el de los selectores.
 export const CELEBRACIONES = [
-  { id: "bautizo", nombre: "Bautizo", etiquetas: ["Bautismo"], momentos: [
+  { id: "bautizo", nombre: "Bautizo", grupo: "sacramento", etiquetas: ["Bautismo"], momentos: [
     { nombre: "Rito del Bautismo", despues: "Post evangelio", palabras: ["bautismo", "agua viva", "hijos de dios", "fuente", "renacer"] },
     { nombre: "Luz bautismal", despues: "Rito del Bautismo", palabras: ["luz", "ilumina", "lampara"] }] },
-  { id: "matrimonio", nombre: "Matrimonio", gloria: true, etiquetas: ["Matrimonio"], momentos: [
+  { id: "primera-comunion", nombre: "Primera Comunión", grupo: "sacramento", gloria: true, etiquetas: ["Primera comunión", "Comunión", "Eucarístico"], momentos: [
+    { nombre: "Renovación de las promesas bautismales", despues: "Post evangelio", etiquetas: ["Bautismo"],
+      palabras: ["renuncio", "si creo", "creo en ti", "bautismo", "agua viva", "hijos de dios"] },
+    { nombre: "Primera Comunión", reemplaza: "Comunión", como: "Comunión", etiquetas: ["Primera comunión", "Comunión", "Eucarístico"],
+      palabras: ["primera comunion", "pan de vida", "cuerpo de cristo", "jesus en mi", "mi corazon"] }] },
+  { id: "confirmacion", nombre: "Confirmación", grupo: "sacramento", gloria: true, etiquetas: ["Confirmación", "Espíritu Santo"], momentos: [
+    { nombre: "Ven, Espíritu Santo (Crismación)", despues: "Post evangelio", etiquetas: ["Espíritu Santo", "Pentecostés"],
+      palabras: ["ven espiritu", "espiritu santo", "fuego", "uncion"] }] },
+  { id: "matrimonio", nombre: "Matrimonio", grupo: "sacramento", gloria: true, etiquetas: ["Matrimonio"], momentos: [
     { nombre: "Entrada de los novios", reemplaza: "Entrada", como: "Entrada", palabras: ["novios", "esposos", "boda"] },
     { nombre: "Consentimiento y anillos", despues: "Post evangelio", palabras: ["anillo", "para siempre", "esposos", "uno solo", "fiel"] },
     { nombre: "Firma del acta", despues: "Acción de gracias", palabras: ["familia", "hogar", "amor"] },
     { nombre: "Salida de los novios", reemplaza: "Salida", como: "Salida", palabras: ["alegria", "fiesta"] }] },
-  { id: "confirmacion", nombre: "Confirmación", gloria: true, etiquetas: ["Confirmación", "Espíritu Santo"], momentos: [
-    { nombre: "Ven, Espíritu Santo (Crismación)", despues: "Post evangelio", etiquetas: ["Espíritu Santo", "Pentecostés"],
-      palabras: ["ven espiritu", "espiritu santo", "fuego", "uncion"] }] },
-  { id: "funeral", nombre: "Funeral", gloria: false, etiquetas: ["Exequias", "Fieles difuntos"], momentos: [
+  { id: "renovacion-votos", nombre: "Renovación de votos", grupo: "sacramento", gloria: true, etiquetas: ["Renovación de votos", "Matrimonio"], momentos: [
+    { nombre: "Renovación de los votos", despues: "Post evangelio", palabras: ["para siempre", "esposos", "uno solo", "fiel"] },
+    { nombre: "Bendición de los esposos", antes: "Salida", palabras: ["bendice", "bendicion", "familia", "hogar"] }] },
+  { id: "funeral", nombre: "Funeral", grupo: "sacramento", gloria: false, etiquetas: ["Exequias", "Fieles difuntos"], momentos: [
     { nombre: "Último adiós", antes: "Salida", palabras: ["reciban su alma", "descanso eterno", "descansa en paz", "resurreccion", "vida eterna", "casa del padre", "no tengas miedo"] }] },
-  { id: "difunto", nombre: "Misa por un difunto", gloria: false, etiquetas: ["Fieles difuntos", "Exequias"], momentos: [
+  { id: "difunto", nombre: "Misa por un difunto", grupo: "sacramento", gloria: false, etiquetas: ["Fieles difuntos", "Exequias"], momentos: [
     { nombre: "Recuerdo del difunto", antes: "Salida", palabras: ["descanso eterno", "descansa en paz", "resurreccion", "vida eterna", "casa del padre"] }] },
-  { id: "corpus", nombre: "Corpus Christi", gloria: true, etiquetas: ["Corpus Christi", "Eucarístico", "Adoración eucarística"], momentos: [
+  { id: "aniversario-sacerdotal", nombre: "Aniversario sacerdotal", grupo: "sacramento", gloria: true, etiquetas: ["Aniversario sacerdotal", "Ordenación", "Vocacional"], momentos: [
+    { nombre: "Renovación de las promesas", despues: "Post evangelio", etiquetas: ["Vocacional", "Ordenación"], palabras: ["aqui estoy", "heme aqui", "me has seducido", "sacerdote"] },
+    { nombre: "Acción de gracias por el sacerdote", antes: "Salida", palabras: ["sacerdote", "pastor", "gracias"] }] },
+  { id: "consagracion", nombre: "Consagración", grupo: "sacramento", etiquetas: ["Consagración"], momentos: [
+    { nombre: "Rito de consagración", despues: "Post evangelio", palabras: ["me consagro", "consagro", "todo tuyo", "totus tuus"] }] },
+  { id: "bendicion", nombre: "Bendición", grupo: "sacramento", etiquetas: ["Bendición"], momentos: [
+    { nombre: "Bendición", despues: "Acción de gracias", palabras: ["bendice", "bendicion", "bendiga", "bendito"] }] },
+  { id: "corpus", nombre: "Corpus Christi", grupo: "fiesta", gloria: true, etiquetas: ["Corpus Christi", "Eucarístico", "Adoración eucarística"], momentos: [
     { nombre: "Secuencia", antes: "Aleluya", etiquetas: ["Secuencia"], palabras: ["lauda sion", "alaba sion", "pan de los angeles", "corpus christi"] },
     { nombre: "Procesión eucarística", despues: "Acción de gracias", etiquetas: ["Adoración eucarística", "Procesión", "Eucarístico"],
       palabras: ["amor de los amores", "pange lingua", "tantum ergo", "adoremos"] }] },
-  { id: "cristo-rey", nombre: "Cristo Rey", gloria: true, etiquetas: ["Cristo Rey"], momentos: [
+  { id: "cristo-rey", nombre: "Cristo Rey", grupo: "fiesta", gloria: true, etiquetas: ["Cristo Rey"], momentos: [
     { nombre: "Consagración a Cristo Rey", despues: "Acción de gracias", palabras: ["cristo rey", "rey de reyes", "reinara", "rey del universo"] }] },
-  { id: "sagrado-corazon", nombre: "Sagrado Corazón", gloria: true, etiquetas: ["Sagrado Corazón"], momentos: [
+  { id: "sagrado-corazon", nombre: "Sagrado Corazón", grupo: "fiesta", gloria: true, etiquetas: ["Sagrado Corazón"], momentos: [
     { nombre: "Consagración al Sagrado Corazón", despues: "Acción de gracias", palabras: ["corazon de jesus", "sagrado corazon"] }] },
-  { id: "mariana", nombre: "Fiesta mariana", gloria: true, etiquetas: ["Mariano", "Virgen del Carmen", "Inmaculada Concepción", "Asunción", "Virgen de Guadalupe", "Mes de María"], momentos: [
+  { id: "mariana", nombre: "Fiesta mariana", grupo: "fiesta", gloria: true, etiquetas: ["Mariano", "Virgen del Carmen", "Inmaculada Concepción", "Asunción", "Virgen de Guadalupe", "Mes de María"], momentos: [
     { nombre: "Ofrenda floral a María", antes: "Canto a María", etiquetas: ["Mariano", "Mes de María"], palabras: ["flores", "venid y vamos todos"] }] },
-  { id: "patronal", nombre: "Fiesta patronal", gloria: true, etiquetas: ["Santos patronos", "Procesión"], momentos: [
+  { id: "patronal", nombre: "Fiesta patronal", grupo: "fiesta", gloria: true, etiquetas: ["Santos patronos", "Procesión"], momentos: [
     { nombre: "Himno al patrono", antes: "Salida", etiquetas: ["Santos patronos"], palabras: ["patrono", "patrona", "protector", "intercede"] },
-    { nombre: "Procesión", despues: "Salida", etiquetas: ["Procesión", "Peregrinación"], palabras: ["caminamos", "peregrino", "caminando"] }] },
-  { id: "aniversario-sacerdotal", nombre: "Aniversario sacerdotal", gloria: true, etiquetas: ["Aniversario sacerdotal", "Ordenación", "Vocacional"], momentos: [
-    { nombre: "Renovación de las promesas", despues: "Post evangelio", etiquetas: ["Vocacional", "Ordenación"], palabras: ["aqui estoy", "heme aqui", "me has seducido", "sacerdote"] },
-    { nombre: "Acción de gracias por el sacerdote", antes: "Salida", palabras: ["sacerdote", "pastor", "gracias"] }] },
-  { id: "renovacion-votos", nombre: "Renovación de votos", gloria: true, etiquetas: ["Renovación de votos", "Matrimonio"], momentos: [
-    { nombre: "Renovación de los votos", despues: "Post evangelio", palabras: ["para siempre", "esposos", "uno solo", "fiel"] },
-    { nombre: "Bendición de los esposos", antes: "Salida", palabras: ["bendice", "bendicion", "familia", "hogar"] }] },
-  { id: "consagracion", nombre: "Consagración", etiquetas: ["Consagración"], momentos: [
-    { nombre: "Rito de consagración", despues: "Post evangelio", palabras: ["me consagro", "consagro", "todo tuyo", "totus tuus"] }] },
-  { id: "bendicion", nombre: "Bendición", etiquetas: ["Bendición"], momentos: [
-    { nombre: "Bendición", despues: "Acción de gracias", palabras: ["bendice", "bendicion", "bendiga", "bendito"] }] }
+    { nombre: "Procesión", despues: "Salida", etiquetas: ["Procesión", "Peregrinación"], palabras: ["caminamos", "peregrino", "caminando"] }] }
 ];
 export const celebracionPorId = (id) => CELEBRACIONES.find((c) => c.id === id) || null;
+export const GRUPOS_CELEBRACION = [["sacramento", "Sacramentos y ceremonias"], ["fiesta", "Fiestas"]];
+
+// Las celebraciones que se pueden armar (más adelante, también las propias de cada parroquia o movimiento)
+export const celebracionesDisponibles = () => CELEBRACIONES;
+
+// Para los selectores: [[nombre del grupo, [celebraciones]]], sin grupos vacíos
+export const celebracionesPorGrupo = (lista = celebracionesDisponibles()) =>
+  GRUPOS_CELEBRACION.map(([g, nombre]) => [nombre, lista.filter((c) => (c.grupo || "sacramento") === g)]).filter(([, l]) => l.length);
 
 // Costumbres de las comunidades (ideas para «Crear un momento»): dónde suelen ir y qué cantos les calzan
 export const MOMENTOS_COMUNIDAD = [
@@ -393,6 +407,23 @@ export function colorPorTiempo(tiempo) {
   if (["Navidad", "Epifanía", "Pascua", "Ascensión", "Jueves Santo", "Vigilia Pascual"].includes(tiempo)) return "Blanco";
   if (tiempo === "Semana Santa") return "Morado";
   return tiempo ? "Verde" : "";
+}
+
+// Color litúrgico de un día («Verde», «Morado», «Rojo», «Blanco» o «Rosa»): el de las lecturas publicadas si
+// vienen; si no, el de la fiesta del calendario y, sin fiesta, el del tiempo
+const COLOR_LECTURAS = { verde: "Verde", morado: "Morado", rojo: "Rojo", blanco: "Blanco", rosado: "Rosa", rosa: "Rosa", negro: "Morado", azul: "Blanco" };
+const FIESTAS_COLOR = [
+  ["Rosa", /^III Domingo de Adviento|^IV Domingo de Cuaresma/],
+  ["Rojo", /Domingo de Ramos|Viernes Santo|Pentecostés|Pedro y Pablo|Exaltación de la Santa Cruz/],
+  ["Morado", /Ceniza|fieles difuntos/],
+  ["Blanco", /Navidad|Natividad|Epifanía|Bautismo del Señor|Presentación del Señor|San José|Anunciación|Pascua|Ascensión|Trinidad|Corpus|Sagrado Corazón|Carmen|Transfiguración|Asunción|Todos los Santos|Inmaculada|Guadalupe|Sagrada Familia|Cristo Rey|Madre de Dios|Jueves Santo/]
+];
+export function colorDelDia(iso, lecturas = null) {
+  const deLecturas = COLOR_LECTURAS[String(lecturas?.color || "").trim().toLowerCase().split(/\s+/)[0]];
+  if (deLecturas) return deLecturas;
+  const nombre = calendarioLiturgico(iso, 1)[0]?.nombre || "";
+  const fiesta = nombre && FIESTAS_COLOR.find(([, re]) => re.test(nombre));
+  return fiesta ? fiesta[0] : colorPorTiempo(tiempoPorFecha(iso)) || "Verde";
 }
 
 export const TIEMPOS_SIN_GLORIA = ["Adviento", "Cuaresma", "Miércoles de Ceniza", "Domingo de Ramos", "Semana Santa"];

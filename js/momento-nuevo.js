@@ -16,7 +16,7 @@
 
 import {
   MOMENTOS_MISA, CELEBRACIONES, MOMENTOS_COMUNIDAD, claveMomento, ordenMomento, posicionMomento, candidatosMomento,
-  celebracionPorId
+  celebracionPorId, celebracionesDisponibles
 } from "./liturgia.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
@@ -86,7 +86,8 @@ export function gruposDeMomentos(momentos, { habituales = [], celebracion = "" }
     return libres.length ? [{ titulo, nombres: libres }] : [];
   };
   const cel = celebracionPorId(celebracion);
-  const celebraciones = cel ? [cel, ...CELEBRACIONES.filter((c) => c !== cel)] : CELEBRACIONES;
+  const todas = celebracionesDisponibles();
+  const celebraciones = cel ? [cel, ...todas.filter((c) => c !== cel)] : todas;
   return [
     ...grupo("De tu comunidad", habituales.map((h) => h.momento)),
     ...grupo("De la misa", MOMENTOS_MISA),

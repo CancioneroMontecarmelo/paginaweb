@@ -14,7 +14,7 @@
   <meta property="og:url" content="https://www.cancioneroliturgico.cl/">
   <meta property="og:image" content="https://www.cancioneroliturgico.cl/Imagenes/compartir.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="theme-color" content="#030303">
+  <meta name="theme-color" content="#e8eade">
   <title>Cancionero Litúrgico</title>
   <link rel="manifest" href="/app.webmanifest">
   <link rel="icon" href="/icons/reproductor-192.png">
@@ -33,12 +33,15 @@
   <link rel="stylesheet" href="/css/dialogos.css">
   <link rel="stylesheet" href="/css/reproductor.css">
 </head>
-<body class="pagina-reproductor rp-oscuro" data-rp-tema="noche">
+<body class="pagina-reproductor" data-rp-tema="liturgico">
   <script>
-    // Tema y modo app antes de pintar, para que no parpadee
+    // Tema, color litúrgico de hoy y modo app antes de pintar, para que no parpadee
     try {
       var t = localStorage.getItem("mc-rp-tema"), b = document.body;
       if (t) { b.dataset.rpTema = t; b.classList.toggle("rp-oscuro", t !== "dia" && t !== "liturgico"); }
+      var h = new Date(), hoy = h.getFullYear() + "-" + ("0" + (h.getMonth() + 1)).slice(-2) + "-" + ("0" + h.getDate()).slice(-2);
+      var cd = JSON.parse(localStorage.getItem("mc-rp-color-dia") || "null");
+      if (cd && cd.fecha === hoy && cd.hex) b.style.setProperty("--rp-dia", cd.hex);
       var a = localStorage.getItem("mc-rp-acento");
       if (a) { b.style.setProperty("--rp-acento", a); b.style.setProperty("--rp-acorde", a); }
       // ?app=1 sin estar instalada: la abrió una app anterior que quedó fuera de su dirección
@@ -70,6 +73,7 @@
     <button type="button" class="rp-pestana rp-pant" id="rp-pant-menu" data-ico="pantalla" title="Mostrar la letra y hacer sonar el audio en un TV o proyector">Pantalla</button>
     <a class="rp-pestana rp-editor-menu" id="rp-editor-menu" href="/editor/" data-ico="editar" title="Editar canciones y audios, transponer, grabar, partituras y tablaturas"><span class="rp-no-celular">Editor</span><span class="rp-solo-celular" aria-hidden="true">Editor</span></a>
     <button type="button" class="rp-pestana" role="tab" aria-selected="false" data-vista="vivo" data-ico="vivo">En vivo</button>
+    <button type="button" class="rp-pestana" id="rp-config-menu" data-ico="config" aria-label="Configuración" title="Colores del cancionero y tamaño de la letra"><span class="rp-no-celular">Configuración</span><span class="rp-solo-celular" aria-hidden="true">Ajustes</span></button>
     <button type="button" class="rp-pestana rp-instalar" data-ico="instalar" hidden>Instalar app</button>
   </nav>
 
@@ -277,11 +281,11 @@
     </form>
   </dialog>
 
-  <!-- Crear nueva misa: la fecha, un canto por momento y guardar el cancionero -->
+  <!-- Armar cancionero para celebración: la fecha y la celebración, un canto por momento y guardar el cancionero -->
   <dialog class="rp-dlg rp-dlg-crear" id="rp-dlg-crear" aria-labelledby="rp-crear-titulo">
     <form method="dialog" class="rp-crear">
       <header class="rp-crear-cabeza">
-        <h2 id="rp-crear-titulo">Crear nueva misa</h2>
+        <h2 id="rp-crear-titulo">Armar cancionero para celebración</h2>
         <ol class="rp-crear-pasos">
           <li data-paso="fecha">Fecha</li>
           <li data-paso="elegir">Cantos</li>
@@ -291,7 +295,7 @@
       </header>
       <div class="rp-crear-cuerpo">
         <section data-paso="fecha">
-          <label class="rp-campo">Fecha de la misa <input type="date" id="rp-crear-fecha" required></label>
+          <label class="rp-campo">Fecha de la celebración <input type="date" id="rp-crear-fecha" required></label>
           <p class="rp-crear-dia" id="rp-crear-dia"></p>
           <label class="rp-campo">Celebración <select id="rp-crear-celebracion"></select></label>
           <label class="rp-campo" id="rp-crear-para-caja">Para quién <small>(opcional: los novios, el bautizado, el difunto…)</small>
@@ -322,16 +326,26 @@
     </form>
   </dialog>
 
-  <!-- Colores -->
-  <dialog class="rp-dlg" id="rp-dlg-colores">
+  <!-- Configuración: colores del cancionero y letra (se guardan en este equipo) -->
+  <dialog class="rp-dlg" id="rp-dlg-colores" aria-labelledby="rp-config-titulo">
     <form method="dialog">
-      <h2>Colores del reproductor</h2>
+      <h2 id="rp-config-titulo">Configuración</h2>
+      <h3 class="rp-config-h3">Colores</h3>
       <div class="rp-temas" id="rp-temas" role="radiogroup" aria-label="Tema"></div>
+      <p class="rp-config-nota" id="rp-config-dia"></p>
       <label class="rp-acento-propio">Color de acento (botones y acordes)
         <input type="color" id="rp-acento-color">
       </label>
+      <button type="button" class="rp-btn" id="rp-acento-restablecer">Usar el color del tema</button>
+      <h3 class="rp-config-h3">Letra</h3>
+      <div class="rp-config-letra">
+        <button type="button" class="rp-btn" id="rp-cfg-menos" title="Letra más chica">A−</button>
+        <b id="rp-cfg-tam"></b>
+        <button type="button" class="rp-btn" id="rp-cfg-mas" title="Letra más grande">A+</button>
+        <button type="button" class="rp-btn" id="rp-cfg-acordes" aria-pressed="true">Letra y acordes</button>
+      </div>
+      <p class="rp-config-nota">Se guarda en este equipo: cada celular puede tener sus colores.</p>
       <div class="rp-dlg-acciones">
-        <button type="button" class="rp-btn" id="rp-acento-restablecer">Restablecer</button>
         <span class="espacio"></span>
         <button type="submit" class="rp-btn rp-btn-fuerte">Listo</button>
       </div>

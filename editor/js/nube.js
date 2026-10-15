@@ -964,17 +964,25 @@ function mcAtrilMisa(id, foco) {
   return mcAbrirMisa(id, mcLeerFoco(foco), { atril: true });
 }
 
-// editor/?misa=<id>&foco=…: se abre una sola vez (recargar la página no lo vuelve a pedir)
-function mcAbrirMisaDeUrl(id, foco) {
+// editor/?misa=<id>&foco=…: se abre una sola vez (recargar la página no lo vuelve a pedir).
+// Con editar=1 (desde Sonando) queda en modo Editar y sube o baja `tono` semitonos sobre el tono de la misa.
+async function mcAbrirMisaDeUrl(id, foco, { editar = false, tono = 0 } = {}) {
   history.replaceState(null, '', location.pathname + location.hash);
   if (state.mcMisa?.id === id && !mcCopiaDeMisas(id)) {
     const f = mcLeerFoco(foco);
     const d = f && docs.find(x => x.mc?.mi === f.momento && x.mc?.ci === f.indice);
     if (d) switchTab(d.id);
     ytmIrA('cancionero');
-    return;
-  }
-  return mcAbrirMisa(id, mcLeerFoco(foco));
+  } else if (!await mcAbrirMisa(id, mcLeerFoco(foco))) return;
+  if (editar) mcEditarEnTono(tono);
+}
+
+function mcEditarEnTono(tono) {
+  setMode('edit');
+  const actual = tono ? detectKey(editor.value) : null;
+  if (actual) transposeTo(mod12(actual.idx + tono));
+  toast(`${actual ? `En el tono de Sonando (${keyLabel({ idx: mod12(actual.idx + tono), minor: actual.minor })}). ` : ''}`
+    + '«Guardar en la misa» lo deja así para todo el coro.', 6000);
 }
 
 // Guarda en el cancionero de misa (no en la Biblioteca) qué canción va en cada lugar y su tono, cejilla y velocidades

@@ -62,7 +62,10 @@ function limpiarLecturas(l) {
 function limpiarEnsayos(e) {
   e = e || {};
   const vistas = new Set();
+  // cantan: integrantes del coro que cantan en esta celebración; sin el campo cantan todos los activos
+  const cantan = Array.isArray(e.cantan) ? { cantan: [...new Set(e.cantan.slice(0, 200).map((p) => texto(p, 60)).filter(Boolean))] } : {};
   return {
+    ...cantan,
     fechasPosibles: (Array.isArray(e.fechasPosibles) ? e.fechasPosibles : []).map(fechaValida)
       .filter((f) => f && !vistas.has(f) && vistas.add(f)).sort().slice(0, 60),
     realizados: (Array.isArray(e.realizados) ? e.realizados : []).slice(0, 60).map((r) => ({
