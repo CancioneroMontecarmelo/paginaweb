@@ -63,11 +63,13 @@
         <button type="button" class="btn btn-secundario" data-salir>Cerrar sesión</button>
       </div>
       <p class="msg-ok" data-clave-msg hidden></p>
+      <label class="opcion-colaborador"><input type="checkbox" data-colaborador> Mostrar mi nombre como colaborador (en Inicio y en <a href="/agradecimientos">Agradecimientos</a>)</label>
     </section>
 
     <!-- PANEL DE RESPONSABLES -->
     <section class="panel-auth" id="panel-panel" hidden>
       <p class="sesion-bar" id="panel-quien"></p>
+      <label class="opcion-colaborador"><input type="checkbox" data-colaborador> Mostrar mi nombre como colaborador (en Inicio y en <a href="/agradecimientos">Agradecimientos</a>)</label>
       <div class="acciones-form">
         <button type="button" class="btn btn-primario" id="btn-admins">Administradores y permisos</button>
         <button type="button" class="btn btn-secundario" id="btn-parroquia">Datos de la parroquia</button>
@@ -132,7 +134,7 @@
   </dialog>
 
   <footer class="pie">
-    <p><a href="./inicio.html">← Volver al inicio</a></p>
+    <p><a href="./inicio.html">← Volver al inicio</a> · <a href="/agradecimientos">Agradecimientos</a></p>
   </footer>
 
   <script type="module">
@@ -151,6 +153,7 @@
       leerAuditoria,
       comunidadesOpciones,
       llamarApi,
+      mostrarComoColaborador,
       CORREO_PARROQUIA,
       ROLES
     } from "/js/auth.js";
@@ -189,9 +192,27 @@
       b.addEventListener("click", () => abrirCoros({ comunidad: sesionActual()?.comunidad || "" }))
     );
 
+    // Quienes suben canciones, audios y cancioneros eligen si su nombre aparece en los agradecimientos
+    document.querySelectorAll("[data-colaborador]").forEach((c) => c.addEventListener("change", async () => {
+      c.disabled = true;
+      try {
+        const si = await mostrarComoColaborador(c.checked);
+        document.querySelectorAll("[data-colaborador]").forEach((x) => (x.checked = si));
+      } catch (e) {
+        c.checked = !c.checked;
+        alert(e.message);
+      }
+      c.disabled = false;
+    }));
+
     function trasEntrar(s, aviso) {
       initNavSitio();
       mostrarCoros(s);
+      document.querySelectorAll("[data-colaborador]").forEach((x) => {
+        x.checked = !!s.mostrarNombre;
+        x.closest("label").hidden = !s.token;
+      });
+      if (location.hash === "#colaborador") setTimeout(() => document.querySelector(".panel-auth:not([hidden]) [data-colaborador]")?.focus(), 0);
       if (esResponsableSitio(s)) {
         mostrar("panel-panel");
         $("panel-quien").innerHTML = "";

@@ -1,0 +1,331 @@
+/* Portada nacional (/), /sumar y /agradecimientos: páginas comunes a todas las parroquias */
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.po-hero {
+  padding: calc(var(--nav-h) + 3rem) 1.5rem 3rem;
+  color: var(--blanco);
+  background:
+    radial-gradient(ellipse 90% 70% at 85% 10%, rgba(126, 182, 217, 0.28) 0%, transparent 60%),
+    linear-gradient(135deg, #2f4a38 0%, #3f5b45 45%, #8a5a3c 100%);
+}
+
+.po-hero-contenido {
+  max-width: 46rem;
+  margin: 0 auto;
+}
+
+.po-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+  margin-bottom: 1rem;
+}
+
+.po-hero h1 {
+  font-family: var(--fuente-display);
+  font-size: clamp(1.9rem, 5.5vw, 3.1rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.9rem;
+}
+
+.po-lead {
+  font-size: clamp(1.02rem, 2.2vw, 1.2rem);
+  max-width: 40rem;
+  margin: 0 0 1.5rem;
+  color: rgba(255, 254, 249, 0.92);
+}
+
+.po-busca {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.4rem;
+  border-radius: 14px;
+  background: rgba(255, 254, 249, 0.96);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.po-busca input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 1.05rem;
+  padding: 0.6rem 0.75rem;
+  color: var(--texto);
+  outline: none;
+}
+
+.po-busca .btn {
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.po-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.btn-claro {
+  background: var(--blanco);
+  color: var(--verde);
+}
+
+.btn-claro:hover {
+  background: var(--crema);
+  color: var(--verde);
+}
+
+.po-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+}
+
+.po-chip {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--verde-suave);
+  background: transparent;
+  color: var(--verde);
+  cursor: pointer;
+}
+
+.po-chip[aria-pressed="true"] {
+  background: var(--verde);
+  color: var(--blanco);
+}
+
+.po-mapa {
+  height: min(52vh, 420px);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 6px 24px var(--sombra);
+  margin: 0 0 1.5rem;
+  background: #dfe8e0;
+}
+
+.po-mapa[hidden] {
+  display: none;
+}
+
+.po-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 0.9rem;
+}
+
+.po-lista li {
+  display: grid;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 18px var(--sombra);
+  overflow: hidden;
+}
+
+.po-tarjeta {
+  display: grid;
+  text-decoration: none;
+  color: var(--texto);
+}
+
+.po-media {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(135deg, #3f5b45, #8a5a3c);
+  overflow: hidden;
+}
+
+.po-foto {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s;
+}
+
+.po-tarjeta:hover .po-foto {
+  transform: scale(1.04);
+}
+
+.po-icono {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.po-textos {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.85rem 1rem 0.4rem;
+}
+
+.po-textos strong {
+  font-family: var(--fuente-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--verde);
+  line-height: 1.2;
+}
+
+.po-textos span {
+  font-size: 0.86rem;
+  color: var(--texto-suave);
+}
+
+.po-textos em {
+  font-size: 0.88rem;
+  color: var(--texto-suave);
+}
+
+.po-mas {
+  padding: 0.2rem 1rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.po-vacio {
+  margin: 1rem 0 0;
+  font-size: 1.05rem;
+}
+
+.po-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 1rem;
+}
+
+.po-grilla article {
+  padding: 1.1rem 1.2rem;
+  border-radius: 14px;
+  background: rgba(255, 254, 249, 0.75);
+  box-shadow: 0 2px 12px rgba(42, 36, 28, 0.08);
+}
+
+.po-grilla h3 {
+  font-family: var(--fuente-display);
+  color: var(--terracota);
+  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+}
+
+.po-grilla p {
+  margin: 0;
+  color: var(--texto-suave);
+}
+
+.po-pasos {
+  margin: 0 0 1.5rem;
+  padding-left: 1.3rem;
+  display: grid;
+  gap: 0.6rem;
+  font-size: 1.05rem;
+}
+
+.po-codigo {
+  margin: 0 0 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #1f2a22;
+  color: #e7efe9;
+  font-size: 0.85rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.po-osm {
+  font-size: 0.78rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .po-busca {
+    flex-direction: column;
+  }
+
+  .po-hero {
+    padding-top: calc(var(--nav-h) + 1.75rem);
+  }
+}
+
+/* /agradecimientos */
+.ag-main {
+  max-width: 62rem;
+}
+
+.ag-main section {
+  margin: 0 0 3rem;
+}
+
+.ag-main h3 {
+  font-family: var(--fuente-display);
+  color: var(--terracota);
+  margin: 1.5rem 0 0.6rem;
+}
+
+.ag-nombres {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.ag-nombres li {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(255, 254, 249, 0.85);
+  box-shadow: 0 1px 6px rgba(42, 36, 28, 0.08);
+  font-size: 0.92rem;
+}
+
+.ag-nombres li small {
+  color: var(--texto-suave);
+  margin-left: 0.3rem;
+}
+
+.ag-nombres a {
+  text-decoration: none;
+}
+
+.ag-nombres .ag-vacio {
+  background: transparent;
+  box-shadow: none;
+  color: var(--texto-suave);
+  padding-left: 0;
+}
+
+.ag-nota {
+  font-size: 0.88rem;
+  color: var(--texto-suave);
+  margin-top: 0.8rem;
+}
+
+.ag-final {
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: rgba(47, 74, 56, 0.07);
+}
+
+.ag-final h2 {
+  margin-top: 0;
+}

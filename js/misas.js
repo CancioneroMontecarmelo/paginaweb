@@ -25,9 +25,10 @@ import { crearReproductorYT, esYoutube } from "./youtube-embed.js";
 import {
   MOMENTOS_MISA, TIEMPOS, claveMomento, esDelMomento, momentoPorLetra, ordenMomento, hoyIso, proximoDomingo, fechaLarga,
   tituloLiturgico, tiempoPorFecha, momentosDeMisa, sugerirCantos as sugerirDeLaBiblioteca,
-  fechaEscrita, calendarioLiturgico, nombreDelDia, evitadosDelMes, celebracionesPorGrupo, celebracionDelDia, posicionMomento
+  fechaEscrita, calendarioLiturgico, nombreDelDia, evitadosDelMes, celebracionesPorGrupo, celebracionDelDia, posicionMomento, colorPorTiempo
 } from "./liturgia.js";
 import { momentosHabituales, ponerHabituales, gruposDeMomentos, opcionesMomento, crearMomento } from "./momento-nuevo.js";
+import { compartirTarjeta } from "./tarjeta.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => escapeHtml(s == null ? "" : s);
@@ -228,12 +229,14 @@ function momentosHtml() {
   return `<ul class="momentos">${items || '<li class="aviso">Sin momentos.</li>'}</ul>
     ${ed ? `<div class="momento-agregar"><select id="nuevo-momento" aria-label="Agregar momento">${opcionesMomento(grupos)}</select></div>` : ""}
     ${ed ? coroDeMisaHtml(a) : ""}
+    ${ed && !a.borrador ? gustoHtml(a) : ""}
     ${publicadaHtml(a)}
     <div class="misa-pie">
     <div class="misa-acciones">
       <button type="button" class="btn-chico btn-atril" data-accion="atril" title="Abre las canciones de este cancionero en el atril del editor, en una pestaña nueva">▶ Atril</button>
       ${ed && !a.borrador ? '<button type="button" class="btn-chico btn-atril" data-accion="editar-editor" title="Abre este cancionero en el editor, en la canción que estás mirando, para cambiar el tono, la cejilla o las velocidades">✎ Editar en el editor</button>' : ""}
       <button type="button" class="btn-chico btn-atril" data-accion="reproducir" title="Escuchar este cancionero en el reproductor, con la letra de cada canción">♪ Reproducir</button>
+      ${a.borrador ? "" : '<button type="button" class="btn-chico" data-accion="tarjeta" title="Una imagen con los cantos para mandar por WhatsApp o subir a las redes">Compartir tarjeta</button>'}
       ${ed && !a.borrador ? `<button type="button" class="btn-chico btn-atril${st.vivo?.misaId === a.id ? " en-vivo" : ""}" data-accion="vivo" title="El coro sigue en sus celulares la canción que vas eligiendo, en su tono">${st.vivo?.misaId === a.id ? "● En vivo" : "📡 En vivo"}</button>` : ""}
       ${ed ? `<button type="button" class="btn-chico" data-accion="guardar">${a.borrador ? "Guardar…" : sucio() ? "Guardar cambios…" : "Fechas y ensayos…"}</button>` : ""}
       ${ed && st.biblioteca.length ? '<button type="button" class="btn-chico" data-accion="sugerir" title="Vuelve a elegir los cantos de los momentos que siguen con la sugerencia del sistema o vacíos">Volver a sugerir</button>' : ""}
@@ -242,6 +245,43 @@ function momentosHtml() {
     </div>
     ${ed ? `<button type="button" class="btn btn-primario btn-publicar" data-accion="publicar">${a.drive ? sucio() ? "Publicar cambios" : "Publicar de nuevo" : "Publicar"}</button>` : ""}
     </div>`;
+}
+
+// «Lo que más gustó»: los votos de «¿Qué canto te gustó más?» del reproductor (solo lo ven quienes editan)
+const gustos = new Map();
+function gustoHtml(a) {
+  const g = gustos.get(a.id);
+  if (!g) {
+    gustos.set(a.id, { cargando: true });
+    leer({ accion: "reacciones", misa: a.id }).then((r) => gustos.set(a.id, r)).catch(() => gustos.set(a.id, { total: 0, votos: [] }))
+      .then(() => { if (st.actual?.id === a.id) pintarMisas(); });
+    return "";
+  }
+  if (!g.total) return "";
+  const top = g.votos.slice(0, 3).map((v) => `<li>${esc(tituloDe(v.cancion))} <small>${v.votos} ${v.votos === 1 ? "voto" : "votos"}</small></li>`).join("");
+  return `<div class="misa-gusto"><b>Lo que más gustó</b> <small>(${g.total} ${g.total === 1 ? "voto" : "votos"} desde el reproductor)</small><ol>${top}</ol></div>`;
+}
+
+async function tarjetaDeMisa() {
+  const a = st.actual;
+  if (!a) return;
+  const items = a.momentos.flatMap((m) => m.canciones.map((c) => ({ momento: m.momento, titulo: st.porId.get(c.cancionId)?.titulo || "" }))).filter((x) => x.titulo);
+  if (!items.length) return avisar("Este cancionero todavía no tiene canciones.", true);
+  const p = window.MC_PARROQUIA || {};
+  const slug = (window.MONTECARMELO_CONFIG || {}).parroquia || "";
+  const COLORES = { Verde: "#4caf50", Morado: "#9c6ade", Rojo: "#e5534b", Blanco: "#d9b44a", Rosa: "#ec8fb8" };
+  try {
+    const r = await compartirTarjeta({
+      titulo: a.nombre || "Cancionero de misa",
+      subtitulo: [a.fechaUso ? fechaLarga(a.fechaUso) : "", nombreComunidad(a.comunidad)].filter(Boolean).join(" · "),
+      items, pie: p.nombre || "Cancionero Litúrgico", direccion: "cancioneroliturgico.cl/" + slug,
+      color: COLORES[colorPorTiempo(a.tiempoLiturgico || tiempoPorFecha(a.fechaUso || hoyIso()))] || "#455a64",
+      url: location.origin + "/" + slug + "/#misa=" + encodeURIComponent(a.id)
+    });
+    if (r === "descargada") avisar("La tarjeta quedó en tus descargas.");
+  } catch (e) {
+    avisar(e.message || "No se pudo armar la tarjeta.", true);
+  }
 }
 
 function publicadaHtml(a) {
@@ -1066,6 +1106,20 @@ function verVideo(cancionId, url) {
   el.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
+// «Audio: <canal de YouTube o sitio>»: el reconocimiento a quien lo puso en internet
+let fuentes = null;
+function fuenteDe(url) {
+  const el = document.createElement("small");
+  el.className = "audio-fuente";
+  let host = "";
+  try { host = new URL(url).hostname.replace(/^www\./, ""); } catch (_) { return el; }
+  el.textContent = "Audio: " + (esYoutube(url) ? "YouTube" : host);
+  (fuentes ||= leer({ accion: "fuentesAudios" }).then((r) => r.fuentes || {}).catch(() => ({}))).then((f) => {
+    if (f[url]) el.textContent = "Audio: " + f[url] + (esYoutube(url) ? " (YouTube)" : "");
+  });
+  return el;
+}
+
 function pintarAudios(entrada) {
   const box = $("#audios");
   // Primero los audios de la nube, después los enlaces y videos
@@ -1085,6 +1139,7 @@ function pintarAudios(entrada) {
     const voz = a.voz && a.voz !== "todas" ? VOICES[a.voz]?.label || a.voz : "";
     et.textContent = "♪ " + (a.nombre || "Audio") + (voz ? " · " + voz : "");
     div.append(et);
+    if (!a.fileId && a.url) div.append(fuenteDe(a.url));
     if (a.fileId) {
       div.append(audioDeBiblioteca(a.fileId, st.vista?.ajustes?.velocidad));
     } else if (esYoutube(a.url)) {
@@ -2496,6 +2551,7 @@ function conectarEventos() {
     else if (accion === "atril") abrirAtril();
     else if (accion === "editar-editor") abrirAtril(false);
     else if (accion === "reproducir") abrirReproductor();
+    else if (accion === "tarjeta") tarjetaDeMisa();
     else if (accion === "vivo") iniciarVivo();
     else if (accion === "descartar") descartarCambios();
     else if (accion === "cerrar") cerrarMisa();

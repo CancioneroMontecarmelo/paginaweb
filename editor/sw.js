@@ -2,14 +2,14 @@
 // Editor de cancioneros Monte Carmelo (Cancionero Universal) sin conexión: con internet siempre se carga la versión más nueva
 // (y se guarda una copia); sin internet, o si la red tarda, se usa la copia guardada.
 
-const CACHE = 'mc-editor-26';
+const CACHE = 'mc-editor-27';
 const NET_TIMEOUT = 3000;
 const SHELL = [
-  './', 'manifest.webmanifest', 'css/canciotras.css?v=6', 'css/ytm.css?v=4',
+  './', 'manifest.webmanifest', 'css/canciotras.css?v=7', 'css/ytm.css?v=4',
   'icons/icono-180.png', 'icons/icono-192.png', 'icons/icono-512.png', 'icons/icono-maskable-512.png',
   ...['acordes', 'markdown', 'ui', 'instrumentos', 'rasgueos', 'render', 'audio', 'extractor', 'youtube', 'hojas',
     'panel', 'pestanas', 'editor', 'cancionero', 'coleccion', 'grabar', 'nuevo', 'imprimir', 'etiquetas', 'buscar', 'exportar', 'compartir', 'zip', 'oficina',
-    'ejemplo', 'guardar', 'colaboradores', 'movil', 'nube', 'cancion-nueva', 'caratula', 'ytm', 'atril', 'app'].map(n => `js/${n}.js`),
+    'ejemplo', 'guardar', 'colaboradores', 'movil', 'nube', 'cancion-nueva', 'caratula', 'ytm', 'sincro', 'atril', 'app'].map(n => `js/${n}.js`),
   '../js/config.js?v=2',
   ...['guitarra', 'ukelele', 'mandolina', 'charango'].map(n => `vendor/acordes/${n}.js`)
 ];

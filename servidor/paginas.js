@@ -5,6 +5,7 @@
 import { entrada, contexto } from './api.js';
 import { PARROQUIA_DEFECTO, leerParroquia, parroquiaPublica, parroquiasActivas, respuestaIcono, slugValido } from './parroquias.js';
 import { leerPaginaPropia, limpiarHtml } from './paginas-propias.js';
+import { agradecimientos } from './experiencia.js';
 
 const PAGINAS = {
   reproductor: 'Cancionero Litúrgico',
@@ -86,13 +87,55 @@ function htmlBasico(titulo, cuerpo, status = 200) {
   });
 }
 
-async function elegirParroquia(c) {
+const BASE = 'https://' + PRINCIPAL;
+const TIPO = { parroquia: 'Parroquia', movimiento: 'Movimiento' };
+
+// Las tarjetas van escritas en la página (para los buscadores y sin JavaScript); js/portada.js las vuelve a pintar
+function tarjetaPortada(p) {
+  const lugar = [p.comuna, p.region].filter(Boolean).join(', ');
+  const media = p.foto ? `<img class="po-foto" src="${escapar(p.foto)}" alt="" loading="lazy">`
+    : `<img class="po-icono" src="${escapar(p.icono)}" alt="" loading="lazy" width="64" height="64">`;
+  return `<li><a class="po-tarjeta" href="/${escapar(p.slug)}/"><span class="po-media">${media}</span>` +
+    `<span class="po-textos"><strong>${escapar(p.nombre)}</strong><span>${escapar(TIPO[p.tipo] || 'Parroquia')}${lugar ? ' · ' + escapar(lugar) : ''}</span>` +
+    (p.lema ? `<em>${escapar(p.lema)}</em>` : '') + `</span></a>` +
+    `<a class="po-mas" href="/${escapar(p.slug)}/inicio">Página de la ${p.tipo === 'movimiento' ? 'comunidad' : 'parroquia'}</a></li>`;
+}
+
+// La portada nacional (/ sin parroquia elegida, y /elegir para cambiarla): buscar, el mapa y sumar la propia
+async function portada(ctx, c, elegir) {
+  const url = new URL(ctx.request.url);
   const lista = await parroquiasActivas(c);
-  const items = lista.map((p) => `<li><a class="elegir-parroquia" href="/${escapar(p.slug)}/reproductor">
-    <img src="${escapar(p.icono)}" alt="" width="56" height="56"><span><strong>${escapar(p.nombre)}</strong></span></a></li>`).join('');
-  return htmlBasico('Cancionero Litúrgico · Elegí tu parroquia', `<h1>Cancionero Litúrgico</h1>
-    <p class="subtitulo">Elegí tu parroquia. El equipo la recuerda para la próxima vez.</p>
-    <ul class="lista-elegir">${items || '<li>Todavía no hay parroquias.</li>'}</ul>`);
+  const res = await ctx.env.ASSETS.fetch(new URL('/portada', url.origin).toString());
+  if (!res.ok) return htmlBasico('Cancionero Litúrgico', '<h1>Cancionero Litúrgico</h1><ul class="lista-elegir">' +
+    lista.map((p) => `<li><a class="elegir-parroquia" href="/${escapar(p.slug)}/">${escapar(p.nombre)}</a></li>`).join('') + '</ul>');
+  const limpia = new Response(res.body, res);
+  for (const h of ['etag', 'last-modified', 'content-length']) limpia.headers.delete(h);
+  limpia.headers.set('Cache-Control', 'no-cache');
+  limpia.headers.set('Vary', 'Cookie');
+  limpia.headers.set('X-Mc-Pagina', 'portada');
+  const datos = JSON.stringify(lista).replace(/</g, '\\u003c');
+  const ld = [
+    {
+      '@context': 'https://schema.org', '@type': 'WebSite', name: 'Cancionero Litúrgico', url: BASE + '/', inLanguage: 'es-CL',
+      potentialAction: { '@type': 'SearchAction', target: { '@type': 'EntryPoint', urlTemplate: BASE + '/?q={search_term_string}' }, 'query-input': 'required name=search_term_string' }
+    },
+    {
+      '@context': 'https://schema.org', '@type': 'Organization', name: 'Cancionero Litúrgico', url: BASE + '/', logo: BASE + '/icons/reproductor-512.png',
+      email: 'cancionerolitugico@gmail.com', areaServed: { '@type': 'Country', name: 'Chile' }
+    },
+    {
+      '@context': 'https://schema.org', '@type': 'ItemList', name: 'Parroquias y movimientos en el Cancionero Litúrgico',
+      itemListElement: lista.map((p, i) => ({ '@type': 'ListItem', position: i + 1, url: BASE + '/' + p.slug + '/inicio', name: p.nombre }))
+    }
+  ];
+  return new HTMLRewriter()
+    .on('head', { element: (el) => {
+      el.prepend(`<script>window.MC_PARROQUIAS=${datos};${elegir ? 'window.MC_ELEGIR=true;' : ''}</script>`, { html: true });
+      el.append(`<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`, { html: true });
+      if (elegir) el.append('<meta name="robots" content="noindex, follow">', { html: true });
+    } })
+    .on('[data-portada="lista"]', { element: (el) => el.setInnerContent(lista.map(tarjetaPortada).join(''), { html: true }) })
+    .transform(limpia);
 }
 
 function noDisponible(p) {
@@ -119,15 +162,29 @@ function descripcionDe(pub, pagina, propia) {
   if (pagina === 'misas') return 'Cancioneros de misa de las comunidades de la ' + pub.nombre + ': las canciones de cada momento con su letra, acordes y audio.';
   if (pagina === 'noticias') return 'Noticias y avisos de la ' + pub.nombre + '.';
   if (pagina === 'comunidad') return 'Comunidades de la ' + pub.nombre + ': sus noticias y sus cancioneros de misa.';
-  return 'Cancionero Litúrgico de la ' + pub.nombre + ': canciones para la misa con su letra, acordes y audio, noticias y cancioneros de sus comunidades.';
+  const lugar = pub.comuna ? ' (' + pub.comuna + ')' : '';
+  return 'Cancionero Litúrgico de la ' + pub.nombre + lugar + ': canciones para la misa con su letra, acordes y audio, noticias y cancioneros de sus comunidades.';
 }
 
-// Para los buscadores y la vista previa al compartir: dirección canónica, Open Graph y datos estructurados
+// Para los buscadores y la vista previa al compartir: dirección canónica, Open Graph y datos estructurados.
+// Las parroquias en revisión (o de prueba) no se indexan.
 function etiquetasBuscadores(pub, pagina, titulo, descripcion, canonica) {
   const absoluta = (u) => (u.startsWith('/') ? 'https://' + PRINCIPAL + u : u);
+  const fotos = [pub.portada, ...(pub.fotos || []).map((f) => f.url)].filter(Boolean).map(absoluta);
+  const imagen = fotos[0] || '';
+  const direccion = pub.direccion || pub.comuna ? {
+    address: {
+      '@type': 'PostalAddress', ...(pub.direccion ? { streetAddress: pub.direccion } : {}), ...(pub.comuna ? { addressLocality: pub.comuna } : {}),
+      ...(pub.region ? { addressRegion: pub.region } : {}), addressCountry: 'CL'
+    }
+  } : {};
   const parroquia = {
-    '@type': 'Church', name: pub.nombre, url: 'https://' + PRINCIPAL + '/' + pub.slug + '/inicio', logo: absoluta(pub.iconos['512']),
-    ...(pub.correo ? { email: pub.correo } : {})
+    '@type': pub.tipo === 'movimiento' ? 'Organization' : 'Church', name: pub.nombre, url: 'https://' + PRINCIPAL + '/' + pub.slug + '/inicio',
+    logo: absoluta(pub.iconos['512']), ...(fotos.length ? { image: fotos.slice(0, 6) } : {}),
+    ...(pub.correo ? { email: pub.correo } : {}), ...direccion,
+    ...(pub.lat != null ? { geo: { '@type': 'GeoCoordinates', latitude: pub.lat, longitude: pub.lng } } : {}),
+    ...(pub.sitioWeb ? { sameAs: [pub.sitioWeb] } : {}),
+    ...(pub.diocesis ? { parentOrganization: { '@type': 'Organization', name: pub.diocesis } } : {})
   };
   const ld = pagina === 'reproductor' ? {
     '@context': 'https://schema.org', '@type': 'WebApplication', name: 'Cancionero Litúrgico', url: 'https://' + PRINCIPAL + '/',
@@ -136,10 +193,13 @@ function etiquetasBuscadores(pub, pagina, titulo, descripcion, canonica) {
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'CLP' }, provider: parroquia
   } : pagina === 'inicio' ? { '@context': 'https://schema.org', ...parroquia, description: descripcion } : null;
   const meta = (k, v, atr = 'property') => `<meta ${atr}="${k}" content="${escapar(v)}">`;
+  const oculta = pub.oculta || pub.estado === 'pendiente';
   return `<link rel="canonical" href="${escapar(canonica)}">` + meta('description', descripcion, 'name') +
+    (oculta ? meta('robots', 'noindex, nofollow', 'name') : '') +
     meta('og:type', 'website') + meta('og:site_name', 'Cancionero Litúrgico') + meta('og:locale', 'es_CL') +
     meta('og:title', titulo) + meta('og:description', descripcion) + meta('og:url', canonica) +
-    meta('og:image', IMAGEN_COMPARTIR) + meta('og:image:width', '1200') + meta('og:image:height', '630') +
+    (imagen ? meta('og:image', imagen)
+      : meta('og:image', IMAGEN_COMPARTIR) + meta('og:image:width', '1200') + meta('og:image:height', '630')) +
     meta('twitter:card', 'summary_large_image', 'name') +
     (ld ? `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>` : '');
 }
@@ -230,16 +290,63 @@ function manifestEditor(p) {
   }, null, 2), { headers: { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-cache' } });
 }
 
-async function pagina(ctx, c, p, nombre, propia = null) {
+// embebido: el reproductor dentro del sitio de la parroquia (/<parroquia>/embebido), sin cookie (en un iframe de otro
+// sitio no se guardaría) y con un enlace para abrirlo completo
+async function pagina(ctx, c, p, nombre, propia = null, embebido = false) {
   const url = new URL(ctx.request.url);
   const res = await ctx.env.ASSETS.fetch(new URL('/' + nombre, url.origin).toString());
   if (!res.ok) return res;
   const limpia = new Response(res.body, res);
   for (const h of ['etag', 'last-modified', 'content-length']) limpia.headers.delete(h);
   limpia.headers.set('Cache-Control', 'no-cache');
-  limpia.headers.append('Set-Cookie', conCookie(p.slug)['Set-Cookie']);
-  const canonica = 'https://' + PRINCIPAL + (nombre === 'reproductor' ? '/' : url.pathname.replace(/\.html$/, '') + (nombre === 'comunidad' ? url.search : ''));
-  return conParroquia(limpia, p, nombre, propia, canonica);
+  if (!embebido) limpia.headers.append('Set-Cookie', conCookie(p.slug)['Set-Cookie']);
+  const canonica = embebido ? BASE + '/' + p.slug + '/inicio'
+    : 'https://' + PRINCIPAL + (nombre === 'reproductor' ? '/' : url.pathname.replace(/\.html$/, '') + (nombre === 'comunidad' ? url.search : ''));
+  const html = conParroquia(limpia, p, nombre, propia, canonica);
+  if (!embebido) return html;
+  const abrir = `<a class="embebido-abrir" href="${BASE}/${escapar(p.slug)}/" target="_blank" rel="noopener">Abrir en Cancionero Litúrgico ↗</a>`;
+  return new HTMLRewriter()
+    .on('head', { element: (el) => el.append('<meta name="robots" content="noindex, follow"><script>window.MC_EMBEBIDO=true;</script>', { html: true }) })
+    .on('body', { element: (el) => {
+      el.setAttribute('class', ((el.getAttribute('class') || '') + ' embebido').trim());
+      el.append(abrir, { html: true });
+    } })
+    .transform(html);
+}
+
+// /agradecimientos: la página va escrita con las listas (autores, canales, sitios, parroquias y colaboradores)
+async function paginaAgradecimientos(ctx, c) {
+  const url = new URL(ctx.request.url);
+  const [res, a] = await Promise.all([ctx.env.ASSETS.fetch(new URL('/agradecimientos', url.origin).toString()), agradecimientos(c)]);
+  if (!res.ok) return res;
+  const limpia = new Response(res.body, res);
+  for (const h of ['etag', 'last-modified', 'content-length']) limpia.headers.delete(h);
+  limpia.headers.set('Cache-Control', 'public, max-age=3600');
+  const n = (x, uno, varios) => x + ' ' + (x === 1 ? uno : varios);
+  const li = (html) => `<li>${html}</li>`;
+  const vacio = (t) => `<li class="ag-vacio">${escapar(t)}</li>`;
+  const papel = (x) => (x.letra && x.musica ? 'letra y música' : x.letra ? 'letra' : 'música');
+  const listas = {
+    autores: a.autores.map((x) => li(`<a data-buscar="${escapar(x.nombre)}" href="/montecarmelo/#buscar=${encodeURIComponent(x.nombre)}">${escapar(x.nombre)}</a>` +
+      `<small>${escapar(papel(x))} · ${n(x.canciones, 'canto', 'cantos')}</small>`)).join('') || vacio('Todavía no hay créditos cargados en las canciones.'),
+    canales: a.canales.map((x) => li((x.url ? `<a href="${escapar(x.url)}" target="_blank" rel="noopener">${escapar(x.nombre)}</a>` : escapar(x.nombre)) +
+      `<small>${n(x.videos, 'video', 'videos')}</small>`)).join('') || vacio('Estamos reuniendo los nombres de los canales.'),
+    sitios: a.sitios.map((x) => li(`<a href="https://${escapar(x.sitio)}" target="_blank" rel="noopener">${escapar(x.sitio)}</a><small>${n(x.audios, 'audio', 'audios')}</small>`)).join('') ||
+      vacio('—'),
+    parroquias: a.parroquias.map((p) => li(`<a href="/${escapar(p.slug)}/inicio">${escapar(p.nombre)}</a>` + (p.comuna ? `<small>${escapar(p.comuna)}</small>` : ''))).join(''),
+    colaboradores: a.colaboradores.map((x) => li(escapar(x))).join('') ||
+      vacio('Quienes suben canciones y audios pueden aparecer aquí: se activa en Identificarse → «Mostrar mi nombre como colaborador».')
+  };
+  const resumen = a.videos + a.audiosPropios + a.sitios.reduce((s, x) => s + x.audios, 0);
+  const textoResumen = `Las ${a.canciones} canciones de la Biblioteca tienen ${n(resumen, 'audio o video', 'audios y videos')}: ` +
+    `${n(a.videos, 'video de YouTube', 'videos de YouTube')}, ${a.audiosPropios} grabados y subidos por las comunidades, y otros de sitios que los comparten. Gracias a todos.`;
+  return new HTMLRewriter()
+    .on('[data-agr]', { element: (el) => {
+      const k = el.getAttribute('data-agr');
+      if (k === 'resumen-audios') el.setInnerContent(textoResumen);
+      else if (listas[k] !== undefined) el.setInnerContent(listas[k], { html: true });
+    } })
+    .transform(limpia);
 }
 
 async function paginaPropia(ctx, c, p, slug) {
@@ -253,10 +360,10 @@ async function paginaPropia(ctx, c, p, slug) {
   return pagina(ctx, c, p, 'pagina', { slug: x.slug, titulo: x.titulo || x.slug, html: await limpiarHtml(x.html) });
 }
 
-// Para los buscadores: las páginas públicas de todas las parroquias activas (las ocultas, de prueba, no)
+// Para los buscadores: las páginas públicas de todas las parroquias aprobadas (las ocultas, de prueba o en revisión, no)
 async function sitemap(c) {
   const base = 'https://' + PRINCIPAL;
-  const rutas = [['/', '1.0'], ['/acerca', '0.9'], ['/editor/', '0.5']];
+  const rutas = [['/', '1.0'], ['/acerca', '0.9'], ['/sumar', '0.8'], ['/agradecimientos', '0.6'], ['/editor/', '0.5']];
   for (const { slug } of await parroquiasActivas(c)) {
     const p = await leerParroquia(c, slug);
     if (!p || !p.activa) continue;
@@ -293,17 +400,25 @@ export async function atenderPagina(ctx) {
 
   if (ruta === '/sitemap.xml') return sitemap(c);
 
-  // El reproductor es la página principal (y la app instalable, con alcance /), con la parroquia de este equipo
+  // El reproductor es la página principal (y la app instalable, con alcance /), con la parroquia de este equipo.
+  // Sin parroquia elegida (y los buscadores), la portada nacional; la app instalada abre igual con la de siempre.
   if (ruta === '/') {
-    const p = await leerParroquia(c, await parroquiaDelEquipo(c, request));
-    if (p) return pagina(ctx, c, p, 'reproductor');
-    return elegirParroquia(c);
+    const s = cookieParroquia(request);
+    const elegida = s ? await leerParroquia(c, s) : null;
+    if (elegida && elegida.activa) return pagina(ctx, c, elegida, 'reproductor');
+    if (url.searchParams.has('app')) {
+      const p = await leerParroquia(c, await parroquiaDelEquipo(c, request));
+      if (p) return pagina(ctx, c, p, 'reproductor');
+    }
+    return portada(ctx, c, false);
   }
   if (/^\/(index|reproductor)(\.html)?$/.test(ruta)) return redirigir('/' + url.search);
   if (ruta === '/sw-reproductor.js') return swRetiro();
   const iconoRaiz = ruta.match(/^\/icono-(180|192|512)\.png$/);
   if (iconoRaiz) return respuestaIcono(c, await parroquiaDelEquipo(c, request), iconoRaiz[1], env.ASSETS, url);
-  if (ruta === '/elegir') return elegirParroquia(c);
+  if (ruta === '/elegir') return portada(ctx, c, true);
+  if (ruta === '/agradecimientos') return paginaAgradecimientos(ctx, c);
+  if (/^\/(portada|agradecimientos|sumar)\.html$/.test(ruta) || ruta === '/portada') return redirigir(ruta === '/sumar.html' ? '/sumar' : ruta.startsWith('/agrad') ? '/agradecimientos' : '/elegir');
   // Direcciones de antes: a la misma página de la parroquia del equipo (o la principal)
   const vieja = ruta.match(VIEJAS);
   if (vieja) return redirigir('/' + await parroquiaDelEquipo(c, request) + '/' + vieja[1] + url.search);
@@ -325,6 +440,7 @@ export async function atenderPagina(ctx) {
 
   // El reproductor de la parroquia es la página principal con esta parroquia elegida
   if (resto === '' || resto === '/' || /^\/(index|reproductor)(\.html)?$/.test(resto)) return redirigir('/' + url.search, conCookie(slug));
+  if (resto === '/embebido' || resto === '/embebido/') return pagina(ctx, c, p, 'reproductor', null, true);
   const pag = resto.match(/^\/([a-z]+)(\.html)?$/);
   if (pag && PAGINAS[pag[1]]) return pagina(ctx, c, p, pag[1]);
   const propia = resto.match(/^\/p\/([a-z0-9-]+)\/?$/);

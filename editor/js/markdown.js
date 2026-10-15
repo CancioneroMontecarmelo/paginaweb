@@ -141,6 +141,31 @@ function unquote(v) {
 
 const audioExportSrc = a => a.kind === 'url' ? a.src : encodePath(a.src);
 
+// ============ TIEMPOS DE LA LETRA («sincro») ============
+// En la cabecera del .md: sincro: {"<audio>": [segundos de cada línea de letra, en orden; null si no se marcó]}
+// <audio> es el id del archivo de la Biblioteca (…/api/audio/<id>) o la dirección del audio o video.
+function sincroKey(src) {
+  const s = String(src || '');
+  const m = s.match(/\/api\/audio\/([^/?#]+)/);
+  if (!m) return s;
+  try { return decodeURIComponent(m[1]); } catch (_) { return m[1]; }
+}
+
+function parseSincro(v) {
+  if (!v) return {};
+  let o;
+  try { o = typeof v === 'string' ? JSON.parse(v) : v; } catch (_) { return {}; }
+  const out = {};
+  for (const [k, l] of Object.entries(o || {})) {
+    if (!k || !Array.isArray(l)) continue;
+    const t = l.slice(0, 2000).map(x => (typeof x === 'number' && isFinite(x) && x >= 0 ? Math.round(x * 100) / 100 : null));
+    if (t.some(x => x != null)) out[k] = t;
+  }
+  return out;
+}
+
+const sincroToMeta = s => (s && Object.keys(s).length ? JSON.stringify(s) : '');
+
 // ============ MARKDOWN ============
 // audioList: [{ name, src (ya codificada, relativa al .md), voice, extractor, speed, origin }]
 function buildMarkdown(doc, audioList = doc.audios.map(a => ({ name: a.name, src: audioExportSrc(a), voice: a.voice, extractor: a.extractor, speed: a.speed, origin: a.origin }))) {
@@ -161,6 +186,8 @@ function buildMarkdown(doc, audioList = doc.audios.map(a => ({ name: a.name, src
     if (inst.propio) out.push(`instrumento-propio: ${serializeCustomInstrument(inst.def)}`);
   }
   if (doc.view && doc.view !== 'letra') out.push(`vista: ${doc.view}`);
+  const sincro = sincroToMeta(doc.sincro);
+  if (sincro) out.push(`sincro: ${sincro}`);
   out.push(
     `exportado: ${new Date().toISOString().slice(0, 10)}`,
     `generador: ${JSON.stringify(`${APP_INFO.nombre} ${APP_INFO.version}`)}`,
@@ -264,7 +291,8 @@ function parseMarkdown(md, filename = '') {
     sheets, instruments: metaToInstruments(meta.instrumentos), capos: metaToCapos(meta.cejilla),
     view: ['partitura', 'tablatura'].includes(meta.vista) ? meta.vista : null,
     tags: metaToTags(meta.etiquetas || meta.tags),
-    credits: normalizeCredits({ letra: meta['letra-de'], musica: meta['musica-de'] })
+    credits: normalizeCredits({ letra: meta['letra-de'], musica: meta['musica-de'] }),
+    sincro: parseSincro(meta.sincro)
   };
 }
 

@@ -1,0 +1,268 @@
+/* /sumar: asistente para sumar una parroquia o un movimiento */
+.su-main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: calc(var(--nav-h) + 1.75rem) 1.25rem 2.5rem;
+}
+
+.su-cabeza h1 {
+  font-family: var(--fuente-display);
+  color: var(--verde);
+  font-size: clamp(1.8rem, 5vw, 2.5rem);
+  line-height: 1.1;
+  margin: 0 0 0.5rem;
+}
+
+.su-cabeza > p {
+  color: var(--texto-suave);
+  margin: 0 0 1.25rem;
+}
+
+.su-progreso {
+  list-style: none;
+  margin: 0 0 1.75rem;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.3rem;
+  counter-reset: paso;
+}
+
+.su-progreso li {
+  counter-increment: paso;
+  font-size: 0.72rem;
+  text-align: center;
+  color: var(--texto-suave);
+  padding-top: 0.45rem;
+  border-top: 4px solid rgba(47, 74, 56, 0.18);
+}
+
+.su-progreso li.hecho,
+.su-progreso li[aria-current] {
+  border-top-color: var(--verde);
+  color: var(--verde);
+  font-weight: 560;
+}
+
+.su-paso h2 {
+  font-family: var(--fuente-display);
+  color: var(--verde);
+  font-size: 1.5rem;
+  margin: 0 0 0.75rem;
+}
+
+.su-paso h3 {
+  font-family: var(--fuente-display);
+  color: var(--verde);
+  margin: 1.75rem 0 0.4rem;
+}
+
+.su-tipos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin: 0 0 1.1rem;
+}
+
+.su-tipo {
+  position: relative;
+  cursor: pointer;
+}
+
+.su-tipo input {
+  position: absolute;
+  opacity: 0;
+}
+
+.su-tipo > span {
+  display: grid;
+  gap: 0.2rem;
+  height: 100%;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: #fff;
+  border: 2px solid rgba(47, 74, 56, 0.18);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.su-tipo small {
+  color: var(--texto-suave);
+  font-size: 0.82rem;
+}
+
+.su-tipo input:checked + span {
+  border-color: var(--verde);
+  box-shadow: 0 4px 16px rgba(47, 74, 56, 0.18);
+}
+
+.su-tipo input:focus-visible + span {
+  outline: 3px solid var(--cielo);
+}
+
+.su-campo {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0 0 1rem;
+  font-weight: 500;
+}
+
+.su-campo > span:first-child small {
+  font-weight: 400;
+  color: var(--texto-suave);
+}
+
+.su-campo input,
+.su-agregar input,
+.su-agregar select {
+  width: 100%;
+  font: inherit;
+  font-weight: 400;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(47, 74, 56, 0.35);
+  border-radius: 10px;
+  background: #fff;
+  min-width: 0;
+}
+
+.su-dos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 0.75rem;
+}
+
+.su-slug {
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(47, 74, 56, 0.35);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.su-slug-base {
+  padding: 0 0 0 0.8rem;
+  color: var(--texto-suave);
+  font-weight: 400;
+  white-space: nowrap;
+  font-size: 0.92rem;
+}
+
+.su-slug input {
+  border: 0;
+  padding-left: 0.1rem;
+}
+
+.su-estado {
+  font-weight: 400;
+  font-size: 0.86rem;
+  color: var(--texto-suave);
+  min-height: 1.2em;
+}
+
+.su-estado.ok {
+  color: #2e7d32;
+}
+
+.su-estado.mal {
+  color: #b3261e;
+}
+
+.su-ayuda {
+  color: var(--texto-suave);
+  margin: 0 0 0.9rem;
+}
+
+.su-lead {
+  font-size: 1.08rem;
+}
+
+#su-mapa {
+  margin: 0 0 1.25rem;
+}
+
+.su-foto img {
+  max-height: 180px;
+  width: auto;
+  border-radius: 10px;
+  margin-top: 0.4rem;
+}
+
+.su-coms {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.su-coms li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.su-coms small {
+  color: var(--texto-suave);
+}
+
+.su-coms .su-vacio {
+  background: transparent;
+  color: var(--texto-suave);
+  padding-left: 0;
+}
+
+.su-agregar {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.5rem;
+}
+
+.su-google {
+  min-height: 44px;
+  margin: 0 0 0.75rem;
+}
+
+.su-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.su-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  position: sticky;
+  bottom: 0;
+  padding: 0.75rem 0 calc(0.75rem + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--crema) 70%, transparent);
+}
+
+.su-nav #su-seguir {
+  margin-left: auto;
+  min-width: 9rem;
+}
+
+@media (max-width: 520px) {
+  .su-tipos,
+  .su-dos {
+    grid-template-columns: 1fr;
+  }
+
+  .su-agregar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .su-agregar input {
+    grid-column: 1 / -1;
+  }
+
+  .su-slug-base {
+    font-size: 0.8rem;
+  }
+}

@@ -31,6 +31,7 @@
     <p class="sesion-bar" id="sesion-bar" hidden></p>
 
     <div id="contenido-comunidad">
+      <div class="ficha-publica" id="ficha-comunidad" hidden></div>
       <h2 style="font-family:var(--fuente-display);color:var(--verde);font-size:1.35rem;margin:2rem 0 0.75rem">Cancioneros de misa</h2>
       <div id="lista-misas"></div>
 
@@ -63,12 +64,13 @@
   </main>
 
   <footer class="pie">
-    <p><a href="./inicio.html">← Inicio</a> · <a href="./noticias.html">Noticias de la parroquia</a></p>
+    <p><a href="./inicio.html">← Inicio</a> · <a href="./noticias.html">Noticias de la parroquia</a> · <a href="/agradecimientos">Agradecimientos</a></p>
   </footer>
 
   <script type="module">
     import { initNavSitio } from "/js/auth.js";
-    import { comunidadPorSlug, cargarParroquia } from "/js/comunidades.js";
+    import { comunidadPorSlug, cargarParroquia, DATOS_PARROQUIA } from "/js/comunidades.js";
+    import { pintarFichaPublica, CLASES } from "/js/ficha-parroquia.js";
     import { iniciarPaginaNoticias, iniciarListaCancioneros, iniciarListaMisas } from "/js/noticias.js";
     initNavSitio();
     const slug = new URLSearchParams(location.search).get("c") || "";
@@ -78,6 +80,12 @@
       if (!comu) return false;
       document.getElementById("titulo-comunidad").textContent = comu.nombre;
       document.title = comu.nombre + " · " + document.title.replace(/^Comunidad · /, "");
+      const datos = (DATOS_PARROQUIA.comunidades || []).find((x) => x.slug === slug) || {};
+      if (datos.clase && datos.clase !== "comunidad") {
+        document.getElementById("subtitulo-comunidad").textContent = CLASES[datos.clase] + " de la " + (DATOS_PARROQUIA.nombre || "parroquia") +
+          (datos.direccion ? " · " + [datos.direccion, datos.comuna].filter(Boolean).join(", ") : "");
+      }
+      pintarFichaPublica(document.getElementById("ficha-comunidad"), DATOS_PARROQUIA, slug);
       iniciarPaginaNoticias({ slug });
       iniciarListaCancioneros({ slug });
       iniciarListaMisas({ slug });

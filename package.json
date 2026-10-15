@@ -1,7 +1,7 @@
 {
   "name": "montecarmelo",
   "private": true,
-  "description": "Sitio de la Parroquia Nuestra Señora del Monte Carmelo (Cloudflare Pages + Functions + D1 + R2)",
+  "description": "Cancionero Litúrgico: cantos para la misa de todas las parroquias y movimientos de Chile (Cloudflare Pages + Functions + D1 + R2)",
   "scripts": {
     "armar": "bash scripts/armar-sitio.sh",
     "local": "bash scripts/armar-sitio.sh && wrangler pages dev dist --port 8788",

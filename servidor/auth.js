@@ -48,7 +48,7 @@ export function sesionPublica(u) {
   return {
     id: u.id, email: u.email, nombre: u.nombre || u.email, foto: u.foto || '',
     rol: ROLES[u.rol] ? u.rol : 'visitante', comunidad: u.comunidad || '', activo: u.activo !== false,
-    parroquia: u.parroquia || ''
+    parroquia: u.parroquia || '', mostrarNombre: !!u.mostrarNombre
   };
 }
 
@@ -87,7 +87,7 @@ function semilla(c) {
   return { id: 'u-marcos', nombre: 'Marcos Mora Vitta', email: correoParroquia(c) };
 }
 
-const CAMPOS_CUENTA = ['id', 'email', 'nombre', 'foto', 'verificado', 'ultimaEntrada', 'creado'];
+const CAMPOS_CUENTA = ['id', 'email', 'nombre', 'foto', 'verificado', 'ultimaEntrada', 'creado', 'mostrarNombre'];
 const CAMPOS_MIEMBRO = ['rol', 'comunidad', 'activo', 'invitado', 'invitadoPor', 'modificadoPor', 'creado'];
 const elegir = (o, campos) => Object.fromEntries(campos.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
 
@@ -161,7 +161,7 @@ async function registrarVisitante(c, email, nombre, via) {
 }
 
 // Comprueba con Google el «ID token» que entrega el botón «Entrar con Google»
-async function verificarGoogle(c, credencial) {
+export async function verificarGoogle(c, credencial) {
   const clientId = c.env.GOOGLE_CLIENT_ID;
   if (!clientId) throw new ErrorApi('Falta configurar el ID de cliente de Google en el servidor.');
   const r = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(String(credencial || '')));

@@ -1,12 +1,17 @@
-# Sitio Parroquia Nuestra Señora del Monte Carmelo
+# Cancionero Litúrgico (nació en la Parroquia Nuestra Señora del Monte Carmelo)
+
+Cantos para la misa de **todas las parroquias, capillas y movimientos de Chile**: cada una con su espacio
+(`cancioneroliturgico.cl/<parroquia>`) o dentro de su propio sitio web (`/<parroquia>/embebido`).
 
 Sitio en **Cloudflare Pages** (cuenta `cancionerolitugico@gmail.com`): noticias por comunidad, la pantalla
 Misas, el reproductor y los cancioneros litúrgicos hechos con el editor **Cancionero Universal** (`editor/`).
 El servidor de la parroquia es `/api` en el mismo sitio (Pages Functions, código en `servidor/`): los datos
 viven en una base **D1** y los archivos (audios, partituras, cancioneros publicados) en **R2**.
 
-- Página publicada: <https://www.cancioneroliturgico.cl/>. La página principal es el reproductor, con la
-  parroquia de ese equipo (cookie `mc-parroquia`; se cambia en **Cambiar parroquia**, `/elegir`).
+- Página publicada: <https://www.cancioneroliturgico.cl/>. Con una parroquia elegida (cookie `mc-parroquia`),
+  la página principal es el reproductor de esa parroquia; sin ella (visitas nuevas y buscadores), la **portada
+  nacional** (`portada.html`): buscar, el mapa, «Cerca de mí» y sumar la propia. `/elegir` es la misma portada
+  para cambiar de parroquia; la app instalada abre `/?app=1` (la parroquia del equipo).
 - La dirección sin www (<https://cancioneroliturgico.cl/>) la resuelve el servidor (`servidor/paginas.js`):
   las páginas responden con una página mínima que lleva a la misma dirección de www con lo que el navegador
   tenía guardado (sesión, listas, preferencias, en `#mc-migrar=`); el resto, redirección 308.
@@ -18,6 +23,66 @@ viven en una base **D1** y los archivos (audios, partituras, cancioneros publica
   `.ns.cloudflare.com`). En Pages, el proyecto tiene como dominios propios `cancioneroliturgico.cl` y
   `www.cancioneroliturgico.cl`.
 - Cada `git push` a `main` vuelve a publicar el sitio en 1–2 minutos.
+
+## Para todo Chile
+
+- **Sumar una parroquia o movimiento** (`/sumar`, `sumar.html` + `js/sumar.js`): un asistente de cinco pasos
+  (tipo, nombre y dirección propia, ubicación en el mapa y foto, capillas o grupos, responsable con Google). La
+  parroquia queda creada **oculta y pendiente** y quien la pidió entra como responsable (`admin_segundo`): puede
+  usarla al tiro. Se avisa por correo a la parroquia (formsubmit).
+- **Solicitudes** (Identificarse → Parroquias, solo administrador general): aprobar (la parroquia aparece en la
+  portada, el mapa y los buscadores), pedir cambios o rechazar, con el mensaje de bienvenida listo para
+  WhatsApp o correo.
+- **Ficha de cada parroquia**: tipo, diócesis, sitio web, dirección con mapa (Leaflet + OpenStreetMap,
+  `js/mapa.js`; la búsqueda de direcciones usa Nominatim, máximo una por segundo) y hasta 12 fotos en R2
+  (`parroquias/<slug>/fotos/`). Las capillas y grupos también tienen dirección y foto. Se edita en
+  **Datos de la parroquia** (`js/ficha-parroquia.js`) y se ve en Inicio y en cada comunidad.
+- **En el sitio de la parroquia**: `/<parroquia>/embebido` es el reproductor sin el menú del sitio, para un
+  `<iframe>`; el código del recuadro y del botón está en Datos de la parroquia y al final de `/sumar`.
+- **Buscadores**: la portada lleva JSON-LD (WebSite con búsqueda, Organization, la lista de parroquias); cada
+  parroquia, `Church` u `Organization` con dirección, mapa y foto (`og:image`). Las ocultas o pendientes van con
+  `noindex`. El sitemap suma `/sumar`, `/agradecimientos` y las parroquias aprobadas.
+- **Agradecimientos** (`/agradecimientos`): inspiración (cancionerocatolico.cl y René Valencia), los cantos
+  propios, los autores (de los créditos de la Biblioteca), los canales de YouTube y sitios de donde vienen los
+  audios (nombres por oEmbed, tabla `fuentes`), las parroquias y quienes colaboran. Se arma en el servidor
+  (`servidor/experiencia.js`, guardado 24 horas). En el reproductor y en Misas cada audio enlazado dice
+  «Audio: <canal o sitio>».
+
+### Para que vuelvan cada semana
+
+- **Aviso del sábado** (Configuración del reproductor → Avisarme el sábado): Web Push a las 18:00 de Chile con el
+  cancionero del domingo de su comunidad; las letras quedan guardadas para la misa sin señal. En el iPhone
+  necesita la app instalada (iOS 16.4 o más). Lo manda el trabajador `trabajadores/avisos` (ver abajo).
+- **Bajar audios** (pie de la cola): guarda los audios de la cola en el equipo (caché `mc-audios`); `sw.js` los
+  sirve sin conexión, también por partes. Las letras que se abren quedan en `mc-datos`.
+- **Compartir tarjeta** (pie de la cola y Misas): una imagen 1080×1350 con los cantos (`js/tarjeta.js`).
+- **¿Qué canto te gustó más?** (al terminar un cancionero de misa o en el pie de la cola): un voto por equipo y
+  misa (tabla `reacciones`); quienes editan ven «Lo que más gustó» en Misas.
+- **Inicio del reproductor**: «Lo más cantado en Chile», «Este domingo en otras parroquias» (las cercanas
+  primero), «Cerca de ti» y «Gracias a quienes colaboran» (de la auditoría; el nombre solo si la persona marca
+  «Mostrar mi nombre como colaborador» en Identificarse).
+- **Letra que avanza sola**: en el editor, **Herramientas → Marcar los tiempos de la letra…** (se toca
+  «Marcar» o la barra espaciadora al empezar cada línea mientras suena el audio). Los tiempos van en la
+  cabecera del .md (`sincro: {"<id del audio o URL>": [segundos por línea de letra]}`); en el reproductor la
+  línea que se canta se ilumina y la letra avanza (se apaga en Configuración).
+
+### Aviso del sábado: puesta en marcha (una vez)
+
+La llave pública VAPID está en `wrangler.toml` (`VAPID_PUBLICA`, la usan los navegadores para suscribirse) y en
+`trabajadores/avisos/wrangler.toml`; la privada está en `trabajadores/avisos/.dev.vars` (no va al repositorio).
+
+```bash
+npx wrangler d1 migrations apply montecarmelo --remote   # tablas suscripciones, reacciones y fuentes; créditos de Marcos
+npx wrangler r2 object delete montecarmelo-archivos/cache/biblioteca.json --remote   # la Biblioteca se rearma con los créditos
+cd trabajadores/avisos
+npx wrangler deploy
+npx wrangler secret put VAPID_PRIVADA                     # el valor de VAPID_PRIVADA en .dev.vars
+npx wrangler secret put PRUEBA                            # el valor de PRUEBA en .dev.vars
+```
+
+Corre cada 5 minutos el sábado entre las 21 y las 22:55 UTC y solo trabaja cuando en Chile son las 18; manda
+40 avisos por vez (`LOTE`) y borra las suscripciones que el servicio da por terminadas (404 o 410). Para
+probarlo: `https://montecarmelo-avisos.<cuenta>.workers.dev/?clave=<PRUEBA>`.
 
 ## Autenticación (Identificarse)
 

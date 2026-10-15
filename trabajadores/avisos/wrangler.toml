@@ -1,0 +1,25 @@
+# Aviso del sábado (Web Push): a las 18:00 de Chile avisa el cancionero del domingo a los equipos suscritos.
+# Usa la misma base D1 del sitio (tabla suscripciones). Se publica aparte, desde esta carpeta:
+#   npx wrangler deploy
+#   npx wrangler secret put VAPID_PRIVADA   (la llave privada, JWK; está en .dev.vars, que no va al repositorio)
+#   npx wrangler secret put PRUEBA          (clave para mandar una tanda a mano: GET /?clave=…)
+# La llave pública es la misma VAPID_PUBLICA de ../../wrangler.toml (con ella se suscriben los navegadores).
+name = "montecarmelo-avisos"
+main = "index.js"
+compatibility_date = "2026-04-01"
+workers_dev = true
+
+# 18:00 de Chile es 21:00 UTC en horario de verano y 22:00 UTC en invierno: corre ambas horas y el código revisa
+# la hora de Chile. Cada 5 minutos manda una tanda (LOTE).
+[triggers]
+crons = ["*/5 21-22 * * 6"]
+
+[vars]
+VAPID_PUBLICA = "BOo63J4WupEPp0ZquHtbNE-5Ugltwfawaahl5SyNtTmEcjfW16qKAlf-zhEqqfqSfj_TAd0y2y4zzo7hUt_x4lw"
+VAPID_SUJETO = "mailto:cancionerolitugico@gmail.com"
+LOTE = "40"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "montecarmelo"
+database_id = "4dc8b2ab-5f5f-40d1-8871-73ec5e436a4e"

@@ -10,7 +10,7 @@ const cur = () => (previa && activeId === previa.id ? previa : docs.find(d => d.
 
 function makeDoc({ id, title = 'Sin título', text = '', audios = [], currentAudioId = null, clean = true, scrollSpeed = null,
   sheets = [], instruments = [], capos = {}, view = null, sheetSel = {}, panelInst = 0, tags = [], credits = null,
-  mc = null, partituras = null, hojasBib = null, bibId = null } = {}) {
+  mc = null, partituras = null, hojasBib = null, bibId = null, sincro = null } = {}) {
   const d = {
     id: id || uid(),
     title, text,
@@ -23,6 +23,7 @@ function makeDoc({ id, title = 'Sin título', text = '', audios = [], currentAud
     view, sheetSel: sheetSel || {}, panelInst: panelInst || 0,
     tags: uniqueTags(tags || []),
     credits: normalizeCredits(credits),
+    sincro: parseSincro(sincro),
     hist: { stack: [{ text, s: 0, e: 0 }], idx: 0, timer: null },
     sel: [0, 0],
     scroll: 0,
@@ -39,7 +40,7 @@ function makeDoc({ id, title = 'Sin título', text = '', audios = [], currentAud
 }
 
 const docSignature = d => [d.title, d.text, d.audios.map(a => a.src).join('|'), d.sheets.map(h => h.src).join('|'),
-  instrumentsToMeta(d.instruments), caposToMeta(d.capos), tagsToMeta(d.tags), d.credits.letra, d.credits.musica].join('\u0000');
+  instrumentsToMeta(d.instruments), caposToMeta(d.capos), tagsToMeta(d.tags), d.credits.letra, d.credits.musica, sincroToMeta(d.sincro)].join('\u0000');
 const isDirty = d => docSignature(d) !== d.clean;
 const isBlank = d => !d.text.trim() && !d.audios.length && !d.sheets.length;
 const markClean = (d = cur()) => { d.clean = docSignature(d); };
@@ -319,6 +320,7 @@ function saveNow() {
         instruments: d.instruments, capos: d.capos, view: d.view, sheetSel: d.sheetSel, panelInst: d.panelInst,
         tags: d.tags,
         credits: d.credits,
+        sincro: d.sincro,
         mc: d.mc || null,
         hojasBib: d.hojasBib || null,
         bibId: d.bibId || null,

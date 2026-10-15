@@ -198,6 +198,15 @@ function guardarSesion(sesion) {
   localStorage.setItem(CLAVE_SESION, JSON.stringify({ ...sesion, desde: Date.now() }));
 }
 
+/** «Mostrar mi nombre como colaborador» (Inicio y Agradecimientos). */
+export async function mostrarComoColaborador(mostrar) {
+  const s = sesionActual();
+  if (!s?.token) throw new Error("Primero entra con tu cuenta.");
+  const r = await llamarApi("preferenciaColaborador", { token: s.token, mostrar: !!mostrar });
+  localStorage.setItem(CLAVE_SESION, JSON.stringify({ ...s, mostrarNombre: r.mostrarNombre }));
+  return r.mostrarNombre;
+}
+
 function clavesDeSesion() {
   const claves = [];
   try {

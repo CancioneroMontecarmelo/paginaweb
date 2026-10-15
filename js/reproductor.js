@@ -37,6 +37,8 @@ import { momentosHabituales, ponerHabituales, lugarHabitual, gruposDeMomentos, o
 import { crearMezclador, pistasDeVoces } from "./voces.js";
 import { crearReproductorYT, esYoutube, youtubeId } from "./youtube-embed.js";
 import { conectarSala, codigoValido } from "./sala.js";
+import { estadoAviso, activarAviso, desactivarAviso, actualizarComunidadAviso, esIphone, audiosGuardados, bajarAudios } from "./aviso.js";
+import { compartirTarjeta } from "./tarjeta.js";
 
 // editor/js/caratula.js (script clásico) busca la miniatura del video con esta función
 window.youtubeId ||= youtubeId;
@@ -151,9 +153,26 @@ async function leer(params) {
   return r;
 }
 
+// La letra queda guardada en el equipo («mc-datos», la misma dirección que guarda el aviso del sábado): sin señal
+// en el templo se usa la guardada
+async function letraGuardable(id) {
+  const url = (window.MONTECARMELO_CONFIG || {}).apiUrl + "?" + new URLSearchParams({ accion: "cancion", id });
+  try {
+    const r = await leer({ accion: "cancion", id });
+    caches.open(CACHE_DATOS).then((c) => c.put(url, new Response(JSON.stringify(r), { headers: { "Content-Type": "application/json" } }))).catch(() => {});
+    return r;
+  } catch (err) {
+    try {
+      const g = await (await caches.open(CACHE_DATOS)).match(url);
+      if (g) return await g.json();
+    } catch (_) { /* sin copia */ }
+    throw err;
+  }
+}
+
 function textoCancion(id) {
   if (!st.textos.has(id)) {
-    const p = leer({ accion: "cancion", id }).then((r) => ({
+    const p = letraGuardable(id).then((r) => ({
       doc: parseMarkdown(r.texto, (r.cancion?.titulo || "cancion") + ".md"), cancion: r.cancion || {}
     }));
     st.textos.set(id, p);
@@ -338,9 +357,65 @@ const tarjeta = (caraHtmlTxt, accion, titulo, sub) => `<div class="rp-tj">
     <div class="rp-tj-sub">${esc(sub)}</div>
   </div>`;
 
+// Lo más cantado, los cancioneros del domingo de las otras parroquias (las más cercanas primero) y quienes colaboran
+const radianes = (g) => (g * Math.PI) / 180;
+const distanciaKm = (a, b) => {
+  const h = Math.sin(radianes(b.lat - a.lat) / 2) ** 2 + Math.cos(radianes(a.lat)) * Math.cos(radianes(b.lat)) * Math.sin(radianes(b.lng - a.lng) / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+};
+const km = (d) => (d == null ? "" : d < 1 ? "menos de 1 km" : d < 20 ? d.toFixed(1).replace(".", ",") + " km" : Math.round(d) + " km");
+
+async function dondeEstoy() {
+  try {
+    if ((await navigator.permissions?.query({ name: "geolocation" }))?.state === "granted") {
+      const pos = await new Promise((ok, mal) => navigator.geolocation.getCurrentPosition(ok, mal, { timeout: 4000, maximumAge: 3600e3 }));
+      return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    }
+  } catch (_) { /* sin ubicación del equipo */ }
+  const p = window.MC_PARROQUIA || {};
+  return typeof p.lat === "number" ? { lat: p.lat, lng: p.lng } : null;
+}
+
+let inspiracionLeida = null;
+const datosInspiracion = () => (inspiracionLeida ||= Promise.all([
+  leer({ accion: "masCantados" }).then((r) => r.canciones || []).catch(() => []),
+  leer({ accion: "domingoEnOtras", excluir: PARROQUIA_ACTUAL }).then((r) => r.misas || []).catch(() => []),
+  leer({ accion: "parroquias" }).then((r) => r.parroquias || []).catch(() => []),
+  leer({ accion: "colaboradores" }).catch(() => null),
+  dondeEstoy()
+]).then(([cantados, otras, parroquias, colaboran, aqui]) => {
+  const lejos = (x) => (aqui && typeof x.lat === "number" ? distanciaKm(aqui, x) : null);
+  const porDistancia = (a, b) => (a.km ?? 1e9) - (b.km ?? 1e9);
+  return {
+    cantados,
+    otras: otras.map((m) => ({ ...m, km: lejos(m.parroquia) })).sort(porDistancia),
+    cerca: aqui ? parroquias.filter((p) => p.slug !== PARROQUIA_ACTUAL).map((p) => ({ ...p, km: lejos(p) }))
+      .filter((p) => p.km != null && p.km < 150).sort(porDistancia).slice(0, 16) : [],
+    colaboran
+  };
+}));
+
+function seccionColaboran(x) {
+  if (!x) return "";
+  const t = x.totales || {};
+  const cifras = [[t.canciones, "canciones"], [t.audios, "audios"], [t.partituras, "partituras"], [t.cancioneros, "cancioneros de misa"]]
+    .filter(([n]) => n > 0).map(([n, que]) => `<li><b>${n}</b> ${que}</li>`).join("");
+  const nombres = x.nombres || [];
+  if (!cifras && !nombres.length) return "";
+  const otros = x.otros > 0 ? (nombres.length ? ` y ${x.otros} ${x.otros === 1 ? "persona más" : "personas más"}` : `${x.otros} ${x.otros === 1 ? "persona" : "personas"}`) : "";
+  return `<section class="rp-gracias">
+    <h2>Gracias a quienes colaboran</h2>
+    ${cifras ? `<ul class="rp-gracias-cifras">${cifras}</ul>` : ""}
+    ${nombres.length || otros ? `<p>${esc(nombres.join(", "))}${esc(otros)}.</p>` : ""}
+    <p class="rp-gracias-pie">Cada canción, audio y cancionero que se sube queda para todas las parroquias.
+      <a href="/agradecimientos">Agradecimientos</a>${sesionActual() ? ` · <a href="./login.html#colaborador">Mostrar mi nombre</a>` : ""}</p>
+  </section>`;
+}
+
 let inicioViejo = true;
 async function pintarInicio() {
   inicioViejo = false;
+  const inspiracion = datosInspiracion();
   const lista = st.biblioteca;
   $("#rp-portada-sobre").textContent = "Próximo domingo · " + lit.fechaLarga(domingo);
   $("#rp-portada-titulo").textContent = lit.nombreDelDia(domingo) || tiempoDomingo;
@@ -366,7 +441,7 @@ async function pintarInicio() {
     const k = st.estantes.push({ nombre: titulo, items: pares.map(([c, momento]) => ({ cancionId: c.id, desplazamiento: 0, ...(momento ? { momento } : {}) })) }) - 1;
     return estante(titulo, sobre, pares.map(([c, momento, motivo], i) =>
       tarjeta(cara(c, "grande", momento), `data-estante="${k}" data-i="${i}"`, c.titulo,
-        momento ? momento + (motivo ? " · " + motivo : "") : subCancion(c))));
+        momento ? momento + (motivo ? " · " + motivo : "") : motivo || subCancion(c))));
   };
 
   const hoy = lit.hoyIso();
@@ -388,6 +463,22 @@ async function pintarInicio() {
   }));
   html += estante("Tus listas", "En este equipo", st.listas.filter((l) => l.items.length).map((l) =>
     tarjeta(caraLista(l, "grande"), `data-inicio-lista="${esc(l.id)}"`, l.nombre, l.items.length + (l.items.length === 1 ? " canción" : " canciones"))));
+
+  // Inspiración: lo que cantan las demás parroquias y movimientos de Chile
+  const ins = await inspiracion;
+  if (lista.length) {
+    html += deCanciones("Lo más cantado en Chile", "En los cancioneros de las parroquias este mes", ins.cantados
+      .map((x) => [st.porId.get(x.id), "", x.parroquias > 1 ? `En ${x.parroquias} parroquias` : "En 1 parroquia"]).filter(([c]) => c));
+    st.otras = ins.otras.map((m) => ({ ...m, items: m.items.filter((x) => st.porId.has(x.cancionId)) })).filter((m) => m.items.length);
+    html += estante("Este domingo en otras parroquias", "Para escuchar e inspirarse", st.otras.map((m, k) =>
+      tarjeta(caraCelebracion(m, "grande"), `data-otra="${k}"`, m.nombre || "Cancionero de misa",
+        [m.parroquia.nombreCorto, m.km != null ? "a " + km(m.km) : "", m.items.length + " cantos"].filter(Boolean).join(" · "))));
+  }
+  html += estante("Cerca de ti", "Parroquias y movimientos que usan el Cancionero", ins.cerca.map((p) => `<div class="rp-tj">
+      <a class="rp-tj-cara rp-tj-foto" href="/${esc(p.slug)}/inicio">${p.foto ? `<img src="${esc(p.foto)}" alt="" loading="lazy">` : `<img src="${esc(p.icono)}" alt="" loading="lazy" class="rp-tj-icono">`}</a>
+      <a class="rp-tj-titulo" href="/${esc(p.slug)}/inicio">${esc(p.nombre)}</a>
+      <div class="rp-tj-sub">${esc([p.comuna, km(p.km)].filter(Boolean).join(" · "))}</div>
+    </div>`));
 
   if (lista.length) {
     // Un estante por domingo desde hoy: los cantos sugeridos sin repetir ninguno en el mes
@@ -413,6 +504,7 @@ async function pintarInicio() {
       } else html += deCanciones(m, "Momentos de la misa", lista.filter((c) => lit.esDelMomento(c, m)).sort(ordenInicio).map((c) => [c, m]));
     }
   }
+  html += seccionColaboran(ins.colaboran);
   $("#rp-estantes").innerHTML = html || `<p class="rp-aviso">${esc($("#rp-estado-bib").textContent || "Todavía no hay canciones.")}</p>`;
 }
 
@@ -432,6 +524,12 @@ function accionInicio(e) {
     const h = "#misa=" + encodeURIComponent(d.misa);
     if (location.hash === h) leerHash();
     else location.hash = h;
+  } else if (d.otra) {
+    const m = st.otras?.[+d.otra];
+    if (!m) return;
+    colaPropia({ nombre: (m.nombre || "Cancionero de misa") + " · " + m.parroquia.nombreCorto, tipo: "biblioteca", items: m.items.map((x) => ({ ...x })) });
+    reproducir(0);
+    mostrarVista("sonando");
   } else if (d.inicioLista) {
     const l = st.listas.find((x) => x.id === d.inicioLista);
     if (!l) return;
@@ -1318,7 +1416,65 @@ async function pintarLetra(item, entrada) {
   box.scrollTop = 0;
   moverA(document.scrollingElement, 0);
   alinear();
+  prepararKaraoke(r);
   $("#rp-titulo").textContent = $("#rp-barra-titulo").textContent = r.doc.title || entrada.titulo || r.cancion.titulo || "";
+}
+
+// ============ LETRA QUE AVANZA SOLA ============
+// Con los tiempos marcados en el editor (Herramientas → Marcar los tiempos) para el audio que suena, la línea que se
+// canta se ilumina y queda a un tercio de la pantalla (en Reproduciendo y en el escenario). Si la persona desplaza la
+// letra con el dedo, se respeta unos segundos.
+
+const karaoke = { tiempos: null, actual: -1, manual: 0 };
+const sigueLaLetra = () => guardado("mc-rp-sigue", "si") !== "no";
+
+function prepararKaraoke(r) {
+  const entrada = st.porId.get(actualId());
+  const { lista, i } = elegirAudio(entrada || { audios: [] });
+  const a = lista[i];
+  const clave = a ? a.fileId || a.url : "";
+  karaoke.tiempos = (clave && r?.doc?.sincro?.[clave]) || null;
+  karaoke.actual = -2;
+  pasoKaraoke();
+}
+
+function lineaCantada(t) {
+  let k = -1;
+  karaoke.tiempos.forEach((x, j) => { if (x != null && x <= t) k = j; });
+  return k;
+}
+
+function pasoKaraoke() {
+  const activo = !!karaoke.tiempos && sigueLaLetra();
+  const cajas = [$("#rp-letra"), $("#rp-esc-letra")];
+  if (!activo) {
+    if (karaoke.actual !== -1) for (const b of cajas) {
+      b.classList.remove("karaoke");
+      b.querySelectorAll(".cantando").forEach((x) => x.classList.remove("cantando"));
+    }
+    karaoke.actual = -1;
+    return;
+  }
+  const k = lineaCantada(motor().currentTime || 0);
+  if (k === karaoke.actual) return;
+  karaoke.actual = k;
+  const libre = Date.now() - karaoke.manual > 4000;
+  for (const box of cajas) {
+    box.classList.toggle("karaoke", k >= 0);
+    box.querySelectorAll(".cantando").forEach((x) => x.classList.remove("cantando"));
+    const l = box.querySelectorAll(".lyric-line")[k];
+    if (!l || !l.offsetHeight) continue;
+    l.classList.add("cantando");
+    if (!libre) continue;
+    if (box.id === "rp-esc-letra") {
+      if (!escena.abierto || escena.avanza) continue;
+      const el = $("#rp-esc-cuerpo");
+      irA(el, el.scrollTop + l.getBoundingClientRect().top - el.getBoundingClientRect().top - el.clientHeight / 3, true);
+    } else if (st.vista === "sonando" && !escena.abierto) {
+      const el = document.scrollingElement;
+      irA(el, el.scrollTop + l.getBoundingClientRect().top - innerHeight / 3, true);
+    }
+  }
 }
 
 // ============ TONO DE LA CANCIÓN QUE SUENA ============
@@ -1392,7 +1548,27 @@ async function repintarLetra(item) {
 
 // La carátula va en la cabecera de la canción y junto al ▶ de la barra; si el audio trae imagen, esa
 let turnoCara = 0;
+// «Audio: <canal de YouTube o sitio>»: el reconocimiento a quien lo puso en internet
+let fuentes = null;
+const fuentesLeidas = () => (fuentes ||= leer({ accion: "fuentesAudios" }).then((r) => r.fuentes || {}).catch(() => ({})));
+function pintarFuente(a) {
+  const p = $("#rp-fuente");
+  p.hidden = true;
+  if (!a || a.fileId || !a.url) return;
+  const url = a.url;
+  fuentesLeidas().then((f) => {
+    const actual = elegirAudio(st.porId.get(actualId()) || {});
+    if (actual.lista[actual.i]?.url !== url) return;
+    let host = "";
+    try { host = new URL(url).hostname.replace(/^www\./, ""); } catch (_) { return; }
+    const quien = f[url] ? f[url] + (esYoutube(url) ? " (YouTube)" : "") : esYoutube(url) ? "YouTube" : host;
+    p.innerHTML = `Audio: <a href="${esc(url)}" target="_blank" rel="noopener">${esc(quien)}</a>`;
+    p.hidden = false;
+  });
+}
+
 function pintarCaras(entrada, item, a) {
+  pintarFuente(a);
   const t = ++turnoCara;
   const c = { ...entrada, titulo: entrada.titulo || "♪" };
   $("#rp-hero-cara").innerHTML = cara(c, "cara-grande", item.momento);
@@ -1429,6 +1605,143 @@ function pintarCola() {
     </button>${cambia ? `<button type="button" class="rp-cola-cambiar" data-cola-cambiar="${i}" title="Cambiar por otra canción" aria-label="Cambiar «${esc(e.titulo)}» por otra">⇄</button>` : ""}</li>`;
   }).join("");
   centrarCola();
+  pintarPieCola();
+}
+
+// Los audios de la Biblioteca que van a sonar (el elegido de cada canción, o el primero propio)
+const urlsDeAudios = (c) => [...new Set(c.items.map((it) => {
+  const { lista, i } = elegirAudio(st.porId.get(it.cancionId) || { id: it.cancionId, audios: [] });
+  const a = lista[i]?.fileId ? lista[i] : lista.find((x) => x.fileId);
+  return a ? urlAudio(a.fileId) : "";
+}).filter(Boolean))];
+
+let bajando = false;
+function pintarPieCola() {
+  const c = st.cola, pie = $("#rp-cola-pie");
+  if (!c || tv) {
+    pie.innerHTML = "";
+    return;
+  }
+  const urls = urlsDeAudios(c);
+  const misa = c.tipo === "misa" && !!c.misaId;
+  pie.innerHTML = `<button type="button" class="rp-btn" data-pie="tarjeta" title="Una imagen con los cantos para mandar por WhatsApp o subir a las redes">Compartir tarjeta</button>`
+    + (urls.length ? `<button type="button" class="rp-btn" data-pie="bajar" title="Guardar los audios en este equipo para escucharlos sin señal"${bajando ? " disabled" : ""}>Bajar audios</button>` : "")
+    + (misa ? `<button type="button" class="rp-btn" data-pie="votar">${votoDe(c.misaId) ? "Cambiar mi voto" : "¿Qué canto te gustó más?"}</button>` : "")
+    + `<small id="rp-cola-pie-estado"></small>`;
+  if (urls.length && !bajando) audiosGuardados(urls).then((n) => {
+    const e = $("#rp-cola-pie-estado");
+    if (e && n && st.cola === c) e.textContent = n === urls.length ? "Los audios ya están guardados en este equipo." : `${n} de ${urls.length} audios guardados en este equipo.`;
+  });
+}
+
+async function accionPieCola(e) {
+  const b = e.target.closest("[data-pie]");
+  const c = st.cola;
+  if (!b || !c) return;
+  if (b.dataset.pie === "tarjeta") return tarjetaDeCola(c);
+  if (b.dataset.pie === "votar") return abrirVoto(c);
+  if (b.dataset.pie === "bajar" && !bajando) {
+    bajando = true;
+    b.disabled = true;
+    const estado = $("#rp-cola-pie-estado");
+    try {
+      const r = await bajarAudios(urlsDeAudios(c), (n, total) => { if (estado) estado.textContent = `Bajando audios: ${n} de ${total}…`; });
+      avisar(r.fallas ? `Se guardaron ${r.hechos} audios; ${r.fallas} no se pudieron bajar.` : "Listo: los audios quedaron en este equipo para escucharlos sin señal.");
+    } catch (_) {
+      avisar("No se pudieron guardar los audios en este equipo.");
+    } finally {
+      bajando = false;
+      pintarPieCola();
+    }
+  }
+}
+
+async function tarjetaDeCola(c) {
+  const p = window.MC_PARROQUIA || {};
+  const titulos = c.items.map((it) => ({ momento: it.momento || "", titulo: st.porId.get(it.cancionId)?.titulo || "" })).filter((x) => x.titulo);
+  const misa = c.tipo === "misa" && c.misaId;
+  const m = misa ? ((await todasLasMisas()).find((x) => x.id === c.misaId) || {}) : {};
+  const fecha = m.fechaUso ? lit.fechaLarga(m.fechaUso) : "";
+  const una = titulos.length === 1 ? st.porId.get(c.items[0].cancionId) : null;
+  let lineas = [];
+  if (una) {
+    try {
+      const { doc } = await textoCancion(una.id);
+      lineas = String(doc.text || "").split("\n").map((l) => l.trim()).filter((l) => l && !isChordLine(l) && !/^[#>{]/.test(l)).slice(0, 8);
+    } catch (_) { /* sin letra */ }
+  }
+  const url = misa ? `${location.origin}/${PARROQUIA_ACTUAL}/#misa=${encodeURIComponent(c.misaId)}` : location.origin + "/" + PARROQUIA_ACTUAL + "/";
+  try {
+    const r = await compartirTarjeta({
+      titulo: una ? una.titulo : c.nombre,
+      subtitulo: una ? creditsText(normalizeCredits({ letra: una.letraDe, musica: una.musicaDe })) : [fecha, nombreComunidad(c.comunidad)].filter(Boolean).join(" · "),
+      items: una ? [] : titulos, lineas,
+      pie: p.nombre || "Cancionero Litúrgico",
+      direccion: "cancioneroliturgico.cl/" + PARROQUIA_ACTUAL,
+      color: misa ? colorDeMisa(m) : acentoLiturgico,
+      url
+    });
+    if (r === "descargada") avisar("La tarjeta quedó en tus descargas.");
+  } catch (e) {
+    avisar(e.message || "No se pudo armar la tarjeta.");
+  }
+}
+
+// ============ AVISO DEL SÁBADO ============
+
+async function pintarAviso() {
+  const b = $("#rp-cfg-aviso"), e = $("#rp-cfg-aviso-estado");
+  const estado = await estadoAviso().catch(() => "no");
+  b.hidden = estado === "no" || estado === "instalar";
+  b.setAttribute("aria-pressed", estado === "activo");
+  b.textContent = estado === "activo" ? "Dejar de avisarme" : "Avisarme el sábado";
+  e.textContent = {
+    activo: "Activo en este equipo.",
+    bloqueado: "Los avisos están bloqueados para este sitio: actívalos en los ajustes del navegador.",
+    instalar: "En el iPhone, primero instala la app (Compartir → «Agregar a pantalla de inicio») y actívalo desde ahí.",
+    no: esIphone() ? "En el iPhone se necesita iOS 16.4 o más nuevo y la app instalada." : "Este navegador no recibe avisos.",
+    inactivo: ""
+  }[estado];
+}
+
+// ============ ¿QUÉ CANTO TE GUSTÓ MÁS? ============
+
+const equipoId = () => {
+  let id = guardado("mc-equipo-id", "");
+  if (!/^[a-z0-9-]{8,60}$/i.test(id)) {
+    id = crypto.randomUUID?.() || (Date.now().toString(36) + Math.random().toString(36).slice(2, 12));
+    guardar("mc-equipo-id", id);
+  }
+  return id;
+};
+const votoDe = (misaId) => guardado("mc-voto:" + misaId, "");
+
+function abrirVoto(c) {
+  const ya = votoDe(c.misaId);
+  const vistos = new Set();
+  const items = c.items.filter((it) => !vistos.has(it.cancionId) && vistos.add(it.cancionId) && st.porId.has(it.cancionId));
+  if (!items.length) return;
+  $("#rp-votar-que").textContent = ya ? "Ya votaste en este cancionero; puedes cambiar tu voto." : "Tu voto ayuda al coro a elegir los cantos de las próximas misas.";
+  $("#rp-votar-lista").innerHTML = items.map((it) => {
+    const e = st.porId.get(it.cancionId);
+    return `<li><button type="button" data-votar="${esc(it.cancionId)}" class="${it.cancionId === ya ? "elegida" : ""}">${cara(e, "chica", it.momento)}
+      <span><b>${esc(e.titulo)}</b><small>${esc(it.momento || "")}</small></span></button></li>`;
+  }).join("");
+  $("#rp-dlg-votar").dataset.misa = c.misaId;
+  $("#rp-dlg-votar").showModal();
+}
+
+async function votar(cancion) {
+  const d = $("#rp-dlg-votar"), misa = d.dataset.misa;
+  try {
+    await llamarApi("reaccionar", { misa, cancion, equipo: equipoId() });
+    guardar("mc-voto:" + misa, cancion);
+    d.close();
+    avisar("¡Gracias! Tu voto quedó para el coro.");
+    pintarPieCola();
+  } catch (e) {
+    avisar(e.message);
+  }
 }
 
 // ⇄ en los cancioneros de misa y en las listas (emergencias: cambiar una canción por otra)
@@ -1665,7 +1978,14 @@ function alTerminarPista() {
     tv.sala?.enviar({ tipo: "aviso", texto: `Terminó «${tituloActual()}» en el TV: elegí la siguiente cuando quieras.` });
     return;
   }
-  if (!siguiente()) avisar(vecino(1) >= 0 ? "No quedan más canciones con audio en la lista." : "Terminó la lista.");
+  if (siguiente()) return;
+  avisar(vecino(1) >= 0 ? "No quedan más canciones con audio en la lista." : "Terminó la lista.");
+  // Al terminar el cancionero de una misa, una sola vez por misa en este equipo
+  const c = st.cola;
+  if (vecino(1) < 0 && c?.tipo === "misa" && c.misaId && !votoDe(c.misaId) && !guardado("mc-voto-preguntado:" + c.misaId, "")) {
+    guardar("mc-voto-preguntado:" + c.misaId, "1");
+    abrirVoto(c);
+  }
 }
 
 function pintarModos() {
@@ -1832,6 +2152,7 @@ async function pintarEscenario() {
   }
   if (t !== escena.turno) return;
   box.innerHTML = htmlCancion(r, item.desplazamiento, entrada);
+  karaoke.actual = -2;
   $("#rp-esc-titulo").textContent = r.doc.title || entrada.titulo || r.cancion.titulo || "";
   ajustarEscenario();
   moverA(cuerpo, 0);
@@ -2811,6 +3132,12 @@ function leerHash() {
     } catch (_) {
       avisar("El enlace de la lista no se pudo leer.");
     }
+  } else if (clave === "buscar" && valor) {
+    // Desde Agradecimientos: los cantos de un autor
+    history.replaceState(null, "", location.pathname + location.search);
+    mostrarVista("canciones");
+    $("#rp-buscar").value = valor;
+    pintarCanciones();
   } else if (clave === "misa" && valor) abrirMisa(valor);
   else if (clave === "vivo" && /^\d{4}$/.test(valor)) seguirVivo(valor);
   else if (clave === "pantalla" && !tv) iniciarPantalla();
@@ -2829,6 +3156,8 @@ function cambiarVoz(k) {
   const antes = motor();
   const t = antes.currentTime, sonaba = !antes.paused;
   cargarAudio(a, sonaba);
+  pintarFuente(a);
+  textoCancion(entrada.id).then(prepararKaraoke).catch(() => {});
   // Las voces de una misma grabación siguen en el mismo punto; el video es otra grabación
   if (antes === audio && motor() === audio) {
     audio.addEventListener("loadedmetadata", () => { audio.currentTime = Math.min(t, audio.duration || t); }, { once: true });
@@ -2913,6 +3242,7 @@ function conectar() {
     guardar(CLAVE_COMUNIDAD, st.comunidad);
     inicioViejo = true;
     cargarMisas();
+    actualizarComunidadAviso(st.comunidad);
   });
 
   $("#rp-voz").addEventListener("change", (e) => {
@@ -2920,6 +3250,15 @@ function conectar() {
     st.elegido.set(actualId(), +e.target.value);
     ordenTv("voz", { cancionId: actualId(), i: +e.target.value });
   });
+  $("#rp-cfg-sigue").setAttribute("aria-pressed", sigueLaLetra());
+  $("#rp-cfg-sigue").addEventListener("click", (e) => {
+    guardar("mc-rp-sigue", sigueLaLetra() ? "no" : "si");
+    e.currentTarget.setAttribute("aria-pressed", sigueLaLetra());
+    karaoke.actual = -2;
+    pasoKaraoke();
+  });
+  setInterval(pasoKaraoke, 200);
+  for (const ev of ["wheel", "touchmove"]) addEventListener(ev, () => { karaoke.manual = Date.now(); }, { passive: true });
   for (const id of ["#rp-acordes", "#rp-cfg-acordes"]) $(id).addEventListener("click", () => {
     guardar("mc-rp-acordes", guardado("mc-rp-acordes", "si") === "no" ? "si" : "no");
     aplicarAjustes();
@@ -2932,7 +3271,27 @@ function conectar() {
   $("#rp-tono-mas").addEventListener("click", () => cambiarTono(1));
   $("#rp-tono-original").addEventListener("click", restaurarTono);
   for (const [id, d] of [["#rp-menos", -2], ["#rp-mas", 2], ["#rp-cfg-menos", -2], ["#rp-cfg-mas", 2]]) $(id).addEventListener("click", () => tam(d));
-  for (const id of ["#rp-colores", "#rp-config-menu"]) $(id).addEventListener("click", () => $("#rp-dlg-colores").showModal());
+  for (const id of ["#rp-colores", "#rp-config-menu"]) $(id).addEventListener("click", () => {
+    pintarAviso();
+    $("#rp-dlg-colores").showModal();
+  });
+  $("#rp-cfg-aviso").addEventListener("click", async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    try {
+      if ((await estadoAviso()) === "activo") {
+        await desactivarAviso();
+        avisar("Listo: ya no te avisaremos los sábados.");
+      } else {
+        await activarAviso(st.comunidad);
+        avisar("Listo: el sábado a las 18:00 te avisamos el cancionero del domingo.");
+      }
+    } catch (err) {
+      avisar(err.message || "No se pudo activar el aviso.");
+    }
+    b.disabled = false;
+    pintarAviso();
+  });
   $("#rp-temas").addEventListener("click", (e) => {
     const b = e.target.closest("[data-tema]");
     if (!b) return;
@@ -2977,6 +3336,11 @@ function conectar() {
   });
   $("#rp-cola-cerrar").addEventListener("click", () => alternarCola(false));
   $("#rp-cola-velo").addEventListener("click", () => alternarCola(false));
+  $("#rp-cola-pie").addEventListener("click", accionPieCola);
+  $("#rp-votar-lista").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-votar]");
+    if (b) votar(b.dataset.votar);
+  });
   document.body.classList.toggle("cola-oculta", guardado("mc-rp-cola-oculta", "no") === "si");
   anchoCola.addEventListener("change", () => {
     document.body.classList.remove("cola-abierta");
@@ -3079,6 +3443,7 @@ function conectar() {
 // Una sola app, la de la página principal (/app.webmanifest, /sw.js con alcance /). «Instalar app» está siempre
 // fuera de la app: con el instalador del navegador si lo ofrece, o con los pasos para este equipo.
 function prepararApp() {
+  if (window.MC_EMBEBIDO) return;
   const app = document.body.classList.contains("rp-app");
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
   if (app) return;

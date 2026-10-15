@@ -27,6 +27,12 @@ function renderLine(line) {
   return `<div class="line lyric-line">${inlineMd(line)}</div>`;
 }
 
+// Las líneas de letra en el orden en que se dibujan (.lyric-line): a cada una le corresponde un tiempo de «sincro»
+function lyricLines(text) {
+  return String(text || '').split('\n').filter(line => line.trim() && !parseVoiceMarker(line) && !COMMENT_RE.test(line)
+    && !HEADING_RE.test(line) && !parseStrumMarker(line) && !isChordLine(line));
+}
+
 function renderHeader(title, key, tags = cur()?.tags, credits = cur()?.credits) {
   let html = `<header class="song-header"><div class="song-title">${escapeHtml(title.trim() || 'Sin título')}</div>`;
   const cred = creditsText(credits);

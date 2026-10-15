@@ -645,7 +645,7 @@ function ytmSesionDeMedios(d) {
   try {
     const img = d.caraEmbebida || caraYoutube(d.audios);
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: d.title || 'Canción', artist: d.mc?.momento || state.cancioneroName || 'Monte Carmelo', album: state.cancioneroName || '',
+      title: d.title || 'Canción', artist: d.mc?.momento || state.cancioneroName || 'Cancionero Litúrgico', album: state.cancioneroName || '',
       artwork: img ? [{ src: img, sizes: '320x180' }] : []
     });
   } catch (_) {}

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cancionero Litúrgico: cantos para la misa de todas las parroquias y movimientos de Chile</title>
+  <meta name="description" content="Cantos para la misa con letra, acordes en notación latina y audio, para todas las parroquias y movimientos de Chile. Cada comunidad arma el cancionero de su misa, gratis, en el celular, el PC y la pantalla del templo.">
+  <link rel="canonical" href="https://www.cancioneroliturgico.cl/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Cancionero Litúrgico">
+  <meta property="og:locale" content="es_CL">
+  <meta property="og:title" content="Cancionero Litúrgico: cantos para la misa de todas las parroquias de Chile">
+  <meta property="og:description" content="Letra, acordes y audio de los cantos para la misa. Busca tu parroquia o suma la tuya: es gratis.">
+  <meta property="og:url" content="https://www.cancioneroliturgico.cl/">
+  <meta property="og:image" content="https://www.cancioneroliturgico.cl/Imagenes/compartir.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#2f4a38">
+  <link rel="icon" href="/icons/reproductor-192.png">
+  <link rel="apple-touch-icon" href="/icons/reproductor-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&family=Outfit:wght@400;500;560&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <link rel="stylesheet" href="/css/portada.css">
+  <script>
+    // Quien ya eligió su parroquia en este equipo (y perdió la cookie) vuelve directo a ella
+    (function () {
+      if (window.MC_ELEGIR) return;
+      try {
+        var s = localStorage.getItem('mc-parroquia');
+        if (s && /^[a-z0-9-]{3,40}$/.test(s)) location.replace('/' + s + '/');
+      } catch (_) {}
+    })();
+  </script>
+</head>
+<body class="pagina-portada">
+  <nav class="nav-sitio" aria-label="Principal">
+    <a class="nav-marca" href="/">Cancionero Litúrgico</a>
+    <button type="button" class="nav-toggle" aria-label="Menú">Menú</button>
+    <ul class="nav-links">
+      <li><a href="#buscar">Buscar parroquia</a></li>
+      <li><a href="/sumar">Sumar mi parroquia</a></li>
+      <li><a href="/acerca">Qué es</a></li>
+      <li><a href="/agradecimientos">Agradecimientos</a></li>
+      <li><a href="/editor/">Editor</a></li>
+    </ul>
+  </nav>
+
+  <header class="po-hero">
+    <div class="po-hero-contenido">
+      <img class="po-logo" src="/icons/reproductor-192.png" alt="" width="72" height="72">
+      <h1>Cantos para la misa de todas las parroquias y movimientos de Chile</h1>
+      <p class="po-lead">Letra, acordes en notación latina y audio. Cada comunidad arma el cancionero de su misa y lo comparte:
+        en el celular, el PC y la pantalla del templo. <strong>Gratis.</strong></p>
+      <form class="po-busca" role="search" action="/" onsubmit="return false">
+        <label class="sr" for="po-q">Buscar parroquia, movimiento o comuna</label>
+        <input id="po-q" type="search" placeholder="Busca tu parroquia, movimiento o comuna" autocomplete="off">
+        <button type="button" class="btn btn-primario" id="po-cerca">Cerca de mí</button>
+      </form>
+      <p class="po-ctas">
+        <a class="btn btn-claro" href="/sumar">Sumar mi parroquia o movimiento</a>
+        <a class="btn btn-fantasma" href="/acerca">Qué es el Cancionero</a>
+      </p>
+    </div>
+  </header>
+
+  <main>
+    <section class="seccion po-buscar" id="buscar" aria-labelledby="buscar-titulo">
+      <h2 id="buscar-titulo">Parroquias y movimientos</h2>
+      <p class="lead" id="po-resumen">Toca una para abrir su cancionero. Tu equipo la recuerda para la próxima vez.</p>
+      <div class="po-filtros" role="group" aria-label="Mostrar">
+        <button type="button" class="po-chip" data-tipo="" aria-pressed="true">Todas</button>
+        <button type="button" class="po-chip" data-tipo="parroquia" aria-pressed="false">Parroquias</button>
+        <button type="button" class="po-chip" data-tipo="movimiento" aria-pressed="false">Movimientos</button>
+      </div>
+      <div class="po-mapa" id="po-mapa" aria-label="Mapa de las parroquias y movimientos"></div>
+      <ul class="po-lista" id="po-lista" data-portada="lista"></ul>
+      <p class="po-vacio" id="po-vacio" hidden>No encontramos esa parroquia. ¿Es la tuya? <a href="/sumar">Súmala en dos minutos</a>.</p>
+    </section>
+
+    <section class="seccion po-que" aria-labelledby="que-titulo">
+      <h2 id="que-titulo">Qué puedes hacer</h2>
+      <div class="po-grilla">
+        <article><h3>Cantar con letra y acordes</h3><p>Los acordes van arriba y la letra abajo, de otro color, en notación latina (DO, RE, MI…). Transpón a cualquier tono y deja que la letra avance sola.</p></article>
+        <article><h3>Armar el cancionero de la misa</h3><p>Entrada, Gloria, Salmo, Comunión… con cantos sugeridos según el tiempo litúrgico y las lecturas del domingo. Se escucha de corrido para ensayar.</p></article>
+        <article><h3>Proyectar en el templo</h3><p>La letra en un televisor o proyector, manejada desde el celular. Con En vivo, la asamblea sigue la canción en su teléfono.</p></article>
+        <article><h3>Para cada parroquia y movimiento</h3><p>Su dirección propia, sus capillas y comunidades en el mapa, sus fotos y noticias. Todos comparten una misma biblioteca que crece con el aporte de cada uno.</p></article>
+      </div>
+    </section>
+
+    <section class="seccion po-sumar" aria-labelledby="sumar-titulo">
+      <h2 id="sumar-titulo">Suma tu parroquia o movimiento</h2>
+      <ol class="po-pasos">
+        <li><strong>Cuéntanos quiénes son.</strong> Nombre, diócesis y comuna; eliges la dirección (por ejemplo <em>cancioneroliturgico.cl/santo-domingo-molocay</em>).</li>
+        <li><strong>Márcala en el mapa</strong> con una foto del templo, y agrega tus capillas o grupos si quieres.</li>
+        <li><strong>Entra con Google.</strong> Quedas como responsable y puedes empezar al tiro; nosotros la revisamos y te damos la bienvenida.</li>
+      </ol>
+      <p><a class="btn btn-primario" href="/sumar">Sumar mi parroquia o movimiento</a></p>
+    </section>
+
+    <section class="seccion po-embebido" id="en-tu-sitio" aria-labelledby="sitio-titulo">
+      <h2 id="sitio-titulo">Úsalo en tu sitio web</h2>
+      <p class="lead">¿Tu parroquia ya tiene página? Pon el cancionero adentro, con un recuadro o un botón. Cambia <em>tu-parroquia</em> por la dirección de la tuya (la ves al abrirla).</p>
+      <pre class="po-codigo"><code>&lt;iframe src="https://www.cancioneroliturgico.cl/tu-parroquia/embebido"
+  title="Cancionero Litúrgico" width="100%" height="640"
+  style="border:0;border-radius:12px" allow="autoplay; fullscreen"&gt;&lt;/iframe&gt;</code></pre>
+      <p>Cada responsable encuentra el código listo para copiar en <em>Identificarse → Datos de la parroquia</em>.</p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p><a href="/acerca">Qué es el Cancionero Litúrgico</a> · <a href="/sumar">Sumar mi parroquia</a> · <a href="/agradecimientos">Agradecimientos</a> ·
+      <a href="mailto:cancionerolitugico@gmail.com">cancionerolitugico@gmail.com</a></p>
+    <p class="po-osm">Mapas: © colaboradores de <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>.</p>
+  </footer>
+
+  <script type="module" src="/js/portada.js"></script>
+</body>
+</html>

@@ -2,7 +2,8 @@
 // La Biblioteca de canciones y las lecturas son comunes a todas.
 import { ErrorApi, ahora, texto, fecha as fechaValida, normEmail, emailValido, parsear, slug as slugDe, MAX_ARCHIVO_BYTES } from './util.js';
 import {
-  usuarioDeToken, exigirResponsable, conPrivilegios, puedeEditar, auditar, buscarUsuario, guardarUsuario
+  usuarioDeToken, exigirResponsable, conPrivilegios, puedeEditar, auditar, buscarUsuario, guardarUsuario,
+  verificarGoogle, crearToken, sesionPublica
 } from './auth.js';
 import { guardarArchivo, borrarArchivos, leerCuerpo } from './archivos.js';
 
@@ -13,7 +14,8 @@ const RESERVADOS = new Set([
   'api', 'js', 'css', 'icons', 'imagenes', 'editor', 'comunidades', 'comunidad', 'noticias', 'scripts', 'functions',
   'servidor', 'migrations', 'trabajadores', 'dist', 'admin', 'www', 'static', 'assets', 'parroquia', 'parroquias',
   'inicio', 'login', 'misas', 'reproductor', 'tv', 'ver', 'index', 'sala', 'audio', 'archivo', 'nueva', 'elegir',
-  'sw-reproductor', 'favicon', 'robots', 'sitemap', '404', 'acerca'
+  'sw-reproductor', 'favicon', 'robots', 'sitemap', '404', 'acerca', 'sumar', 'agradecimientos', 'portada', 'embebido',
+  'mapa', 'buscar', 'vendor', 'avisos', 'privacidad', 'ayuda', 'contacto', 'solicitudes'
 ]);
 
 export const slugValido = (s) => /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(String(s || '')) && !RESERVADOS.has(String(s));
@@ -76,15 +78,67 @@ export function iconoDe(p, tam) {
   return '/' + p.slug + '/icono-' + tam + '.png' + (id ? '?v=' + String(id).slice(-8) : '');
 }
 
+// ==================== UBICACIÓN Y FOTOS ====================
+// Parroquias, capillas y grupos tienen dirección y coordenadas (para el mapa); los movimientos, sus grupos locales.
+
+export const TIPOS = ['parroquia', 'movimiento'];
+export const CLASES = ['capilla', 'comunidad', 'grupo'];
+const MAX_FOTOS = 12;
+
+const coordenada = (v, min, max) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= min && n <= max && v !== '' && v !== null ? Math.round(n * 1e6) / 1e6 : null;
+};
+
+export function limpiarUbicacion(x, previa = {}) {
+  x = x || {};
+  const tiene = (k) => x[k] !== undefined;
+  const lat = tiene('lat') ? coordenada(x.lat, -90, 90) : previa.lat ?? null;
+  const lng = tiene('lng') ? coordenada(x.lng, -180, 180) : previa.lng ?? null;
+  return {
+    direccion: tiene('direccion') ? texto(x.direccion, 200) : previa.direccion || '',
+    comuna: tiene('comuna') ? texto(x.comuna, 80) : previa.comuna || '',
+    region: tiene('region') ? texto(x.region, 80) : previa.region || '',
+    lat: lat != null && lng != null ? lat : null,
+    lng: lat != null && lng != null ? lng : null
+  };
+}
+
+const urlWeb = (s) => {
+  s = String(s || '').trim();
+  if (!s) return '';
+  if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+  return /^https?:\/\/[^\s"'<>]{3,300}$/i.test(s) ? s : '';
+};
+
+const fotosPublicas = (fotos) => (Array.isArray(fotos) ? fotos : []).filter((f) => f && f.id)
+  .map((f) => ({ id: f.id, url: '/api/archivo/' + f.id, pie: f.pie || '' }));
+
+const ubicacionPublica = (x) => ({
+  direccion: x.direccion || '', comuna: x.comuna || '', region: x.region || '',
+  lat: typeof x.lat === 'number' ? x.lat : null, lng: typeof x.lng === 'number' ? x.lng : null
+});
+
+const comunidadPublica = (x) => ({
+  slug: x.slug, nombre: x.nombre, carpetaCancioneros: x.carpetaCancioneros || x.nombre,
+  clase: CLASES.includes(x.clase) ? x.clase : 'comunidad', ...ubicacionPublica(x), foto: x.foto ? '/api/archivo/' + x.foto : ''
+});
+
+// La foto que representa a la parroquia: la portada o la primera de su galería
+const fotoPrincipal = (p) => p.portada || (fotosPublicas(p.fotos)[0] || {}).url || '';
+
 // Lo que ven todos (páginas, manifest, app instalada)
 export function parroquiaPublica(p) {
   return {
     slug: p.slug, nombre: p.nombre || '', nombreCorto: p.nombreCorto || p.nombre || '', lema: p.lema || '',
     descripcion: p.descripcion || '', correo: p.correo || '', portada: p.portada || '',
+    tipo: TIPOS.includes(p.tipo) ? p.tipo : 'parroquia', diocesis: p.diocesis || '', sitioWeb: p.sitioWeb || '',
+    ...ubicacionPublica(p), fotos: fotosPublicas(p.fotos), foto: fotoPrincipal(p),
+    estado: p.estado || 'aprobada', oculta: !!p.oculta,
     iconos: Object.fromEntries(TAMANOS_ICONO.map((t) => [t, iconoDe(p, t)])),
     logoPropio: !!(p.iconos && p.iconos['192']),
     activa: p.activa !== false,
-    comunidades: p.comunidades.map((x) => ({ slug: x.slug, nombre: x.nombre, carpetaCancioneros: x.carpetaCancioneros || x.nombre })),
+    comunidades: p.comunidades.map(comunidadPublica),
     paginas: (p.paginas || []).map((x) => ({ slug: x.slug, titulo: x.titulo, enMenu: x.enMenu }))
   };
 }
@@ -98,11 +152,20 @@ async function parroquia(c) {
 export async function parroquiasActivas(c) {
   const guardada = cache.get('*lista');
   if (guardada && guardada.vence > Date.now()) return guardada.p;
-  const { results } = await c.db.prepare('SELECT slug, datos FROM parroquias ORDER BY slug').all();
-  // Las ocultas (de prueba) se abren con su dirección, pero no aparecen en «Elegí tu parroquia»
+  const [{ results }, { results: coms }] = await Promise.all([
+    c.db.prepare('SELECT slug, datos FROM parroquias ORDER BY slug').all(),
+    c.db.prepare('SELECT parroquia, slug, datos FROM comunidades ORDER BY parroquia, orden, slug').all()
+  ]);
+  // Las ocultas (de prueba o pendientes de aprobación) se abren con su dirección, pero no aparecen en la portada ni en el mapa
   const lista = results.map((r) => ({ ...parsear(r.datos, {}), slug: r.slug, comunidades: [] }))
     .filter((p) => p.activa !== false && !p.oculta)
-    .map((p) => ({ slug: p.slug, nombre: p.nombre || p.slug, nombreCorto: p.nombreCorto || p.nombre || p.slug, icono: iconoDe(p, '192') }))
+    .map((p) => ({
+      slug: p.slug, nombre: p.nombre || p.slug, nombreCorto: p.nombreCorto || p.nombre || p.slug, icono: iconoDe(p, '192'),
+      tipo: TIPOS.includes(p.tipo) ? p.tipo : 'parroquia', diocesis: p.diocesis || '', ...ubicacionPublica(p), foto: fotoPrincipal(p),
+      lema: p.lema || '',
+      lugares: coms.filter((x) => x.parroquia === p.slug).map((x) => comunidadPublica({ ...parsear(x.datos, {}), slug: x.slug }))
+        .filter((x) => x.lat != null).map(({ slug, nombre, clase, direccion, comuna, lat, lng, foto }) => ({ slug, nombre, clase, direccion, comuna, lat, lng, foto }))
+    }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   cache.set('*lista', { p: lista, vence: Date.now() + CACHE_MS });
   return lista;
@@ -151,9 +214,23 @@ async function guardarParroquia(c, d) {
     descripcion: texto(x.descripcion ?? actual.descripcion, 4000),
     correo,
     portada: x.portada === undefined ? actual.portada || '' : portadaValida(x.portada),
+    tipo: TIPOS.includes(x.tipo) ? x.tipo : actual.tipo || 'parroquia',
+    diocesis: x.diocesis === undefined ? actual.diocesis || '' : texto(x.diocesis, 100),
+    sitioWeb: x.sitioWeb === undefined ? actual.sitioWeb || '' : urlWeb(x.sitioWeb),
+    ...limpiarUbicacion(x, actual),
     actualizado: ahora(),
     modificadoPor: yo.email
   };
+  // La galería: se reordena o se cambian los pies; las que se quitan se borran del almacenamiento
+  let quitadas = [];
+  if (Array.isArray(x.fotos)) {
+    const previas = Array.isArray(actual.fotos) ? actual.fotos : [];
+    const ids = new Set(previas.map((f) => f.id));
+    nuevos.fotos = x.fotos.filter((f) => f && ids.has(f.id)).slice(0, MAX_FOTOS).map((f) => ({ id: f.id, pie: texto(f.pie, 200) }));
+    const quedan = new Set(nuevos.fotos.map((f) => f.id));
+    quitadas = previas.filter((f) => !quedan.has(f.id)).map((f) => f.id);
+    if (quitadas.some((id) => '/api/archivo/' + id === nuevos.portada)) nuevos.portada = '';
+  }
   if (yo.rol === 'admin_general' && typeof x.activa === 'boolean') {
     if (!x.activa && slug === PARROQUIA_DEFECTO) throw new ErrorApi('La parroquia principal no se puede desactivar.');
     nuevos.activa = x.activa;
@@ -163,6 +240,7 @@ async function guardarParroquia(c, d) {
     nuevos.oculta = x.oculta;
   }
   await guardarDatos(c, slug, nuevos);
+  await borrarFotos(c, slug, quitadas);
   await auditar(c, { tipo: 'parroquia_guardada', email: yo.email, nombre: yo.nombre, parroquia: slug });
   const p = await leerParroquia(c, slug);
   return { parroquia: parroquiaPublica(p) };
@@ -185,7 +263,12 @@ async function guardarComunidad(c, d) {
     slug = base;
     for (let i = 2; slug === 'parroquia' || p.comunidades.some((y) => y.slug === slug); i++) slug = base + '-' + i;
   }
-  const datos = { nombre, carpetaCancioneros: texto(x.carpetaCancioneros, 100) || (previa && previa.carpetaCancioneros) || nombre };
+  const datos = {
+    nombre, carpetaCancioneros: texto(x.carpetaCancioneros, 100) || (previa && previa.carpetaCancioneros) || nombre,
+    clase: CLASES.includes(x.clase) ? x.clase : (previa && previa.clase) || 'comunidad',
+    ...limpiarUbicacion(x, previa || {}),
+    foto: (previa && previa.foto) || ''
+  };
   const orden = previa ? previa.orden : p.comunidades.reduce((m, y) => Math.max(m, y.orden || 0), 0) + 1;
   await c.db.prepare('INSERT OR REPLACE INTO comunidades (parroquia, slug, orden, datos) VALUES (?, ?, ?, ?)')
     .bind(p.slug, slug, orden, JSON.stringify(datos)).run();
@@ -225,6 +308,7 @@ async function borrarComunidad(c, d) {
       .filter(Boolean).join(', ') + '. Cambiale el nombre en vez de quitarla.');
   }
   await c.db.prepare('DELETE FROM comunidades WHERE parroquia = ? AND slug = ?').bind(p.slug, slug).run();
+  await borrarFotos(c, p.slug, [p.comunidades.find((y) => y.slug === slug).foto]);
   olvidarParroquia(p.slug);
   c.parroquia = null;
   await auditar(c, { tipo: 'comunidad_quitada', email: yo.email, nombre: yo.nombre, comunidad: slug });
@@ -249,7 +333,10 @@ async function listarParroquias(c, d) {
       return {
         slug: p.slug, nombre: p.nombre || p.slug, nombreCorto: p.nombreCorto || '', activa: p.activa !== false, oculta: !!p.oculta,
         creado: p.creado || '', icono: iconoDe(p, '192'), url: urlParroquia(c, p.slug),
-        responsables: resp.filter((x) => x.parroquia === p.slug).map((x) => x.email)
+        responsables: resp.filter((x) => x.parroquia === p.slug).map((x) => x.email),
+        estado: p.estado || 'aprobada', tipo: TIPOS.includes(p.tipo) ? p.tipo : 'parroquia', diocesis: p.diocesis || '',
+        comuna: p.comuna || '', region: p.region || '', direccion: p.direccion || '', sitioWeb: p.sitioWeb || '',
+        solicitud: p.solicitud || null, cambiosPedidos: p.cambiosPedidos || ''
       };
     })
   };
@@ -333,6 +420,72 @@ export async function subirPortada(c, request, p, token) {
   return { parroquia: parroquiaPublica(await laParroquia(c)) };
 }
 
+// ==================== FOTOS ====================
+// PUT /api/subir?tipo=foto&mime=…[&comunidad=<slug>][&reemplaza=<id>][&pie=…]: la galería de la parroquia (hasta 12)
+// o la foto de una capilla o grupo. Llegan ya achicadas en el navegador (1600 px).
+
+async function borrarFotos(c, slug, ids) {
+  ids = (ids || []).filter(Boolean);
+  if (!ids.length) return;
+  const { results } = await c.db.prepare(`SELECT * FROM archivos WHERE carpeta = ? AND tipo = 'foto' AND id IN (${ids.map(() => '?').join(',')})`)
+    .bind(slug, ...ids).all();
+  await borrarArchivos(c, results);
+}
+
+export async function subirFoto(c, request, p, token) {
+  const yo = await usuarioDeToken(c, token);
+  exigirResponsable(yo);
+  const mime = String(p.mime || '');
+  if (!MIMES_PORTADA[mime]) throw new ErrorApi('La foto tiene que ser JPG, PNG o WebP');
+  const par = await laParroquia(c);
+  const com = p.comunidad ? par.comunidades.find((x) => x.slug === String(p.comunidad)) : null;
+  if (p.comunidad && !com) throw new ErrorApi('Esa comunidad ya no está.');
+  const datos = await datosGuardados(c, c.slug);
+  const fotos = Array.isArray(datos.fotos) ? datos.fotos : [];
+  const reemplaza = p.reemplaza ? fotos.find((f) => f.id === String(p.reemplaza)) : null;
+  if (!com && !reemplaza && fotos.length >= MAX_FOTOS) throw new ErrorApi('Ya hay ' + MAX_FOTOS + ' fotos: quitá una para subir otra.');
+  const bytes = await leerCuerpo(request, Math.min(MAX_ARCHIVO_BYTES, 4 * 1024 * 1024), 'La foto supera 4 MB');
+  const ext = MIMES_PORTADA[mime];
+  const fila = await guardarArchivo(c, {
+    tipo: 'foto', r2: 'parroquias/' + c.slug + '/fotos/' + Date.now() + '.' + ext, nombre: 'foto.' + ext, mime, bytes,
+    carpeta: c.slug, ruta: com ? 'comunidad-' + com.slug : 'galeria'
+  });
+  if (com) {
+    const { slug: _s, orden, ...resto } = com;
+    await c.db.prepare('UPDATE comunidades SET datos = ? WHERE parroquia = ? AND slug = ?')
+      .bind(JSON.stringify({ ...resto, foto: fila.id }), c.slug, com.slug).run();
+    await borrarFotos(c, c.slug, [com.foto]);
+    olvidarParroquia(c.slug);
+    c.parroquia = null;
+  } else {
+    const nueva = { id: fila.id, pie: texto(p.pie, 200) };
+    datos.fotos = reemplaza ? fotos.map((f) => (f === reemplaza ? { ...nueva, pie: nueva.pie || f.pie } : f)) : [...fotos, nueva];
+    if (reemplaza && datos.portada === '/api/archivo/' + reemplaza.id) datos.portada = '/api/archivo/' + fila.id;
+    await guardarDatos(c, c.slug, datos);
+    if (reemplaza) await borrarFotos(c, c.slug, [reemplaza.id]);
+  }
+  await auditar(c, { tipo: 'foto', email: yo.email, nombre: yo.nombre, parroquia: c.slug, comunidad: com ? com.slug : '' });
+  return { foto: { id: fila.id, url: '/api/archivo/' + fila.id }, parroquia: parroquiaPublica(await laParroquia(c)) };
+}
+
+// Quita la foto de una capilla o grupo (las de la galería se quitan guardando la lista sin ella)
+async function quitarFotoComunidad(c, d) {
+  const yo = await usuarioDeToken(c, d.token);
+  exigirResponsable(yo);
+  const p = await laParroquia(c);
+  const com = p.comunidades.find((x) => x.slug === String(d.comunidad || ''));
+  if (!com) throw new ErrorApi('Esa comunidad ya no está.');
+  if (com.foto) {
+    const { slug: _s, orden, ...resto } = com;
+    await c.db.prepare('UPDATE comunidades SET datos = ? WHERE parroquia = ? AND slug = ?')
+      .bind(JSON.stringify({ ...resto, foto: '' }), p.slug, com.slug).run();
+    await borrarFotos(c, p.slug, [com.foto]);
+    olvidarParroquia(p.slug);
+    c.parroquia = null;
+  }
+  return { parroquia: parroquiaPublica(await laParroquia(c)) };
+}
+
 // El ícono de la app instalada y de la pestaña: el logo de la parroquia o, si no tiene, el del Cancionero
 export async function respuestaIcono(c, slug, tam, assets, url) {
   const p = await leerParroquia(c, slug);
@@ -395,8 +548,122 @@ async function borrarNoticia(c, d) {
   return {};
 }
 
+// ==================== SOLICITUDES (/sumar) ====================
+// Una parroquia o un movimiento se suma solo: queda oculta y pendiente hasta que el administrador general la aprueba.
+// Quien la pide entra con Google y queda como Responsable; puede ir cargando todo mientras tanto.
+
+const MAX_SOLICITUDES_DIA = 20;
+
+async function slugDisponible(c, p) {
+  const s = String(p.slug || '').trim().toLowerCase();
+  if (!slugValido(s)) return { ok: true, disponible: false, motivo: 'Usá entre 3 y 40 letras minúsculas, números o guiones, sin tildes ni espacios.' };
+  const existe = await c.db.prepare('SELECT 1 FROM parroquias WHERE slug = ?').bind(s).first();
+  return { ok: true, disponible: !existe, motivo: existe ? 'Esa dirección ya está ocupada.' : '' };
+}
+
+async function solicitarParroquia(c, d) {
+  const g = await verificarGoogle(c, d.credential);
+  const s = d.solicitud || {};
+  const slug = String(s.slug || '').trim().toLowerCase();
+  if (!slugValido(slug)) throw new ErrorApi('La dirección tiene que tener entre 3 y 40 letras minúsculas, números o guiones (sin tildes ni espacios).');
+  if (await c.db.prepare('SELECT 1 FROM parroquias WHERE slug = ?').bind(slug).first()) throw new ErrorApi('La dirección «' + slug + '» ya está ocupada: probá otra.');
+  const nombre = texto(s.nombre, 120);
+  if (!nombre) throw new ErrorApi('Escribí el nombre de la parroquia o del movimiento.');
+  const r = s.responsable || {};
+  const telefono = texto(r.telefono, 30);
+  if (telefono.replace(/\D/g, '').length < 8) throw new ErrorApi('Escribí un WhatsApp para contactarte (con código de país, por ejemplo +56 9 1234 5678).');
+  const { results: solicitudes } = await c.db.prepare(
+    "SELECT json_extract(datos, '$.solicitud.email') AS email, json_extract(datos, '$.creado') AS creado FROM parroquias " +
+    "WHERE json_extract(datos, '$.solicitud') IS NOT NULL").all();
+  const enRevision = await c.db.prepare(
+    "SELECT 1 FROM parroquias WHERE json_extract(datos, '$.estado') = 'pendiente' AND json_extract(datos, '$.solicitud.email') = ?").bind(g.email).first();
+  if (enRevision) throw new ErrorApi('Ya tenés una solicitud en revisión. Te escribimos apenas la revisemos.');
+  const desde = new Date(Date.now() - 86400000).toISOString();
+  if (solicitudes.filter((x) => (x.creado || '') > desde).length >= MAX_SOLICITUDES_DIA) {
+    throw new ErrorApi('Hoy llegaron muchas solicitudes. Probá mañana o escribinos a cancionerolitugico@gmail.com.');
+  }
+  const tipo = TIPOS.includes(s.tipo) ? s.tipo : 'parroquia';
+  const solicitud = {
+    nombre: texto(r.nombre, 100) || g.nombre || g.email, cargo: texto(r.cargo, 80), telefono, email: g.email, fecha: ahora()
+  };
+  const datos = {
+    nombre, nombreCorto: texto(s.nombreCorto, 40) || nombre.replace(/^(Parroquia|Movimiento)\s+/i, '').slice(0, 40),
+    tipo, diocesis: texto(s.diocesis, 100), sitioWeb: urlWeb(s.sitioWeb), ...limpiarUbicacion(s),
+    lema: '', descripcion: texto(s.descripcion, 4000), correo: g.email, portada: '', iconos: {}, fotos: [],
+    activa: true, oculta: true, estado: 'pendiente', solicitud, creado: ahora(), creadoPor: g.email
+  };
+  const coms = [];
+  for (const x of (Array.isArray(s.comunidades) ? s.comunidades : []).slice(0, 40)) {
+    const n = texto(x && x.nombre, 100);
+    if (!n) continue;
+    let cs = slugDe(n).slice(0, 50);
+    for (let i = 2; cs === 'parroquia' || coms.some((y) => y.slug === cs); i++) cs = slugDe(n).slice(0, 50) + '-' + i;
+    coms.push({ slug: cs, datos: { nombre: n, carpetaCancioneros: n, clase: CLASES.includes(x.clase) ? x.clase : 'comunidad', ...limpiarUbicacion(x), foto: '' } });
+  }
+  await c.db.batch([
+    c.db.prepare('INSERT INTO parroquias (slug, datos) VALUES (?, ?)').bind(slug, JSON.stringify(datos)),
+    ...coms.map((x, i) => c.db.prepare('INSERT INTO comunidades (parroquia, slug, orden, datos) VALUES (?, ?, ?, ?)')
+      .bind(slug, x.slug, i + 1, JSON.stringify(x.datos)))
+  ]);
+  olvidarParroquia(slug);
+  const enNueva = { ...c, slug, parroquia: null };
+  const yo = (await buscarUsuario(enNueva, g.email)) || { id: 'u-' + Date.now(), email: g.email, creado: ahora() };
+  if (!yo.nombre || yo.nombre === yo.email) yo.nombre = solicitud.nombre;
+  if (g.foto) yo.foto = g.foto;
+  if (yo.rol !== 'admin_general') Object.assign(yo, { rol: 'admin_segundo', comunidad: 'parroquia', activo: true });
+  Object.assign(yo, { verificado: true, ultimaEntrada: ahora() });
+  await guardarUsuario(enNueva, yo);
+  await auditar(enNueva, { tipo: 'parroquia_solicitada', email: g.email, nombre: yo.nombre, titulo: nombre, parroquia: slug, telefono });
+  return {
+    slug, url: urlParroquia(c, slug), parroquia: parroquiaPublica(await leerParroquia(c, slug)),
+    token: await crearToken(enNueva, yo), sesion: sesionPublica(await buscarUsuario(enNueva, g.email))
+  };
+}
+
+const PIE_BIENVENIDA = '\n\nEl Cancionero Litúrgico es gratuito y lo sostenemos entre todos. Si pueden, nos ayuda mucho que:\n' +
+  '• suban los audios y las letras de los cantos que usan (con acordes en notación latina);\n' +
+  '• nos avisen si encuentran un error en una canción;\n' +
+  '• lo compartan con otras parroquias y movimientos;\n' +
+  '• y, si quieren, colaboren con una donación desde el editor (Colaborar).\n\nQue Dios los bendiga.\nCancionero Litúrgico · cancionerolitugico@gmail.com';
+
+// Aprobar, pedir cambios o rechazar una solicitud. Devuelve el mensaje para mandar por WhatsApp o correo.
+async function resolverSolicitud(c, d) {
+  const yo = await usuarioDeToken(c, d.token);
+  soloGeneral(yo);
+  const slug = String(d.slug || '');
+  const datos = await datosGuardados(c, slug);
+  const decision = String(d.decision || '');
+  const nota = texto(d.nota, 2000);
+  const s = datos.solicitud || {};
+  const quien = (s.nombre || '').split(' ')[0] || '';
+  const url = urlParroquia(c, slug);
+  const de = datos.tipo === 'movimiento' ? 'del movimiento ' : 'de la ';
+  let mensaje;
+  if (decision === 'aprobar') {
+    Object.assign(datos, { estado: 'aprobada', oculta: false, activa: true, aprobada: ahora(), aprobadaPor: yo.email });
+    mensaje = '¡Hola' + (quien ? ' ' + quien : '') + '! Bienvenidos al Cancionero Litúrgico 🎶\n\nYa está publicada la página ' + de + datos.nombre +
+      ': ' + url + '\n\nDesde ahí pueden armar los cancioneros de cada misa, subir fotos, noticias y sumar a las personas de sus comunidades. ' +
+      'Compartan el enlace con su comunidad: se abre en el celular, el PC o la pantalla del templo, y se instala como app.' +
+      (nota ? '\n\n' + nota : '') + PIE_BIENVENIDA;
+  } else if (decision === 'cambios') {
+    Object.assign(datos, { estado: 'pendiente', cambiosPedidos: ahora() });
+    mensaje = 'Hola' + (quien ? ' ' + quien : '') + ', gracias por sumar ' + (datos.tipo === 'movimiento' ? 'el movimiento ' : 'la ') + datos.nombre +
+      ' al Cancionero Litúrgico. Antes de publicarla necesitamos un par de cambios:\n\n' + (nota || '…') +
+      '\n\nPueden hacerlos entrando a ' + url + 'inicio con su cuenta de Google. Cuando estén, avísennos por acá. ¡Gracias!';
+  } else if (decision === 'rechazar') {
+    Object.assign(datos, { estado: 'rechazada', oculta: true, activa: false, rechazada: ahora() });
+    mensaje = 'Hola' + (quien ? ' ' + quien : '') + ', gracias por escribir al Cancionero Litúrgico. Por ahora no podemos publicar ' + datos.nombre + '.' +
+      (nota ? '\n\n' + nota : '') + '\n\nSi tienen dudas, escríbannos a cancionerolitugico@gmail.com.';
+  } else {
+    throw new ErrorApi('Decisión desconocida.');
+  }
+  await guardarDatos(c, slug, datos);
+  await auditar(c, { tipo: 'solicitud_' + decision, email: yo.email, nombre: yo.nombre, parroquia: slug, titulo: datos.nombre });
+  return { mensaje, telefono: s.telefono || '', email: s.email || datos.correo || '', nombre: datos.nombre };
+}
+
 export const accionesParroquias = {
   guardarParroquia, guardarComunidad, ordenarComunidades, borrarComunidad, listarParroquias, crearParroquia,
-  guardarNoticia, borrarNoticia
+  guardarNoticia, borrarNoticia, quitarFotoComunidad, solicitarParroquia, resolverSolicitud
 };
-export const lecturasParroquias = { parroquia, parroquias, noticias };
+export const lecturasParroquias = { parroquia, parroquias, noticias, slugDisponible };

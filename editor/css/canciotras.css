@@ -1241,3 +1241,13 @@ dialog.cn-hoja { width: min(1100px, 96vw); }
   #printAll * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .pv-only { display: none !important; }
 }
+
+/* Herramientas → Marcar los tiempos de la letra */
+.sincro-controles { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.sincro-marcar { min-width: 140px; font-size: 16px; }
+.sincro-lista { max-height: 50vh; overflow: auto; margin: 0; padding: 0; list-style: none; border: 1px solid var(--line, #ddd); border-radius: 8px; }
+.sincro-lista li { display: flex; gap: 12px; padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--line, #eee); }
+.sincro-lista li:last-child { border-bottom: none; }
+.sincro-lista li.marcada { color: var(--muted, #666); }
+.sincro-lista li.actual { background: color-mix(in srgb, var(--accent, #2563eb) 16%, transparent); color: inherit; font-weight: 600; }
+.sincro-t { flex: none; width: 4.2em; font-variant-numeric: tabular-nums; color: var(--muted, #888); }

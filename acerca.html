@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <script src="/js/config.js?v=2"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Qué es el Cancionero Litúrgico · Canciones para la misa con letra, acordes y audio</title>
-  <meta name="description" content="El Cancionero Litúrgico es una app gratuita para preparar y cantar la misa: canciones con letra, acordes en notación latina y audio, el cancionero de cada misa, cantos sugeridos según el tiempo litúrgico y las lecturas, y un editor con transpositor, partituras y tablaturas.">
+  <title>Qué es el Cancionero Litúrgico · Cantos para la misa de todas las parroquias y movimientos de Chile</title>
+  <meta name="description" content="El Cancionero Litúrgico es una app gratuita para todas las parroquias y movimientos de Chile: canciones para la misa con letra, acordes en notación latina y audio, el cancionero de cada misa, cantos sugeridos según el tiempo litúrgico y las lecturas, y un editor con transpositor, partituras y tablaturas.">
   <link rel="canonical" href="https://www.cancioneroliturgico.cl/acerca">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Cancionero Litúrgico">
@@ -32,7 +32,8 @@
     "name": "Cancionero Litúrgico",
     "url": "https://www.cancioneroliturgico.cl/",
     "image": "https://www.cancioneroliturgico.cl/Imagenes/compartir.png",
-    "description": "App gratuita para preparar y cantar la misa: canciones con letra, acordes en notación latina y audio, el cancionero de cada misa y cantos sugeridos según el tiempo litúrgico y las lecturas.",
+    "description": "App gratuita para todas las parroquias y movimientos de Chile para preparar y cantar la misa: canciones con letra, acordes en notación latina y audio, el cancionero de cada misa y cantos sugeridos según el tiempo litúrgico y las lecturas.",
+    "areaServed": { "@type": "Country", "name": "Chile" },
     "inLanguage": "es",
     "applicationCategory": "MultimediaApplication",
     "operatingSystem": "Web, Android, iOS, Windows, macOS, Linux",
@@ -49,7 +50,9 @@
       "Editor con comentarios, partituras y tablaturas",
       "Grabar audio",
       "Letra en la pantalla o el proyector del templo",
-      "Se instala como app en el celular y el PC"
+      "Se instala como app en el celular y el PC",
+      "Cada parroquia o movimiento con su dirección, sus capillas en el mapa y sus fotos",
+      "Se puede poner dentro del sitio web de la parroquia"
     ]
   }
   </script>
@@ -64,6 +67,7 @@
       <li><a href="./misas.html">Misas</a></li>
       <li><a href="/editor/">Editor</a></li>
       <li><a href="/acerca" aria-current="page">Qué es</a></li>
+      <li><a href="/agradecimientos">Agradecimientos</a></li>
       <li><a href="./login.html" data-nav-sesion>Identificarse</a></li>
     </ul>
   </nav>
@@ -73,10 +77,10 @@
       <img class="ac-logo" src="/icons/reproductor-192.png" alt="" width="72" height="72">
       <h1>Cancionero Litúrgico</h1>
       <p class="ac-lead">Las canciones para la misa con su letra, sus acordes y su audio. El cancionero de cada misa,
-        con cantos sugeridos según el tiempo litúrgico y las lecturas del día. Gratis, en el celular, en el PC y en la pantalla del templo.</p>
+        con cantos sugeridos según el tiempo litúrgico y las lecturas del día. Para todas las parroquias y movimientos de Chile: gratis, en el celular, en el PC y en la pantalla del templo.</p>
       <p class="ac-ctas">
-        <a class="btn btn-primario" href="/">Abrir el Cancionero</a>
-        <a class="btn btn-fantasma" href="./misas.html">Ver los cancioneros de misa</a>
+        <a class="btn btn-primario" href="/elegir">Buscar mi parroquia</a>
+        <a class="btn btn-fantasma" href="/sumar">Sumar mi parroquia o movimiento</a>
       </p>
     </div>
   </header>
@@ -84,8 +88,8 @@
   <main class="ac-main">
     <section class="ac-intro">
       <h2>Para quién es</h2>
-      <p>Para los coros, los músicos y los animadores que preparan la misa cada semana; para las comunidades que quieren
-        ensayar en la casa; y para la asamblea, que puede seguir la letra en su celular o en la pantalla del templo.</p>
+      <p>Para las parroquias, capillas y movimientos de todo Chile: los coros, los músicos y los animadores que preparan la misa cada semana;
+        las comunidades que quieren ensayar en la casa; y la asamblea, que puede seguir la letra en su celular o en la pantalla del templo.</p>
     </section>
 
     <section class="ac-grilla" aria-label="Lo que hace el Cancionero Litúrgico">
@@ -141,9 +145,13 @@
         <p>Se instala en Android, iPhone y el PC desde el navegador, sin tiendas de aplicaciones, abre rápido y recuerda lo último que escuchaste.</p>
       </article>
       <article>
-        <h2>Para cada parroquia</h2>
-        <p>Cada parroquia tiene su dirección, sus comunidades, sus noticias y sus cancioneros, y todas comparten una misma Biblioteca de canciones
-          que crece con el aporte de cada una.</p>
+        <h2>Para cada parroquia y movimiento</h2>
+        <p>Cada parroquia o movimiento tiene su propia dirección (por ejemplo <em>cancioneroliturgico.cl/santo-domingo-molocay</em>), sus capillas
+          y grupos en el mapa, sus fotos, noticias y cancioneros, y todas comparten una misma Biblioteca de canciones que crece con el aporte de cada una.</p>
+      </article>
+      <article>
+        <h2>En el sitio de tu parroquia</h2>
+        <p>Si la parroquia ya tiene su página web, puede poner el cancionero adentro con un recuadro o un botón: el código está listo para copiar.</p>
       </article>
     </section>
 
@@ -168,17 +176,23 @@
         <p>En notación latina (DO, RE, MI, FA, SOL, LA, SI), con los acordes sobre la letra. El transpositor cambia el tono de toda la canción.</p>
       </details>
       <details>
-        <summary>¿Cómo sumo a mi parroquia?</summary>
-        <p>Escríbenos a <a href="mailto:cancionerolitugico@gmail.com">cancionerolitugico@gmail.com</a> y te ayudamos a crear la dirección de tu parroquia
-          y las cuentas de tus comunidades.</p>
+        <summary>¿Cómo sumo a mi parroquia o movimiento?</summary>
+        <p>En <a href="/sumar">Sumar mi parroquia</a>, en pocos minutos: el nombre, la comuna, la dirección en el mapa y una foto, y entras con tu cuenta de Google.
+          Quedas como responsable y puedes empezar al tiro; nosotros la revisamos y te damos la bienvenida. Si necesitas ayuda, escríbenos a
+          <a href="mailto:cancionerolitugico@gmail.com">cancionerolitugico@gmail.com</a>.</p>
+      </details>
+      <details>
+        <summary>¿Es solo para una parroquia?</summary>
+        <p>No. Nació en la Parroquia Nuestra Señora del Monte Carmelo, pero es para todas las parroquias, capillas y movimientos de Chile que quieran usarlo,
+          con su propio espacio en el sitio o dentro de su propia página web.</p>
       </details>
     </section>
 
-    <p class="ac-final"><a class="btn btn-primario" href="/">Abrir el Cancionero Litúrgico</a></p>
+    <p class="ac-final"><a class="btn btn-primario" href="/elegir">Buscar mi parroquia</a> <a class="btn btn-secundario" href="/agradecimientos">Agradecimientos</a></p>
   </main>
 
   <footer class="pie">
-    <p><a href="/">Cancionero Litúrgico</a> · <a href="mailto:cancionerolitugico@gmail.com">cancionerolitugico@gmail.com</a></p>
+    <p><a href="/">Cancionero Litúrgico</a> · <a href="/sumar">Sumar mi parroquia</a> · <a href="/agradecimientos">Agradecimientos</a> · <a href="mailto:cancionerolitugico@gmail.com">cancionerolitugico@gmail.com</a></p>
   </footer>
 
   <script type="module">

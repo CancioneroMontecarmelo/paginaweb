@@ -18,9 +18,10 @@ import { accionesMisas, lecturasMisas, lecturasDeMisa, verVivo } from './misas.j
 import { accionesComunidad, lecturasComunidad } from './comunidad.js';
 import { lecturas, calendario } from './lecturas.js';
 import {
-  PARROQUIA_DEFECTO, laParroquia, accionesParroquias, lecturasParroquias, subirLogo, subirPortada
+  PARROQUIA_DEFECTO, laParroquia, accionesParroquias, lecturasParroquias, subirLogo, subirPortada, subirFoto
 } from './parroquias.js';
 import { accionesPaginas, lecturasPaginas } from './paginas-propias.js';
+import { accionesExperiencia, lecturasExperiencia, GET_COMUNES_EXPERIENCIA } from './experiencia.js';
 
 const ACCIONES = {
   ...accionesAuth,
@@ -30,6 +31,7 @@ const ACCIONES = {
   ...accionesComunidad,
   ...accionesParroquias,
   ...accionesPaginas,
+  ...accionesExperiencia,
   subirArchivo: () => { throw new ErrorApi('Actualizá la página: los archivos ahora se suben de otra forma.'); }
 };
 
@@ -40,13 +42,15 @@ const LECTURAS = {
   ...lecturasComunidad,
   ...lecturasParroquias,
   ...lecturasPaginas,
+  ...lecturasExperiencia,
   lecturas: (c, p) => (p.misa ? lecturasDeMisa(c, p.misa) : lecturas(c, p.fecha)),
   calendario,
   vivo: (c, p) => verVivo(c, p.codigo)
 };
 
 // Lecturas que no dependen de la parroquia (la Biblioteca, el calendario, En vivo por código)
-const GET_COMUNES = new Set(['biblioteca', 'ver', 'lecturas', 'calendario', 'vivo', 'parroquias', 'cancion', 'audio']);
+const GET_COMUNES = new Set(['biblioteca', 'ver', 'lecturas', 'calendario', 'vivo', 'parroquias', 'cancion', 'audio', 'slugDisponible',
+  ...GET_COMUNES_EXPERIENCIA]);
 
 const SUBIDAS = {
   audio: subirAudio,
@@ -54,7 +58,8 @@ const SUBIDAS = {
   cancionero: subirArchivoCancionero,
   reemplazo: reemplazarAudio,
   logo: subirLogo,
-  portada: subirPortada
+  portada: subirPortada,
+  foto: subirFoto
 };
 
 export function contexto(ctx) {
@@ -63,7 +68,7 @@ export function contexto(ctx) {
   const sitio = env.SITIO_URL || new URL(request.url).origin + '/';
   return {
     env, db: env.DB, r2: env.ARCHIVOS, sitio: sitio.endsWith('/') ? sitio : sitio + '/', yo: null,
-    slug: PARROQUIA_DEFECTO, parroquia: null
+    slug: PARROQUIA_DEFECTO, parroquia: null, ip: request.headers.get('CF-Connecting-IP') || ''
   };
 }
 

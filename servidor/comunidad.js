@@ -228,7 +228,7 @@ async function visitas(c) {
 }
 
 // Suma 1 al contador `clave` (que vence en `seg`) y devuelve el valor nuevo
-async function contar(c, clave, seg) {
+export async function contar(c, clave, seg) {
   const ahoraMs = Date.now();
   const fila = await c.db.prepare(
     'INSERT INTO limites (clave, valor, vence) VALUES (?1, 1, ?2) ' +

@@ -248,6 +248,31 @@ a.rp-pestana[hidden] { display: none; }
 }
 .rp-tj-titulo:hover { text-decoration: underline; }
 .rp-tj-sub { color: var(--rp-suave); font-size: 13px; line-height: 1.35; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+a.rp-tj-titulo { text-decoration: none; }
+.rp-tj-foto { display: block; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--rp-panel); }
+.rp-tj-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rp-tj-foto img.rp-tj-icono { object-fit: contain; padding: 22%; }
+
+/* Gracias a quienes colaboran (al final de Inicio) */
+.rp-gracias { margin: 8px 0 36px; padding: 20px 22px; border: 1px solid var(--rp-linea); border-radius: 12px; background: var(--rp-panel); }
+.rp-gracias h2 { margin: 0 0 10px; font-size: 1.15rem; }
+.rp-gracias p { margin: 8px 0 0; color: var(--rp-texto); line-height: 1.5; }
+.rp-gracias-cifras { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0; padding: 0; list-style: none; color: var(--rp-suave); }
+.rp-gracias-cifras b { color: var(--rp-acento); font-size: 1.3rem; }
+.rp-gracias-pie { font-size: 0.9rem; color: var(--rp-suave) !important; }
+.rp-gracias a { color: var(--rp-acento); }
+
+/* Pie de la cola: compartir, bajar audios y el voto */
+.rp-cola-pie { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px 16px; border-top: 1px solid var(--rp-linea); }
+.rp-cola-pie:empty { display: none; }
+.rp-cola-pie .rp-btn { flex: 1 1 auto; }
+.rp-cola-pie small { flex-basis: 100%; color: var(--rp-suave); }
+.rp-votar { display: grid; gap: 6px; margin: 10px 0; padding: 0; list-style: none; max-height: 55vh; overflow: auto; }
+.rp-votar button { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; padding: 8px 10px; border: 1px solid var(--rp-linea); border-radius: 8px; background: none; color: var(--rp-texto); cursor: pointer; font: inherit; }
+.rp-votar button small { color: var(--rp-suave); display: block; }
+.rp-votar button.elegida { border-color: var(--rp-acento); background: color-mix(in srgb, var(--rp-acento) 14%, transparent); }
+.rp-votar .cara { width: 40px; height: 40px; flex: none; }
+.rp-config-aviso { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 /* ============ CANCIONES ============ */
 .rp-buscar {
@@ -922,3 +947,39 @@ body.rp-tv #rp-video { position: fixed; right: 2vw; bottom: 3vh; z-index: 160; w
 .rp-oscuro .dlg-partitura { background: var(--rp-panel); color: var(--rp-texto); }
 .rp-oscuro .partitura-titulo { color: var(--rp-acento); }
 .rp-oscuro .dlg-partitura .btn-chico { background: transparent; color: var(--rp-texto); border-color: var(--rp-linea); }
+
+/* Dentro del sitio de una parroquia (/<parroquia>/embebido): sin el menú del sitio ni lo que es de la app */
+.embebido .nav-sitio .nav-links,
+.embebido .nav-sitio .nav-toggle,
+.embebido .rp-portada-parroquia,
+.embebido .rp-editor-menu,
+.embebido .rp-instalar {
+  display: none !important;
+}
+
+.embebido-abrir {
+  position: fixed;
+  top: calc((var(--nav-h) - 2rem) / 2);
+  right: 12px;
+  z-index: 120;
+  display: inline-flex;
+  align-items: center;
+  height: 2rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  background: var(--rp-acento, #2f4a38);
+  color: #fff;
+  font: 560 0.82rem var(--fuente-cuerpo, sans-serif);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* «Audio: <canal o sitio>»: el reconocimiento a quien puso el audio en internet */
+.rp-fuente { margin: 2px 0 0; font-size: 13px; color: var(--rp-suave); }
+.rp-fuente a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.rp-fuente a:hover { color: var(--rp-acento); }
+
+/* Letra que avanza sola: la línea que se canta */
+.rp-letra .lyric-line { transition: opacity 0.25s, color 0.25s; }
+.rp-letra.karaoke .lyric-line { opacity: 0.55; }
+.rp-letra.karaoke .lyric-line.cantando { opacity: 1; color: var(--rp-acento); font-weight: 650; }

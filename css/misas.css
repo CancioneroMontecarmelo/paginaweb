@@ -1664,3 +1664,9 @@
     font-size: 0.85rem;
   }
 }
+
+/* «Audio: <fuente>» y «Lo que más gustó» */
+.audio-fuente { display: block; flex-basis: 100%; color: var(--texto-suave, #6b7280); font-size: 0.78rem; }
+.misa-gusto { margin: 0.6rem 0; padding: 0.55rem 0.75rem; border-radius: 8px; background: color-mix(in srgb, var(--acento, #2f4a38) 8%, transparent); font-size: 0.9rem; }
+.misa-gusto small { color: var(--texto-suave, #6b7280); }
+.misa-gusto ol { margin: 0.3rem 0 0; padding-left: 1.3rem; }

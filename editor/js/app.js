@@ -551,6 +551,7 @@ const MENUS = [
     { label: 'Vincular con audio o video local…', action: 'audioLocal' },
     { label: 'Vincular con audio o video por URL…', action: 'audioUrl' },
     { label: 'Guardar el audio en mi equipo…', action: 'audioSaveExtracted', disabled: () => !currentAudio()?.extractor },
+    { label: 'Marcar los tiempos de la letra…', action: 'marcarTiempos', disabled: () => !currentAudio() },
     { sep: true },
     { label: 'Quitar audio actual', action: 'audioRemove', disabled: () => !cur().audios.length }
   ]},
@@ -619,6 +620,7 @@ const ACTIONS = {
   tagDialog,
   tagSearch: tagSearchDialog,
   creditsDialog,
+  marcarTiempos: marcarTiemposDialog,
 
   modeEdit: () => setMode('edit'),
   modeAtril: () => setMode('atril'),

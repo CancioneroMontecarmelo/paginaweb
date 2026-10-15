@@ -1,4 +1,4 @@
-/* Parroquia Nuestra Señora del Monte Carmelo */
+/* Cancionero Litúrgico: estilos comunes de las páginas */
 
 :root {
   --crema: #f3e6c8;
@@ -1617,3 +1617,401 @@ a:hover {
   font-size: 0.85rem;
 }
 
+
+/* ==================== Mapa, ficha y fotos de la parroquia (js/mapa.js, js/ficha-parroquia.js) ==================== */
+.mapa-punto span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--c);
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.mapa-globo {
+  display: grid;
+  gap: 0.25rem;
+  font-family: var(--fuente-cuerpo);
+  font-size: 0.9rem;
+}
+
+.mapa-globo img {
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.mapa-globo span {
+  color: var(--texto-suave);
+  font-size: 0.82rem;
+}
+
+.mapa-globo .mapa-ir {
+  font-weight: 560;
+}
+
+.leaflet-container {
+  font-family: var(--fuente-cuerpo);
+}
+
+.ubicacion {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ubicacion-buscar {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ubicacion-buscar input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  border: 1px solid rgba(47, 74, 56, 0.35);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ubicacion-resultados {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.ubicacion-resultados button {
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  font-size: 0.88rem;
+  border: 1px solid rgba(47, 74, 56, 0.25);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.ubicacion-resultados button:hover {
+  border-color: var(--terracota);
+}
+
+.ubicacion-estado {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--texto-suave);
+}
+
+.ubicacion-estado:empty {
+  display: none;
+}
+
+.ubicacion-mapa {
+  height: 280px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(47, 74, 56, 0.25);
+}
+
+.ubicacion .ayuda {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.aviso-revision {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: #fff4d6;
+  border: 1px solid #e3c36b;
+  color: #5a4500;
+}
+
+.galeria-admin {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.galeria-admin li {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+}
+
+.galeria-admin img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.galeria-admin input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.galeria-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.comunidad-extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.25rem;
+  width: 100%;
+}
+
+.comunidad-extras .aviso {
+  font-size: 0.8rem;
+}
+
+.comunidad-ficha {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: rgba(47, 74, 56, 0.05);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.comunidad-foto {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.ficha-publica[hidden] {
+  display: none;
+}
+
+.galeria {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.galeria li {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.galeria button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.galeria img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.galeria button:hover img {
+  transform: scale(1.03);
+}
+
+.galeria span {
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.ficha-direccion {
+  margin: 0 0 0.6rem;
+  font-size: 1.05rem;
+}
+
+.ficha-llegar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.ficha-mapa {
+  height: 340px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 18px var(--sombra);
+}
+
+#ficha-comunidad {
+  margin: 0 0 1.5rem;
+}
+
+.lista-comunidades .com-foto {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex: none;
+  align-self: center;
+}
+
+.lista-comunidades .com-textos {
+  flex: 1;
+  display: grid;
+}
+
+.lista-comunidades .com-textos small {
+  font-family: var(--fuente-cuerpo);
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--texto-suave);
+}
+
+.dlg-foto {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  max-width: 96vw;
+  max-height: 94vh;
+  overflow: visible;
+}
+
+.dlg-foto::backdrop {
+  background: rgba(0, 0, 0, 0.88);
+}
+
+.dlg-foto img {
+  max-width: 96vw;
+  max-height: 86vh;
+  margin: 0 auto;
+  border-radius: 6px;
+}
+
+.dlg-foto p {
+  color: #eee;
+  text-align: center;
+  margin: 0.5rem 0 0;
+}
+
+.dlg-foto button {
+  position: fixed;
+  border: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 1.8rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.dlg-foto-cerrar {
+  top: 1rem;
+  right: 1rem;
+}
+
+.dlg-foto-ant {
+  left: 1rem;
+  top: 50%;
+}
+
+.dlg-foto-sig {
+  right: 1rem;
+  top: 50%;
+}
+
+/* Parroquias (administrador general): pestañas y solicitudes de /sumar */
+.pestanas-admin {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+}
+
+.pestana-admin {
+  font: inherit;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--verde-suave);
+  background: transparent;
+  color: var(--verde);
+  cursor: pointer;
+}
+
+.pestana-admin[aria-pressed="true"] {
+  background: var(--verde);
+  color: var(--blanco);
+}
+
+.pestana-admin.con-pendientes:not([aria-pressed="true"]) {
+  border-color: var(--terracota);
+  color: var(--terracota);
+  font-weight: 560;
+}
+
+.lista-solicitudes {
+  display: grid;
+  gap: 1rem;
+}
+
+.solicitud {
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(42, 36, 28, 0.1);
+}
+
+.solicitud h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+
+.solicitud h4 small {
+  font-weight: 400;
+  color: var(--texto-suave);
+}
+
+.solicitud p {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+}
+
+.solicitud textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  margin: 0.3rem 0;
+}
+
+.codigos-embebido .po-codigo {
+  margin: 0.35rem 0 0.9rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: #1f2a22;
+  color: #e7efe9;
+  font-size: 0.78rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Login: «Mostrar mi nombre como colaborador» */
+.opcion-colaborador { display: flex; gap: 0.5rem; align-items: flex-start; margin: 1rem 0 0; font-size: 0.92rem; color: var(--texto-suave, #555); }
+.opcion-colaborador input { margin-top: 0.2rem; }

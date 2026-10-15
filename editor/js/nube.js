@@ -547,6 +547,9 @@ async function mcGuardarCancion() {
         r.archivo, s.token);
       enviados.push({ nombre: a.name, voz: voz(a), fileId: sub.fileId });
       enMd.push({ name: a.name, src: mcAudioUrl(sub.fileId), voice: a.voice });
+      // Los tiempos marcados con el audio local pasan al audio subido
+      const marcados = d.sincro?.[sincroKey(a.src)];
+      if (marcados) d.sincro = { ...d.sincro, [sub.fileId]: marcados };
     }
     // Los audios que la canción ya tenía en la Biblioteca siguen siendo suyos
     for (const a of previa?.audios || []) {

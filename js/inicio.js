@@ -16,6 +16,7 @@ import {
   hoyIso, proximoDomingo, fechaLarga, tituloLiturgico, tiempoPorFecha, colorPorTiempo, santoDelDia,
   semanaDelTitulo, momentosDeMisa, sugerirCantos, evangelioDe, temasDelEvangelio, claveMomento, domingosDelMes, sugerirDomingos
 } from "./liturgia.js";
+import { pintarFichaPublica, CLASES } from "./ficha-parroquia.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -56,8 +57,11 @@ function pintarParroquia() {
   $("#reseña").hidden = !parrafos.length;
   $("#parroquia-descripcion").innerHTML = parrafos.map((t, i) =>
     `<p${i === 0 && parrafos.length > 1 ? ' class="lead"' : ""}>${esc(t).replace(/\n/g, "<br>")}</p>`).join("");
-  $("#lista-comunidades").innerHTML = COMUNIDADES.map((c) => `<li>
-      <a href="./comunidad?c=${encodeURIComponent(c.slug)}">${esc(c.nombre)} <span class="flecha">Ver →</span></a></li>`).join("") ||
+  const ficha = $("#ficha-parroquia");
+  pintarFichaPublica(ficha, p);
+  $("#donde").hidden = ficha.hidden;
+  $("#lista-comunidades").innerHTML = (p.comunidades || COMUNIDADES).map((c) => `<li>
+      <a href="./comunidad?c=${encodeURIComponent(c.slug)}">${c.foto ? `<img class="com-foto" src="${esc(c.foto)}" alt="" loading="lazy">` : ""}<span class="com-textos">${esc(c.nombre)}${c.clase && c.clase !== "comunidad" ? `<small>${esc(CLASES[c.clase] || "")}${c.direccion ? " · " + esc(c.direccion) : ""}</small>` : c.direccion ? `<small>${esc(c.direccion)}</small>` : ""}</span> <span class="flecha">Ver →</span></a></li>`).join("") ||
     '<li class="aviso">Todavía no hay comunidades. Los responsables las agregan en Identificarse → Datos de la parroquia.</li>';
 }
 
