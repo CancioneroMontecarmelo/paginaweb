@@ -7,7 +7,8 @@ import { parroquiasActivas } from './parroquias.js';
 import { contar } from './comunidad.js';
 
 // ==================== CACHÉ ====================
-// En memoria (por instancia) y en la caché de Cloudflare (compartida), para no recalcular en cada visita
+// En memoria (por instancia) y en la caché de Cloudflare (compartida), para no recalcular en cada visita.
+// seg puede ser una función del valor calculado (para guardar menos tiempo lo que todavía está incompleto).
 
 const memoria = new Map();
 async function enCache(clave, seg, calcular) {
@@ -20,12 +21,13 @@ async function enCache(clave, seg, calcular) {
       const r = await cache.match(url);
       if (r) {
         const valor = await r.json();
-        memoria.set(clave, { valor, vence: Date.now() + Math.min(seg, 600) * 1000 });
+        memoria.set(clave, { valor, vence: Date.now() + Math.min(+seg || 600, 600) * 1000 });
         return valor;
       }
     } catch (_) { /* sin caché: se calcula */ }
   }
   const valor = await calcular();
+  if (typeof seg === 'function') seg = seg(valor);
   memoria.set(clave, { valor, vence: Date.now() + seg * 1000 });
   if (cache) {
     try {
@@ -134,7 +136,8 @@ async function calcularAgradecimientos(c) {
   };
 }
 
-export const agradecimientos = (c) => enCache('agradecimientos-v1', 86400, () => calcularAgradecimientos(c));
+// Mientras falten canales de YouTube por averiguar (25 por cálculo), se vuelve a calcular cada 10 minutos
+export const agradecimientos = (c) => enCache('agradecimientos-v1', (v) => (v.videosSinCanal > 0 ? 600 : 86400), () => calcularAgradecimientos(c));
 
 // De dónde viene cada audio enlazado (para «Audio: …» en los créditos)
 async function fuentesAudios(c) {
