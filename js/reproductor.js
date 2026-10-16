@@ -484,12 +484,14 @@ async function pintarInicio() {
 
   let html = "";
   let otrosDomingos = [];
+  let idsProximoDomingo = new Set();
 
   // 1) Sugerencia del próximo domingo (antes que cualquier otra estantería)
   if (lista.length && domingos) try {
     const cadena = lit.sugerirDomingos(domingos, { biblioteca: lista, misas }).filter((x) => x.fecha >= domingo);
     const prox = cadena.find((x) => x.fecha === domingo) || cadena[0];
     if (prox) {
+      idsProximoDomingo = lit.idsDeMisa(prox.misa);
       const ev = lit.evangelioDe(prox.lecturas);
       const nombre = prox.lecturas?.titulo ? lit.tituloLiturgico(prox.lecturas.titulo) : lit.nombreDelDia(prox.fecha);
       const salmoFalta = notaSalmoFalta(prox.motivos);
@@ -518,7 +520,11 @@ async function pintarInicio() {
       const { tiempo: tHoy, momentos: momHoy } = lit.momentosDeMisa(hoy, leerHoy);
       const misaHoy = { id: "dia-" + hoy, comunidad: "", fechaUso: hoy, tiempoLiturgico: tHoy, momentos: momHoy };
       const motivosHoy = new Map();
-      const evitarHoy = await lit.evitadosSemanaYMes(hoy, lecturasDelDia, { biblioteca: lista, misas }).catch(() => null);
+      // En feria: no repetir lo del domingo de esta semana (el estante de arriba)
+      const extraDomingo = hoy === domingo ? new Set() : idsProximoDomingo;
+      const evitarHoy = await lit.evitadosSemanaYMes(hoy, lecturasDelDia, {
+        biblioteca: lista, misas, extra: extraDomingo
+      }).catch(() => new Set(extraDomingo));
       lit.sugerirCantos(misaHoy, leerHoy, { biblioteca: lista, misas, motivos: motivosHoy, evitar: evitarHoy });
       const salmoFaltaHoy = notaSalmoFalta(motivosHoy);
       const paresHoy = misaHoy.momentos.flatMap((m) =>

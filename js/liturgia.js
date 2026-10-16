@@ -989,12 +989,32 @@ export function evitadosDeMisasEnRango(misas, desde, hasta, excluirId = "") {
   return ids;
 }
 
-/** Unión de evitados de la semana (misas) y del mes (cadena de domingos sugeridos). */
-export async function evitadosSemanaYMes(fecha, leerLecturas, { biblioteca = [], misas = [], excluirId = "" } = {}) {
+/** Ids de canciones de una misa/sugerencia. */
+export function idsDeMisa(misa) {
+  return new Set((misa?.momentos || []).flatMap((m) => (m.canciones || []).map((c) => c.cancionId).filter(Boolean)));
+}
+
+/**
+ * Unión de evitados: misas guardadas de la semana, domingos anteriores del mes,
+ * y el domingo de la misma semana (aunque sea futuro — p. ej. feria vs próximo domingo).
+ */
+export async function evitadosSemanaYMes(fecha, leerLecturas, { biblioteca = [], misas = [], excluirId = "", extra = null } = {}) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || "")) return new Set(extra || []);
   const { desde, hasta } = rangoSemana(fecha);
   const semana = evitadosDeMisasEnRango(misas, desde, hasta, excluirId);
-  const mes = await evitadosDelMes(fecha, leerLecturas, { biblioteca, misas }).catch(() => new Set());
-  return new Set([...semana, ...mes]);
+  // Cadena hasta el domingo del mes (o el de «fecha» si ya es domingo): cubre mes + domingo de la semana
+  const ancla = fechaMedioDia(fecha).getDay() === 0 ? fecha : proximoDomingo();
+  const cadena = await conLecturas(domingosDelMes(ancla), leerLecturas)
+    .then((d) => sugerirDomingos(d, { biblioteca, misas }))
+    .catch(() => []);
+  const deDomingos = new Set();
+  for (const d of cadena) {
+    // Anteriores a «fecha», o el domingo de esta misma semana (si no es hoy)
+    if (d.fecha < fecha || (d.fecha !== fecha && d.fecha >= desde && d.fecha <= hasta)) {
+      for (const id of idsDeMisa(d.misa)) deDomingos.add(id);
+    }
+  }
+  return new Set([...semana, ...deDomingos, ...(extra || [])]);
 }
 
 // Para el Inicio del reproductor: desde el primer domingo del mes del próximo domingo, ese domingo (aunque no
