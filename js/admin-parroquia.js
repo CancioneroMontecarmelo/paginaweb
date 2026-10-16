@@ -618,14 +618,17 @@ export async function abrirParroquias() {
   });
 
   const importar = el("button", { type: "button", className: "btn btn-secundario", textContent: "Importar catálogo (Santiago, San Bernardo, Melipilla, Valparaíso)" });
+  const unificar = el("button", { type: "button", className: "btn btn-secundario", textContent: "Unificar duplicadas" });
   const msgImport = el("p", { hidden: true });
   importar.addEventListener("click", async () => {
     if (!confirm("¿Importar el catálogo diocesano? Solo agrega las que aún no existen; no borra ni pisa las actuales.")) return;
     importar.disabled = true;
+    unificar.disabled = true;
     aviso(msgImport, "Importando…");
     try {
       const r = await llamarApi("importarCatalogo", { token: token() });
       let t = "Listo: " + r.creadas + " nuevas, " + r.omitidas + " ya estaban (de " + r.totalCatalogo + ").";
+      if (r.unificadas) t += " Unificadas: " + r.unificadas + " duplicadas borradas.";
       if (r.fotosOk || r.fotosFallidas || r.fotosPendientes) {
         t += " Fotos: " + (r.fotosOk || 0) + " bajadas" +
           (r.fotosFallidas ? ", " + r.fotosFallidas + " fallaron" : "") +
@@ -638,11 +641,30 @@ export async function abrirParroquias() {
       aviso(msgImport, err.message, true);
     }
     importar.disabled = false;
+    unificar.disabled = false;
+  });
+  unificar.addEventListener("click", async () => {
+    if (!confirm("¿Unificar parroquias con el mismo nombre y comuna? Se conserva la configurada o la más antigua y se borran las repeticiones (…-2, …-3).")) return;
+    unificar.disabled = true;
+    importar.disabled = true;
+    aviso(msgImport, "Unificando…");
+    try {
+      const r = await llamarApi("unificarDuplicados", { token: token() });
+      let t = r.borradas
+        ? ("Listo: " + r.gruposUnidos + " grupos, " + r.borradas + " duplicadas borradas.")
+        : "No había duplicadas por nombre y comuna.";
+      aviso(msgImport, t);
+      refrescar();
+    } catch (err) {
+      aviso(msgImport, err.message, true);
+    }
+    unificar.disabled = false;
+    importar.disabled = false;
   });
 
   cuerpo.append(
     el("p", { className: "aviso", textContent: "Quienes se suman en /sumar o entran como feligreses quedan publicadas al tiro. Acá las activás u ocultás, importás el directorio diocesano y con Configurar completás el mapa y el sacerdote." }),
-    el("div", { className: "acciones-form" }, importar),
+    el("div", { className: "acciones-form" }, importar, unificar),
     msgImport,
     el("table", { className: "tabla-personas" },
       el("thead", {}, el("tr", {}, el("th", { textContent: "Parroquia" }), el("th", { textContent: "Activa" }), el("th"))),

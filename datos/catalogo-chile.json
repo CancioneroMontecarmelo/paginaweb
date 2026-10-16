@@ -749,15 +749,6 @@
     "tipo": "parroquia",
     "diocesis": "Diócesis de San Bernardo",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Pedro",
-    "comuna": "Puente Alto",
-    "lat": -33.6033,
-    "lng": -70.57
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Diócesis de San Bernardo",
-    "region": "Región Metropolitana",
     "nombre": "Parroquia Santa Teresa de Los Andes",
     "comuna": "Puente Alto",
     "lat": -33.5993,
