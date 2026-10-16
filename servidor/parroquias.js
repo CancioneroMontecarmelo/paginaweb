@@ -187,6 +187,43 @@ function dedupeListaPublica(lista) {
   return out.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 }
 
+/** Inserta parroquias de Santiago que faltan (tope por visita, sin fotos). */
+async function completarCatalogoSantiago(c) {
+  const MAX_AUTO = 60;
+  const { map: porNombre } = await indicePorNombreComuna(c);
+  const reservados = new Set();
+  const stmts = [];
+  for (const e of CATALOGO_SANTIAGO) {
+    if (stmts.length >= MAX_AUTO) break;
+    const nombre = texto(e.nombre, 120);
+    const comuna = texto(e.comuna, 80);
+    if (!nombre) continue;
+    const clave = claveNombreComuna(nombre, comuna);
+    if (porNombre.has(clave) || reservados.has('clave:' + clave)) continue;
+    const slug = await slugLibre(c, '', nombre + (comuna ? ' ' + comuna : ''), reservados);
+    const datos = {
+      nombre, nombreCorto: nombre.replace(/^(Parroquia|Movimiento|Basílica|Templo)\s+/i, '').slice(0, 40),
+      tipo: 'parroquia', diocesis: texto(e.diocesis, 100) || 'Arquidiócesis de Santiago',
+      decanato: texto(e.decanato, 40), sitioWeb: '', sacerdoteNombre: '',
+      direccion: '', comuna, region: texto(e.region, 80) || 'Región Metropolitana',
+      lat: typeof e.lat === 'number' ? e.lat : null, lng: typeof e.lng === 'number' ? e.lng : null,
+      lema: '', descripcion: '', correo: '', portada: '', iconos: {}, fotos: [],
+      activa: true, oculta: false, estado: 'aprobada',
+      origen: 'catalogo', configurada: false,
+      creado: ahora(), creadoPor: 'catalogo-auto'
+    };
+    stmts.push(c.db.prepare('INSERT INTO parroquias (slug, datos) VALUES (?, ?)').bind(slug, JSON.stringify(datos)));
+    reservados.add(slug);
+    reservados.add('clave:' + clave);
+    porNombre.set(clave, { slug, ...datos });
+  }
+  if (stmts.length) {
+    for (let i = 0; i < stmts.length; i += 40) await c.db.batch(stmts.slice(i, i + 40));
+    cache.delete('*lista');
+  }
+  return stmts.length;
+}
+
 export async function parroquiasActivas(c) {
   const guardada = cache.get('*lista');
   if (guardada && guardada.vence > Date.now()) return guardada.p;
@@ -207,6 +244,13 @@ export async function parroquiasActivas(c) {
     if (hayDup) await ejecutarUnificarDuplicados(c);
   } catch (err) {
     console.error('unificar al listar:', err);
+  }
+
+  // Completar las que faltan del catálogo Santiago (varias visitas si son muchas)
+  try {
+    await completarCatalogoSantiago(c);
+  } catch (err) {
+    console.error('completar catálogo Santiago:', err);
   }
 
   const [{ results }, { results: coms }] = await Promise.all([
