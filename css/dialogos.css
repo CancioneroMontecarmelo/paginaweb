@@ -295,6 +295,321 @@
   color: var(--rp-suave, #6a5f50);
 }
 
+/* Diálogo de entrada (primera visita / editar pertenencias) */
+.dlg-entrada-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(20, 28, 22, 0.55);
+  overflow: auto;
+}
+
+.dlg-entrada {
+  width: min(28rem, 96vw);
+  max-height: min(92vh, 92dvh);
+  overflow: auto;
+  padding: 1.35rem 1.3rem 1.15rem;
+  border: 1px solid rgba(47, 74, 56, 0.22);
+  border-radius: 16px;
+  background: var(--crema-clara, #fffef9);
+  color: var(--texto, #2a241c);
+  box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.28);
+}
+
+.pagina-reproductor .dlg-entrada {
+  background: var(--rp-panel, #fffef9);
+  color: var(--rp-texto, #2a241c);
+  border-color: var(--rp-linea, rgba(47, 74, 56, 0.22));
+}
+
+.dlg-entrada h2 {
+  margin: 0 0 0.45rem;
+  font-family: var(--fuente-display, Fraunces, serif);
+  font-size: 1.35rem;
+  color: var(--verde, #2f4a38);
+  line-height: 1.2;
+}
+
+.pagina-reproductor .dlg-entrada h2 {
+  color: var(--rp-acento, #2f4a38);
+}
+
+.dlg-entrada-lead {
+  margin: 0 0 1rem;
+  color: var(--texto-suave, #6a5f50);
+  line-height: 1.45;
+  font-size: 0.95rem;
+}
+
+.pagina-reproductor .dlg-entrada-lead {
+  color: var(--rp-suave, #6a5f50);
+}
+
+.dlg-entrada-sec {
+  margin: 0 0 0.9rem;
+}
+
+.dlg-entrada-sec h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--texto-suave, #6a5f50);
+}
+
+.dlg-entrada-identidad {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.dlg-entrada-identidad label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.dlg-entrada-identidad input {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(47, 74, 56, 0.25);
+  border-radius: 8px;
+  background: var(--blanco, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.dlg-entrada-zonas {
+  display: grid;
+  gap: 0.35rem;
+  max-height: 14rem;
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.dlg-entrada-zona {
+  border: 1px solid rgba(47, 74, 56, 0.14);
+  border-radius: 8px;
+  padding: 0.2rem 0.55rem 0.35rem;
+  background: color-mix(in srgb, var(--texto, #2a241c) 3%, transparent);
+}
+
+.dlg-entrada-zona summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.35rem 0;
+  list-style: none;
+}
+
+.dlg-entrada-zona summary::-webkit-details-marker { display: none; }
+
+.dlg-entrada-zona-n {
+  font-weight: 400;
+  opacity: 0.7;
+  font-size: 0.85rem;
+}
+
+.dlg-entrada-checks {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.15rem 0 0.25rem;
+}
+
+.dlg-entrada-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  line-height: 1.3;
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+
+.dlg-entrada-check input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.dlg-entrada-vacio {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--texto-suave, #6a5f50);
+}
+
+.dlg-entrada-err {
+  margin: 0 0 0.7rem;
+  color: #9a2f2f;
+  font-size: 0.9rem;
+}
+
+.dlg-entrada-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.dlg-entrada-acciones .btn {
+  text-align: center;
+  width: 100%;
+}
+
+.dlg-entrada-admin {
+  margin: 0.85rem 0 0;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.dlg-entrada-admin a {
+  color: var(--texto-suave, #6a5f50);
+}
+
+/* Onboarding: carrusel + Entrar (primera visita) */
+.dlg-onboarding {
+  width: min(26rem, 96vw);
+  max-height: min(92vh, 92dvh);
+  overflow: auto;
+  padding: 1.5rem 1.35rem 1.25rem;
+  border: 1px solid rgba(47, 74, 56, 0.22);
+  border-radius: 18px;
+  background: var(--crema-clara, #fffef9);
+  color: var(--texto, #2a241c);
+  box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pagina-reproductor .dlg-onboarding {
+  background: var(--rp-panel, #fffef9);
+  color: var(--rp-texto, #2a241c);
+  border-color: var(--rp-linea, rgba(47, 74, 56, 0.22));
+}
+
+.onb-marca {
+  font-family: var(--fuente-display, Fraunces, serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--verde, #2f4a38);
+  letter-spacing: 0.01em;
+}
+
+.pagina-reproductor .onb-marca {
+  color: var(--rp-acento, #2f4a38);
+}
+
+.onb-carrusel {
+  min-height: 10.5rem;
+  touch-action: pan-y;
+}
+
+.onb-slide {
+  animation: onb-in 0.35s ease;
+}
+
+@keyframes onb-in {
+  from { opacity: 0; transform: translateX(0.6rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.onb-slide h2 {
+  margin: 0 0 0.55rem;
+  font-family: var(--fuente-display, Fraunces, serif);
+  font-size: 1.55rem;
+  line-height: 1.15;
+  color: var(--verde, #2f4a38);
+}
+
+.pagina-reproductor .onb-slide h2 {
+  color: var(--rp-acento, #2f4a38);
+}
+
+.onb-texto {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--texto-suave, #6a5f50);
+}
+
+.pagina-reproductor .onb-texto {
+  color: var(--rp-suave, #6a5f50);
+}
+
+.onb-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.onb-flecha {
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid rgba(47, 74, 56, 0.22);
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.onb-flecha:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.onb-flecha:not(:disabled):hover {
+  background: color-mix(in srgb, var(--texto, #2a241c) 6%, transparent);
+}
+
+.onb-puntos {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.onb-punto {
+  width: 0.55rem;
+  height: 0.55rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--texto, #2a241c) 22%, transparent);
+  cursor: pointer;
+}
+
+.onb-punto-activo {
+  background: var(--verde, #2f4a38);
+  transform: scale(1.15);
+}
+
+.pagina-reproductor .onb-punto-activo {
+  background: var(--rp-acento, #2f4a38);
+}
+
+.onb-entrar {
+  width: 100%;
+  text-align: center;
+  font-size: 1.15rem;
+  padding: 0.85rem 1.2rem;
+  min-height: 3.1rem;
+}
+
+.onb-admin {
+  margin: 0;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.onb-admin a {
+  color: var(--texto-suave, #6a5f50);
+}
+
 .dlg-feligres .campo-admin {
   display: grid;
   gap: 0.25rem;

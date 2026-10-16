@@ -28,7 +28,8 @@
  */
 
 import { initNavSitio, sesionActual, llamarApi, puedeEditar } from "./auth.js";
-import { mostrarBienvenidaSiCorresponde } from "./bienvenida.js";
+import { mostrarOnboardingSiCorresponde, editarPertenencias, leerPertenencias, esSoloLocal } from "./entrada.js";
+import { setActiva, irAActiva } from "./pertenencias.js";
 import { COMUNIDADES, PARROQUIA } from "./comunidades.js";
 import * as lit from "./liturgia.js";
 import { activarPosturas, cerrar as cerrarPostura } from "./posturas.js";
@@ -3476,6 +3477,29 @@ function prepararApp() {
   }));
 }
 
+function pintarMenuPertenencias() {
+  const caja = $("#rp-pertenencias-menu");
+  if (!caja) return;
+  const lista = leerPertenencias();
+  const solo = esSoloLocal() || !lista.length;
+  let html = "";
+  if (!solo && lista.length > 1) {
+    html += ` · <label class="rp-pertenencias-activa"><span class="visually-hidden">Comunidad activa</span>
+      <select id="rp-activa-pertenencia" aria-label="Comunidad activa">
+        ${lista.map((p) => `<option value="${esc(p.slug)}"${p.slug === PARROQUIA_ACTUAL ? " selected" : ""}>${esc(p.nombre)}</option>`).join("")}
+      </select></label>`;
+  }
+  html += ` · <button type="button" class="rp-link" id="rp-editar-pertenencias">Cambiar parroquia</button>`;
+  caja.innerHTML = html;
+  $("#rp-editar-pertenencias")?.addEventListener("click", () => editarPertenencias());
+  $("#rp-activa-pertenencia")?.addEventListener("change", (e) => {
+    const slug = e.target.value;
+    if (!slug || slug === PARROQUIA_ACTUAL) return;
+    setActiva(slug);
+    irAActiva(slug);
+  });
+}
+
 async function iniciar() {
   ponerIconos();
   initNavSitio();
@@ -3487,7 +3511,9 @@ async function iniciar() {
   await cargarBiblioteca();
   pintarInicio();
   arrancar();
-  mostrarBienvenidaSiCorresponde();
+  pintarMenuPertenencias();
+  if (/[?&]cambiar=1\b/.test(location.search)) editarPertenencias();
+  else mostrarOnboardingSiCorresponde();
 }
 
 iniciar();

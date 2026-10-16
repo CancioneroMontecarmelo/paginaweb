@@ -304,9 +304,8 @@ export async function botonGoogle(contenedor, alEntrar, alFallar) {
   });
 }
 
-function avisarPertenenciaSiVisitante(sesion) {
-  if (!sesion || sesion.rol !== "visitante") return;
-  import("./bienvenida.js").then((m) => m.preguntarPertenenciaTrasEntrar()).catch(() => {});
+function avisarPertenenciaSiVisitante(_sesion) {
+  /* La pertenencia la define el diálogo de entrada (js/entrada.js), no el login. */
 }
 
 export async function entrarConGoogle(credential) {
@@ -318,6 +317,11 @@ export async function entrarConGoogle(credential) {
 }
 
 export async function entrarVisitante(email, nombre) {
+  let soloLocal = false;
+  try { soloLocal = localStorage.getItem("mc-solo-local") === "1"; } catch (_) { /* */ }
+  if (soloLocal) {
+    throw new Error("Estás en modo solo local. Editá tus pertenencias para guardar en el sitio.");
+  }
   const r = await llamarApi("entrarVisitante", { email: normalizarEmail(email), nombre });
   guardarSesion(r.sesion);
   avisarPertenenciaSiVisitante(r.sesion);

@@ -214,7 +214,38 @@ a.rp-pestana[hidden] { display: none; }
 .rp-portada-botones, #rp-portada-acciones { display: flex; flex-wrap: wrap; gap: 10px; }
 .rp-portada-botones { margin-top: 18px; }
 .rp-portada .rp-portada-parroquia { margin-top: 16px; font-size: 13px; opacity: 0.8; }
-.rp-portada-parroquia a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.rp-portada-parroquia a,
+.rp-portada-parroquia .rp-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.rp-pertenencias-activa select {
+  max-width: 12rem;
+  margin: 0 0.15rem;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 6px;
+  padding: 0.1rem 0.35rem;
+}
+.rp-portada-parroquia .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
 .rp-app-aviso {
   margin: -12px 0 24px; padding: 12px 16px; border-radius: 12px; font-size: 14px;
   background: color-mix(in srgb, #e5534b 22%, var(--rp-panel)); border: 1px solid color-mix(in srgb, #e5534b 50%, transparent);

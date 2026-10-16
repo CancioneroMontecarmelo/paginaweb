@@ -439,25 +439,27 @@ export async function atenderPagina(ctx) {
 
   if (ruta === '/sitemap.xml') return sitemap(c);
 
-  // El reproductor es la página principal (y la app instalable, con alcance /), con la parroquia de este equipo.
-  // Sin parroquia elegida (y los buscadores), la portada nacional; la app instalada abre igual con la de siempre.
+  // El reproductor es siempre la puerta de entrada (/). Portada nacional queda en /portada.
   if (ruta === '/') {
-    const s = cookieParroquia(request);
-    const elegida = s ? await leerParroquia(c, s) : null;
-    if (elegida && elegida.activa) return pagina(ctx, c, elegida, 'reproductor');
-    if (url.searchParams.has('app')) {
-      const p = await leerParroquia(c, await parroquiaDelEquipo(c, request));
-      if (p) return pagina(ctx, c, p, 'reproductor');
-    }
-    return portada(ctx, c, false);
+    const slug = await parroquiaDelEquipo(c, request);
+    let p = await leerParroquia(c, slug);
+    if (!p || !p.activa) p = await leerParroquia(c, PARROQUIA_DEFECTO);
+    if (p) return pagina(ctx, c, p, 'reproductor');
+    return htmlBasico('Cancionero Litúrgico', '<h1>Cancionero Litúrgico</h1><p>No se pudo cargar el cancionero.</p>');
   }
   if (/^\/(index|reproductor)(\.html)?$/.test(ruta)) return redirigir('/' + url.search);
   if (ruta === '/sw-reproductor.js') return swRetiro();
   const iconoRaiz = ruta.match(/^\/icono-(180|192|512)\.png$/);
   if (iconoRaiz) return respuestaIcono(c, await parroquiaDelEquipo(c, request), iconoRaiz[1], env.ASSETS, url);
-  if (ruta === '/elegir') return portada(ctx, c, true);
+  // /elegir → reproductor; ?cambiar=1 reabre el diálogo de pertenencias
+  if (ruta === '/elegir') {
+    const slug = await parroquiaDelEquipo(c, request);
+    const qs = url.searchParams.has('cambiar') ? '?cambiar=1' : '';
+    return redirigir('/' + slug + '/' + qs);
+  }
   if (ruta === '/agradecimientos') return paginaAgradecimientos(ctx, c);
-  if (/^\/(portada|agradecimientos|sumar)\.html$/.test(ruta) || ruta === '/portada') return redirigir(ruta === '/sumar.html' ? '/sumar' : ruta.startsWith('/agrad') ? '/agradecimientos' : '/elegir');
+  if (ruta === '/portada' || ruta === '/portada.html') return portada(ctx, c, false);
+  if (/^\/(agradecimientos|sumar)\.html$/.test(ruta)) return redirigir(ruta.startsWith('/agrad') ? '/agradecimientos' : '/sumar');
   // Direcciones de antes: a la misma página de la parroquia del equipo (o la principal)
   const vieja = ruta.match(VIEJAS);
   if (vieja) return redirigir('/' + await parroquiaDelEquipo(c, request) + '/' + vieja[1] + url.search);
