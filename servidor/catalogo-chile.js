@@ -1092,11 +1092,6 @@ const FILAS_SANTIAGO = [
   [
     "Sur",
     "Pedro Aguirre Cerda",
-    "Parroquia Cristo de Mayo"
-  ],
-  [
-    "Sur",
-    "Pedro Aguirre Cerda",
     "Parroquia María Mediadora"
   ],
   [
@@ -1391,8 +1386,23 @@ const FILAS_SANTIAGO = [
   ]
 ];
 
-const SANTIAGO = FILAS_SANTIAGO.map(([decanato, comuna, nombre]) =>
-  entrada(nombre, comuna, AS, RM, { decanato }));
+/** Ubicación real de templo (Pedro Aguirre Cerda). Fuente: iglesiadesantiago.cl + mapas. */
+const PAC_UBICACION = {
+  'Parroquia María Mediadora': { direccion: 'Guanaqueros 3551', lat: -33.4964, lng: -70.6789 },
+  'Parroquia Nuestra Señora de La Victoria': { direccion: 'Galo González 4395', lat: -33.4868, lng: -70.6759 },
+  'Parroquia Nuestra Señora del Monte Carmelo': { direccion: 'Juan de Bastías 2530', lat: -33.4777, lng: -70.6604 },
+  'Parroquia Nuestra Señora Reina de los Apóstoles': { direccion: 'Av. Lo Ovalle 2390', lat: -33.4945, lng: -70.6725 },
+  'Parroquia San Juan Bautista Sur': { direccion: 'Alhué 2760, Pobl. Dávila', lat: -33.5037, lng: -70.6753 },
+  'Parroquia San Lucas': { direccion: 'Av. La Marina 2190', lat: -33.4934, lng: -70.6686 },
+  'Parroquia San Martín de Porres': { direccion: 'Arturo Alessandri 6210, Lo Valledor', lat: -33.5023, lng: -70.6845 },
+  'Parroquia San Mateo': { direccion: 'Pedro Subercaseaux 3190, Pobl. San Joaquín', lat: -33.4796, lng: -70.6750 }
+};
+
+const SANTIAGO = FILAS_SANTIAGO.map(([decanato, comuna, nombre]) => {
+  const base = entrada(nombre, comuna, AS, RM, { decanato });
+  const ubi = PAC_UBICACION[nombre];
+  return ubi ? { ...base, ...ubi } : base;
+});
 
 // Diócesis reservadas para fases siguientes
 const SAN_BERNARDO = [

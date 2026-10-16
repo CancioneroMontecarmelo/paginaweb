@@ -950,6 +950,34 @@ function loteCatalogo(d) {
 }
 
 /** Núcleo del import (yo ya autenticado como admin_general). Por defecto Santiago, sin fotos. */
+/** Actualiza ubicación/decanato desde el catálogo sin tocar portada, lema, etc. */
+async function refrescarUbicacionCatalogo(c, slug, e, comuna) {
+  const fila = await c.db.prepare('SELECT datos FROM parroquias WHERE slug = ?').bind(slug).first();
+  if (!fila) return;
+  const prev = parsear(fila.datos, {});
+  let cambio = false;
+  if (e.decanato && prev.decanato !== texto(e.decanato, 40)) {
+    prev.decanato = texto(e.decanato, 40);
+    cambio = true;
+  }
+  if (e.direccion) {
+    const dir = texto(e.direccion, 200);
+    if (dir && prev.direccion !== dir) { prev.direccion = dir; cambio = true; }
+  }
+  if (typeof e.lat === 'number' && typeof e.lng === 'number' && (prev.lat !== e.lat || prev.lng !== e.lng)) {
+    prev.lat = e.lat;
+    prev.lng = e.lng;
+    cambio = true;
+  }
+  if (slug === PARROQUIA_DEFECTO && comuna && prev.comuna !== comuna) {
+    prev.comuna = comuna;
+    cambio = true;
+  }
+  if (!cambio) return;
+  await c.db.prepare('UPDATE parroquias SET datos = ? WHERE slug = ?').bind(JSON.stringify(prev), slug).run();
+  olvidarParroquia(slug);
+}
+
 async function ejecutarImportarCatalogo(c, yo, opciones = {}) {
   const lote = loteCatalogo(opciones);
   const sinFotos = opciones.sinFotos !== false; // fase actual: no bajar fotos
@@ -958,6 +986,7 @@ async function ejecutarImportarCatalogo(c, yo, opciones = {}) {
   const stmts = [];
   const { map: porNombre } = await indicePorNombreComuna(c);
   const reservados = new Set();
+  const nombreMonteCarmelo = normBusca('Parroquia Nuestra Señora del Monte Carmelo');
   for (const e of lote) {
     const nombre = texto(e.nombre, 120);
     if (!nombre) continue;
@@ -966,18 +995,20 @@ async function ejecutarImportarCatalogo(c, yo, opciones = {}) {
     const porClave = porNombre.get(clave);
     if (porClave || reservados.has('clave:' + clave)) {
       omitidas++;
-      // Si ya existe, actualizar decanato (zona pastoral) cuando el catálogo lo trae
-      if (porClave && e.decanato && porClave.decanato !== e.decanato) {
-        const fila = await c.db.prepare('SELECT datos FROM parroquias WHERE slug = ?').bind(porClave.slug).first();
-        if (fila) {
-          const prev = parsear(fila.datos, {});
-          prev.decanato = texto(e.decanato, 40);
-          await c.db.prepare('UPDATE parroquias SET datos = ? WHERE slug = ?').bind(JSON.stringify(prev), porClave.slug).run();
-          olvidarParroquia(porClave.slug);
-        }
-      }
+      if (porClave) await refrescarUbicacionCatalogo(c, porClave.slug, e, comuna);
       if (!sinFotos && porClave && !porClave.portada && e.fotoUrl) pendientesFoto.push({ slug: porClave.slug, url: e.fotoUrl });
       continue;
+    }
+    // Monte Carmelo: actualizar la ficha principal aunque la comuna en D1 aún no coincida
+    if (normBusca(nombre) === nombreMonteCarmelo) {
+      const mc = await c.db.prepare('SELECT slug FROM parroquias WHERE slug = ?').bind(PARROQUIA_DEFECTO).first();
+      if (mc) {
+        omitidas++;
+        await refrescarUbicacionCatalogo(c, PARROQUIA_DEFECTO, e, comuna);
+        reservados.add('clave:' + clave);
+        porNombre.set(clave, { slug: PARROQUIA_DEFECTO, nombre, comuna });
+        continue;
+      }
     }
     let slug = String(e.slug || '').trim().toLowerCase();
     if (!slugValido(slug) || reservados.has(slug) || await c.db.prepare('SELECT 1 FROM parroquias WHERE slug = ?').bind(slug).first()) {
@@ -986,6 +1017,7 @@ async function ejecutarImportarCatalogo(c, yo, opciones = {}) {
     const porSlug = await c.db.prepare('SELECT slug, datos FROM parroquias WHERE slug = ?').bind(slug).first();
     if (porSlug) {
       omitidas++;
+      await refrescarUbicacionCatalogo(c, porSlug.slug, e, comuna);
       const prev = parsear(porSlug.datos, {});
       if (!sinFotos && !prev.portada && e.fotoUrl) pendientesFoto.push({ slug: porSlug.slug, url: e.fotoUrl });
       continue;

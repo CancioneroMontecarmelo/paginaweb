@@ -2033,21 +2033,12 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia Cristo de Mayo",
-    "comuna": "Pedro Aguirre Cerda",
-    "decanato": "Sur",
-    "lat": -33.504,
-    "lng": -70.6834
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Arquidiócesis de Santiago",
-    "region": "Región Metropolitana",
     "nombre": "Parroquia María Mediadora",
     "comuna": "Pedro Aguirre Cerda",
     "decanato": "Sur",
-    "lat": -33.5,
-    "lng": -70.6806
+    "direccion": "Guanaqueros 3551",
+    "lat": -33.4964,
+    "lng": -70.6789
   },
   {
     "tipo": "parroquia",
@@ -2056,8 +2047,9 @@
     "nombre": "Parroquia Nuestra Señora de La Victoria",
     "comuna": "Pedro Aguirre Cerda",
     "decanato": "Sur",
-    "lat": -33.496,
-    "lng": -70.6778
+    "direccion": "Galo González 4395",
+    "lat": -33.4868,
+    "lng": -70.6759
   },
   {
     "tipo": "parroquia",
@@ -2066,8 +2058,9 @@
     "nombre": "Parroquia Nuestra Señora del Monte Carmelo",
     "comuna": "Pedro Aguirre Cerda",
     "decanato": "Sur",
-    "lat": -33.492,
-    "lng": -70.675
+    "direccion": "Juan de Bastías 2530",
+    "lat": -33.4777,
+    "lng": -70.6604
   },
   {
     "tipo": "parroquia",
@@ -2076,8 +2069,9 @@
     "nombre": "Parroquia Nuestra Señora Reina de los Apóstoles",
     "comuna": "Pedro Aguirre Cerda",
     "decanato": "Sur",
-    "lat": -33.488,
-    "lng": -70.6722
+    "direccion": "Av. Lo Ovalle 2390",
+    "lat": -33.4945,
+    "lng": -70.6725
   },
   {
     "tipo": "parroquia",
@@ -2086,8 +2080,9 @@
     "nombre": "Parroquia San Juan Bautista Sur",
     "comuna": "Pedro Aguirre Cerda",
     "decanato": "Sur",
-    "lat": -33.484,
-    "lng": -70.6694
+    "direccion": "Alhué 2760, Pobl. Dávila",
+    "lat": -33.5037,
+    "lng": -70.6753
   },
   {
     "tipo": "parroquia",
@@ -2096,8 +2091,9 @@
     "nombre": "Parroquia San Lucas",
     "comuna": "Pedro Aguirre Cerda",
     "decanato": "Sur",
-    "lat": -33.48,
-    "lng": -70.6666
+    "direccion": "Av. La Marina 2190",
+    "lat": -33.4934,
+    "lng": -70.6686
   },
   {
     "tipo": "parroquia",
@@ -2106,8 +2102,9 @@
     "nombre": "Parroquia San Martín de Porres",
     "comuna": "Pedro Aguirre Cerda",
     "decanato": "Sur",
-    "lat": -33.504,
-    "lng": -70.6834
+    "direccion": "Arturo Alessandri 6210, Lo Valledor",
+    "lat": -33.5023,
+    "lng": -70.6845
   },
   {
     "tipo": "parroquia",
@@ -2116,8 +2113,9 @@
     "nombre": "Parroquia San Mateo",
     "comuna": "Pedro Aguirre Cerda",
     "decanato": "Sur",
-    "lat": -33.5,
-    "lng": -70.6806
+    "direccion": "Pedro Subercaseaux 3190, Pobl. San Joaquín",
+    "lat": -33.4796,
+    "lng": -70.6750
   },
   {
     "tipo": "parroquia",
