@@ -317,8 +317,8 @@ async function cargarBiblioteca() {
 // Estanterías como las del editor: los cancioneros de misa, tus listas, los cantos sugeridos para el
 // domingo y los de cada momento. Tocar una tarjeta hace sonar esa estantería desde esa canción.
 
-const MOMENTOS_INICIO = ["Entrada", "Acto penitencial", "Gloria", "Aleluya", "Ofertorio", "Santo", "Cordero de Dios",
-  "Comunión", "Acción de gracias", "Salida", "Canto a María"];
+const MOMENTOS_INICIO = ["Entrada", "Acto penitencial", "Gloria", "Aleluya", "Ofertorio", "Santo",
+  "Padre Nuestro", "Paz", "Cordero de Dios", "Comunión", "Acción de gracias", "Salida", "Canto a María"];
 
 // Estanterías temáticas al final de Inicio (por etiqueta de la Biblioteca)
 const ESTANTES_TEMA = [
