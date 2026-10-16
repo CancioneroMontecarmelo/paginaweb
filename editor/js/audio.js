@@ -117,6 +117,30 @@ function addAudio(a, select = true, d = cur()) {
   return item;
 }
 
+function clearDocAudios(d = cur()) {
+  d.audios.forEach(a => {
+    forgetLinkHandle('audio:' + a.id);
+    if (a.objectUrl) URL.revokeObjectURL(a.objectUrl);
+  });
+  d.audios = [];
+  d.currentAudioId = null;
+}
+
+/** Si ya hay audios: 'solo' | 'agregar' | falsy (cancelar). */
+async function modoAlVincularAudio(d = cur()) {
+  if (!d.audios.length) return 'agregar';
+  return showModal({
+    title: 'Ya hay audios',
+    body: `<p>«${escapeHtml(d.title)}» ya tiene <b>${d.audios.length}</b> ${d.audios.length === 1 ? 'audio' : 'audios'}. ¿Qué querés hacer con el nuevo?</p>
+      <p class="hint">«Dejar solo este» quita los demás de esta pestaña (al guardar en la Biblioteca también se quitan ahí).</p>`,
+    buttons: [
+      { label: 'Cancelar' },
+      { label: 'Agregar', value: 'agregar' },
+      { label: 'Dejar solo este', primary: true, value: 'solo' }
+    ]
+  });
+}
+
 function revokeDocAudios(d) {
   d.audios.forEach(a => a.objectUrl && URL.revokeObjectURL(a.objectUrl));
 }
@@ -283,8 +307,14 @@ const voiceOptionsHtml = selected =>
 
 // Vincula un archivo del equipo (audio o video) a la canción activa. Con `handle` se recuerda
 // dónde está el archivo, para calcular su ruta real y volver a encontrarlo al abrir.
-async function attachLocalFile(file, { handle = null, name = fileBase(file.name), voice = 'todas' } = {}) {
+async function attachLocalFile(file, { handle = null, name = fileBase(file.name), voice = 'todas', modo } = {}) {
   const d = cur();
+  const mismo = d.audios.find(a => a.kind === 'local' && fileBase(a.src, true) === file.name);
+  if (!mismo) {
+    modo ||= await modoAlVincularAudio(d);
+    if (!modo) return null;
+    if (modo === 'solo') clearDocAudios(d);
+  }
   const objectUrl = URL.createObjectURL(file);
   let item = d.audios.find(a => a.kind === 'local' && fileBase(a.src, true) === file.name);
   if (item) {
@@ -369,7 +399,11 @@ async function linkLocalAudio() {
 const DRM_SITES = ['Spotify', 'Apple Music', 'Deezer'];
 
 // Añade a la canción el audio de un enlace: página de video (YouTube…) o archivo directo
-async function addAudioFromUrl(url, { name = '', voice = 'todas' } = {}) {
+async function addAudioFromUrl(url, { name = '', voice = 'todas', modo } = {}) {
+  const d = cur();
+  modo ||= await modoAlVincularAudio(d);
+  if (!modo) return;
+  if (modo === 'solo') clearDocAudios(d);
   const normalized = isAbsoluteUrl(url) ? normalizeMediaUrl(url) : { url };
   const src = normalized.url;
   if (!needsExtractor(src)) {
@@ -377,7 +411,6 @@ async function addAudioFromUrl(url, { name = '', voice = 'todas' } = {}) {
     toast(`Listo: ${name || fileBase(src) || 'audio'}`);
     return;
   }
-  const d = cur();
   toast('Preparando el audio…', 600000);
   try {
     const info = await extractorPrepare(src);
@@ -464,7 +497,20 @@ document.addEventListener('drop', async e => {
   }
   // Canciones: cada una en su pestaña, vinculada a su archivo para poder guardarla ahí mismo
   if (songs.length) await openFiles(songs.map(f => ({ file: f, handle: handleFor(f) })));
-  for (const f of media) await attachLocalFile(f, { handle: handleFor(f), voice: state.highlight === 'todas' ? 'todas' : state.highlight });
+  let modoDrop = null;
+  for (let i = 0; i < media.length; i++) {
+    const f = media[i];
+    const opts = { handle: handleFor(f), voice: state.highlight === 'todas' ? 'todas' : state.highlight };
+    if (i === 0 && cur().audios.length) {
+      modoDrop = await modoAlVincularAudio();
+      if (!modoDrop) break;
+      opts.modo = modoDrop;
+    } else if (modoDrop) {
+      // Tras «Dejar solo este» en el primero, los siguientes se agregan a ese único
+      opts.modo = 'agregar';
+    }
+    await attachLocalFile(f, opts);
+  }
   for (const f of sheets) await addSheetFromFile(f, handleFor(f));
 });
 

@@ -504,10 +504,25 @@ async function mcGuardarCancion() {
     const seguir = await showModal({
       title: 'Ya está en la Biblioteca',
       body: `<p>Ya hay una canción <b>«${escapeHtml(previa.titulo)}»</b> en la Biblioteca. ¿Reemplazar su letra y acordes con los de esta pestaña?</p>
-        <p class="hint">Sus audios se conservan. Si es otra canción, cancela y cámbiale el título.</p>`,
+        <p class="hint">Los audios de esta pestaña reemplazan a los que tenía en la Biblioteca. Si es otra canción, cancela y cámbiale el título.</p>`,
       buttons: [{ label: 'Cancelar' }, { label: 'Reemplazar', primary: true, value: true }]
     });
     if (!seguir) return;
+  }
+  // Sin audios en la pestaña: no borrar los de la Biblioteca sin preguntar
+  let conservarPrevios = false;
+  if (!d.audios.length && previa?.audios?.length) {
+    const eleccion = await showModal({
+      title: 'Sin audios en esta pestaña',
+      body: `<p>Esta pestaña no tiene audios y «${escapeHtml(previa.titulo)}» tiene <b>${previa.audios.length}</b> en la Biblioteca. ¿Quitar todos los audios de la Biblioteca?</p>`,
+      buttons: [
+        { label: 'Cancelar' },
+        { label: 'Conservar los de la Biblioteca', value: 'conservar' },
+        { label: 'Quitar todos', primary: true, value: 'quitar' }
+      ]
+    });
+    if (!eleccion) return;
+    conservarPrevios = eleccion === 'conservar';
   }
 
   showModal({
@@ -524,14 +539,21 @@ async function mcGuardarCancion() {
   };
   try {
     const voz = a => (a.voice && a.voice !== 'todas' ? a.voice : '');
+    const idDeAudioSrc = src => String(src || '').match(/\/api\/audio\/([^/?#]+)/)?.[1] || '';
     const enviados = [], enMd = [];
     let faltan = 0;
     const locales = d.audios.filter(a => a.kind === 'local');
     let conv = null;
     for (const a of d.audios) {
       if (a.kind !== 'local') {
-        enviados.push({ nombre: a.name, voz: voz(a), url: a.src });
-        enMd.push({ name: a.name, src: a.src, voice: a.voice });
+        const fileId = idDeAudioSrc(a.src);
+        if (fileId) {
+          enviados.push({ nombre: a.name, voz: voz(a), fileId });
+          enMd.push({ name: a.name, src: mcAudioUrl(fileId), voice: a.voice });
+        } else {
+          enviados.push({ nombre: a.name, voz: voz(a), url: a.src });
+          enMd.push({ name: a.name, src: a.src, voice: a.voice });
+        }
         continue;
       }
       const n = locales.indexOf(a) + 1;
@@ -551,11 +573,12 @@ async function mcGuardarCancion() {
       const marcados = d.sincro?.[sincroKey(a.src)];
       if (marcados) d.sincro = { ...d.sincro, [sub.fileId]: marcados };
     }
-    // Los audios que la canción ya tenía en la Biblioteca siguen siendo suyos
-    for (const a of previa?.audios || []) {
-      if (enviados.some(x => (a.fileId && (x.fileId === a.fileId || String(x.url || '').includes(a.fileId))) || (a.url && x.url === a.url))) continue;
-      enviados.push(a.fileId ? { nombre: a.nombre, voz: a.voz, fileId: a.fileId } : { nombre: a.nombre, voz: a.voz, url: a.url });
-      enMd.push({ name: a.nombre || 'Audio', src: a.fileId ? mcAudioUrl(a.fileId) : a.url, voice: a.voz || 'todas' });
+    // Solo si la pestaña quedó sin audios y el usuario eligió conservarlos
+    if (conservarPrevios) {
+      for (const a of previa.audios || []) {
+        enviados.push(a.fileId ? { nombre: a.nombre, voz: a.voz, fileId: a.fileId } : { nombre: a.nombre, voz: a.voz, url: a.url });
+        enMd.push({ name: a.nombre || 'Audio', src: a.fileId ? mcAudioUrl(a.fileId) : a.url, voice: a.voz || 'todas' });
+      }
     }
     avance('Guardando la canción en la Biblioteca…', locales.length / (locales.length + 1));
     // Las partituras y tablaturas no van en el .md: quedan en la canción de la Biblioteca (cancion.partituras)
