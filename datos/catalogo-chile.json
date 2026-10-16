@@ -13,7 +13,7 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Francisco de Asís",
+    "nombre": "Basílica Nuestra Señora de la Merced",
     "comuna": "Santiago",
     "decanato": "Centro",
     "lat": -33.4452,
@@ -23,7 +23,7 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia Santa Ana",
+    "nombre": "Parroquia El Sagrario",
     "comuna": "Santiago",
     "decanato": "Centro",
     "lat": -33.4412,
@@ -33,7 +33,7 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Ignacio",
+    "nombre": "Parroquia Inmaculado Corazón de María",
     "comuna": "Santiago",
     "decanato": "Centro",
     "lat": -33.4372,
@@ -43,7 +43,7 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Lázaro",
+    "nombre": "Parroquia La Asunción",
     "comuna": "Santiago",
     "decanato": "Centro",
     "lat": -33.4332,
@@ -53,7 +53,7 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Basílica de la Merced",
+    "nombre": "Parroquia La Vera Cruz",
     "comuna": "Santiago",
     "decanato": "Centro",
     "lat": -33.4292,
@@ -63,7 +63,7 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia El Sagrario",
+    "nombre": "Parroquia Nuestra Señora del Asilo del Carmen",
     "comuna": "Santiago",
     "decanato": "Centro",
     "lat": -33.4252,
@@ -73,7 +73,7 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Saturnino",
+    "nombre": "Parroquia Nuestra Señora del Perpetuo Socorro",
     "comuna": "Santiago",
     "decanato": "Centro",
     "lat": -33.4492,
@@ -83,7 +83,217 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Rosario de Andacollo",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4452,
+    "lng": -70.6562
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Patronato San Antonio de Padua",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4412,
+    "lng": -70.6534
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Sagrado Corazón de Jesús Alameda",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4372,
+    "lng": -70.6506
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Andrés",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4332,
+    "lng": -70.6478
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Francisco de Asís",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4292,
+    "lng": -70.645
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Gerardo",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4252,
+    "lng": -70.6422
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Isidro Labrador",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4492,
+    "lng": -70.659
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Juan Evangelista",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4452,
+    "lng": -70.6562
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Lázaro",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4412,
+    "lng": -70.6534
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Pablo Apóstol",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4372,
+    "lng": -70.6506
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Pío X",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4332,
+    "lng": -70.6478
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Rafael Arcángel",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4292,
+    "lng": -70.645
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Saturnino",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4252,
+    "lng": -70.6422
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Ana",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4492,
+    "lng": -70.659
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Lucrecia",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4452,
+    "lng": -70.6562
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Sofía",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4412,
+    "lng": -70.6534
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santísima Trinidad",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4372,
+    "lng": -70.6506
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Ignacio",
+    "comuna": "Santiago",
+    "decanato": "Centro",
+    "lat": -33.4332,
+    "lng": -70.6478
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
     "nombre": "Parroquia de la Recoleta Dominica",
+    "comuna": "Recoleta",
+    "decanato": "Norte",
+    "lat": -33.4,
+    "lng": -70.6344
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia de los Santos Apóstoles",
+    "comuna": "Recoleta",
+    "decanato": "Norte",
+    "lat": -33.396,
+    "lng": -70.6316
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de La Merced El Salto",
+    "comuna": "Recoleta",
+    "decanato": "Norte",
+    "lat": -33.42,
+    "lng": -70.6484
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Carmen El Salto",
     "comuna": "Recoleta",
     "decanato": "Norte",
     "lat": -33.416,
@@ -93,7 +303,7 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Ramón",
+    "nombre": "Parroquia San Alberto de Sicilia",
     "comuna": "Recoleta",
     "decanato": "Norte",
     "lat": -33.412,
@@ -103,7 +313,7 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia Nuestra Señora de la Merced",
+    "nombre": "Parroquia Santa Filomena",
     "comuna": "Recoleta",
     "decanato": "Norte",
     "lat": -33.408,
@@ -113,27 +323,27 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Basílica de Lourdes",
-    "comuna": "Quinta Normal",
-    "decanato": "Poniente",
-    "lat": -33.436,
-    "lng": -70.6972
+    "nombre": "Parroquia Cristo Crucificado",
+    "comuna": "Independencia",
+    "decanato": "Norte",
+    "lat": -33.411,
+    "lng": -70.6622
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Vicente de Paul",
-    "comuna": "Quinta Normal",
-    "decanato": "Poniente",
-    "lat": -33.432,
-    "lng": -70.6944
+    "nombre": "Parroquia Milagroso Niño Jesús de Praga",
+    "comuna": "Independencia",
+    "decanato": "Norte",
+    "lat": -33.407,
+    "lng": -70.6594
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San José",
+    "nombre": "Parroquia Nuestra Señora de Fátima",
     "comuna": "Independencia",
     "decanato": "Norte",
     "lat": -33.403,
@@ -143,7 +353,7 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia Santa Teresa de Los Andes",
+    "nombre": "Parroquia Nuestra Señora de la Estampa",
     "comuna": "Independencia",
     "decanato": "Norte",
     "lat": -33.427,
@@ -153,11 +363,341 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Pablo",
-    "comuna": "Estación Central",
-    "decanato": "Poniente",
-    "lat": -33.463,
-    "lng": -70.6956
+    "nombre": "Parroquia Nuestra Señora del Rosario Norte",
+    "comuna": "Independencia",
+    "decanato": "Norte",
+    "lat": -33.423,
+    "lng": -70.6706
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Sagrado Corazón",
+    "comuna": "Independencia",
+    "decanato": "Norte",
+    "lat": -33.419,
+    "lng": -70.6678
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Teresa del Niño Jesús Norte",
+    "comuna": "Independencia",
+    "decanato": "Norte",
+    "lat": -33.415,
+    "lng": -70.665
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santo Tomás de Aquino",
+    "comuna": "Independencia",
+    "decanato": "Norte",
+    "lat": -33.411,
+    "lng": -70.6622
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San José",
+    "comuna": "Independencia",
+    "decanato": "Norte",
+    "lat": -33.407,
+    "lng": -70.6594
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Las Américas",
+    "comuna": "Conchalí",
+    "decanato": "Norte",
+    "lat": -33.373,
+    "lng": -70.6666
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Olivo",
+    "comuna": "Conchalí",
+    "decanato": "Norte",
+    "lat": -33.397,
+    "lng": -70.6834
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Diego de Alcalá",
+    "comuna": "Conchalí",
+    "decanato": "Norte",
+    "lat": -33.393,
+    "lng": -70.6806
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Luis Rey",
+    "comuna": "Conchalí",
+    "decanato": "Norte",
+    "lat": -33.389,
+    "lng": -70.6778
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Antonio de Padua",
+    "comuna": "Conchalí",
+    "decanato": "Norte",
+    "lat": -33.385,
+    "lng": -70.675
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de los Pobres",
+    "comuna": "Huechuraba",
+    "decanato": "Norte",
+    "lat": -33.364,
+    "lng": -70.6322
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Inés",
+    "comuna": "Huechuraba",
+    "decanato": "Norte",
+    "lat": -33.36,
+    "lng": -70.6294
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Corazón de María",
+    "comuna": "Huechuraba",
+    "decanato": "Norte",
+    "lat": -33.356,
+    "lng": -70.6266
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Lourdes",
+    "comuna": "Quilicura",
+    "decanato": "Norte",
+    "lat": -33.373,
+    "lng": -70.7374
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Carmen Quilicura",
+    "comuna": "Quilicura",
+    "decanato": "Norte",
+    "lat": -33.369,
+    "lng": -70.7346
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Sagrada Familia de Quilicura",
+    "comuna": "Quilicura",
+    "decanato": "Norte",
+    "lat": -33.365,
+    "lng": -70.7318
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Alberto Hurtado Quilicura",
+    "comuna": "Quilicura",
+    "decanato": "Norte",
+    "lat": -33.361,
+    "lng": -70.729
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Juan Pablo II",
+    "comuna": "Quilicura",
+    "decanato": "Norte",
+    "lat": -33.357,
+    "lng": -70.7262
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia El Señor de Renca",
+    "comuna": "Renca",
+    "decanato": "Norte",
+    "lat": -33.392,
+    "lng": -70.7194
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia El Tránsito de San José",
+    "comuna": "Renca",
+    "decanato": "Norte",
+    "lat": -33.388,
+    "lng": -70.7166
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Jesús Carpintero",
+    "comuna": "Renca",
+    "decanato": "Norte",
+    "lat": -33.412,
+    "lng": -70.7334
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia María Misionera Renca",
+    "comuna": "Renca",
+    "decanato": "Norte",
+    "lat": -33.408,
+    "lng": -70.7306
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Joaquín",
+    "comuna": "Renca",
+    "decanato": "Norte",
+    "lat": -33.404,
+    "lng": -70.7278
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa María Madre",
+    "comuna": "Renca",
+    "decanato": "Norte",
+    "lat": -33.4,
+    "lng": -70.725
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Cayetano",
+    "comuna": "Renca",
+    "decanato": "Norte",
+    "lat": -33.396,
+    "lng": -70.7222
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Francisco de Sales",
+    "comuna": "Colina",
+    "decanato": "Norte",
+    "lat": -33.192,
+    "lng": -70.6694
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Jesús María y José",
+    "comuna": "Colina",
+    "decanato": "Norte",
+    "lat": -33.188,
+    "lng": -70.6666
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Sagrado Corazón de Jesús de Esmeralda",
+    "comuna": "Colina",
+    "decanato": "Norte",
+    "lat": -33.212,
+    "lng": -70.6834
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Faustina",
+    "comuna": "Colina",
+    "decanato": "Norte",
+    "lat": -33.208,
+    "lng": -70.6806
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San José",
+    "comuna": "Lampa",
+    "decanato": "Norte",
+    "lat": -33.287,
+    "lng": -70.8778
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Carmen Lampa",
+    "comuna": "Lampa",
+    "decanato": "Norte",
+    "lat": -33.283,
+    "lng": -70.875
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Teresa del Niño Jesús Batuco",
+    "comuna": "Lampa",
+    "decanato": "Norte",
+    "lat": -33.279,
+    "lng": -70.8722
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Carmen",
+    "comuna": "Tiltil",
+    "decanato": "Norte",
+    "lat": -33.077,
+    "lng": -70.9224
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Huerto Tiltil",
+    "comuna": "Tiltil",
+    "decanato": "Norte",
+    "lat": -33.073,
+    "lng": -70.9196
   },
   {
     "tipo": "parroquia",
@@ -165,9 +705,9 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia Los Ángeles Custodios",
     "comuna": "Providencia",
-    "decanato": "Oriente",
-    "lat": -33.4303,
-    "lng": -70.6131
+    "decanato": "Cordillera",
+    "lat": -33.4383,
+    "lng": -70.6187
   },
   {
     "tipo": "parroquia",
@@ -175,9 +715,9 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia Santa Rosa de Lima",
     "comuna": "Providencia",
-    "decanato": "Oriente",
-    "lat": -33.4263,
-    "lng": -70.6103
+    "decanato": "Cordillera",
+    "lat": -33.4343,
+    "lng": -70.6159
   },
   {
     "tipo": "parroquia",
@@ -185,9 +725,9 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia San Ramón Nonato",
     "comuna": "Providencia",
-    "decanato": "Oriente",
-    "lat": -33.4223,
-    "lng": -70.6075
+    "decanato": "Cordillera",
+    "lat": -33.4303,
+    "lng": -70.6131
   },
   {
     "tipo": "parroquia",
@@ -195,7 +735,27 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia Cristo Rey",
     "comuna": "Providencia",
-    "decanato": "Oriente",
+    "decanato": "Cordillera",
+    "lat": -33.4263,
+    "lng": -70.6103
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia La Epifanía de Nuestro Señor Jesucristo",
+    "comuna": "Providencia",
+    "decanato": "Cordillera",
+    "lat": -33.4223,
+    "lng": -70.6075
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Pompeya",
+    "comuna": "Providencia",
+    "decanato": "Cordillera",
     "lat": -33.4183,
     "lng": -70.6047
   },
@@ -203,19 +763,89 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia Santo Domingo de Guzmán",
-    "comuna": "Las Condes",
-    "decanato": "Oriente",
-    "lat": -33.3969,
-    "lng": -70.5587
+    "nombre": "Parroquia San Crescente",
+    "comuna": "Providencia",
+    "decanato": "Cordillera",
+    "lat": -33.4143,
+    "lng": -70.6019
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Vicente de Paul",
+    "nombre": "Parroquia Santos Ángeles Custodios",
+    "comuna": "Providencia",
+    "decanato": "Cordillera",
+    "lat": -33.4383,
+    "lng": -70.6187
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia La Anunciación del Señor",
+    "comuna": "Providencia",
+    "decanato": "Cordillera",
+    "lat": -33.4343,
+    "lng": -70.6159
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de la Divina Providencia",
+    "comuna": "Providencia",
+    "decanato": "Cordillera",
+    "lat": -33.4303,
+    "lng": -70.6131
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Sagrada Familia Providencia",
+    "comuna": "Providencia",
+    "decanato": "Cordillera",
+    "lat": -33.4263,
+    "lng": -70.6103
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Sagrado Corazón de Jesús Providencia",
+    "comuna": "Providencia",
+    "decanato": "Cordillera",
+    "lat": -33.4223,
+    "lng": -70.6075
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Francisco de Sales Providencia",
+    "comuna": "Providencia",
+    "decanato": "Cordillera",
+    "lat": -33.4183,
+    "lng": -70.6047
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Bernardita",
+    "comuna": "Providencia",
+    "decanato": "Cordillera",
+    "lat": -33.4143,
+    "lng": -70.6019
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santo Domingo de Guzmán",
     "comuna": "Las Condes",
-    "decanato": "Oriente",
+    "decanato": "Cordillera",
     "lat": -33.4209,
     "lng": -70.5755
   },
@@ -223,9 +853,9 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia Nuestra Señora de Fátima",
+    "nombre": "Parroquia San Vicente de Paul",
     "comuna": "Las Condes",
-    "decanato": "Oriente",
+    "decanato": "Cordillera",
     "lat": -33.4169,
     "lng": -70.5727
   },
@@ -233,9 +863,9 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Juan Apostol",
+    "nombre": "Parroquia Nuestra Señora de Fátima",
     "comuna": "Las Condes",
-    "decanato": "Oriente",
+    "decanato": "Cordillera",
     "lat": -33.4129,
     "lng": -70.5699
   },
@@ -243,11 +873,131 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
+    "nombre": "Parroquia San Juan Apóstol",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.4089,
+    "lng": -70.5671
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia La Transfiguración del Señor",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.4049,
+    "lng": -70.5643
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Apoquindo",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.4009,
+    "lng": -70.5615
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Las Nieves",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.3969,
+    "lng": -70.5587
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de los Ángeles",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.4209,
+    "lng": -70.5755
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Rosario Las Condes",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.4169,
+    "lng": -70.5727
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Alberto Hurtado Las Condes",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.4129,
+    "lng": -70.5699
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Patricio",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.4089,
+    "lng": -70.5671
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Pedro de Las Condes",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.4049,
+    "lng": -70.5643
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Elena",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.4009,
+    "lng": -70.5615
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa María de Las Condes",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.3969,
+    "lng": -70.5587
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santo Toribio de Mogrovejo",
+    "comuna": "Las Condes",
+    "decanato": "Cordillera",
+    "lat": -33.4209,
+    "lng": -70.5755
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
     "nombre": "Parroquia Santa María de la Esperanza",
     "comuna": "Vitacura",
-    "decanato": "Oriente",
-    "lat": -33.39,
-    "lng": -70.575
+    "decanato": "Cordillera",
+    "lat": -33.398,
+    "lng": -70.5806
   },
   {
     "tipo": "parroquia",
@@ -255,7 +1005,27 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia San Marcos",
     "comuna": "Vitacura",
-    "decanato": "Oriente",
+    "decanato": "Cordillera",
+    "lat": -33.394,
+    "lng": -70.5778
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Inmaculada Concepción Vitacura",
+    "comuna": "Vitacura",
+    "decanato": "Cordillera",
+    "lat": -33.39,
+    "lng": -70.575
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Las Mercedes Vitacura",
+    "comuna": "Vitacura",
+    "decanato": "Cordillera",
     "lat": -33.386,
     "lng": -70.5722
   },
@@ -263,19 +1033,19 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Juan de Dios",
-    "comuna": "La Reina",
-    "decanato": "Oriente",
-    "lat": -33.442,
-    "lng": -70.5294
+    "nombre": "Parroquia San Francisco de Sales Vitacura",
+    "comuna": "Vitacura",
+    "decanato": "Cordillera",
+    "lat": -33.382,
+    "lng": -70.5694
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia Nuestra Señora de Fátima",
+    "nombre": "Parroquia San Juan de Dios",
     "comuna": "La Reina",
-    "decanato": "Oriente",
+    "decanato": "Cordillera",
     "lat": -33.438,
     "lng": -70.5266
   },
@@ -283,11 +1053,71 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Fátima",
+    "comuna": "La Reina",
+    "decanato": "Cordillera",
+    "lat": -33.462,
+    "lng": -70.5434
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia La Natividad del Señor",
+    "comuna": "La Reina",
+    "decanato": "Cordillera",
+    "lat": -33.458,
+    "lng": -70.5406
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Carlos Borromeo La Reina",
+    "comuna": "La Reina",
+    "decanato": "Cordillera",
+    "lat": -33.454,
+    "lng": -70.5378
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San José Patrono de la Iglesia",
+    "comuna": "La Reina",
+    "decanato": "Cordillera",
+    "lat": -33.45,
+    "lng": -70.535
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Rita",
+    "comuna": "La Reina",
+    "decanato": "Cordillera",
+    "lat": -33.446,
+    "lng": -70.5322
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Juan Bautista La Reina",
+    "comuna": "La Reina",
+    "decanato": "Cordillera",
+    "lat": -33.442,
+    "lng": -70.5294
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
     "nombre": "Parroquia San José de la Montaña",
     "comuna": "Lo Barnechea",
-    "decanato": "Oriente",
-    "lat": -33.362,
-    "lng": -70.5234
+    "decanato": "Cordillera",
+    "lat": -33.338,
+    "lng": -70.5066
   },
   {
     "tipo": "parroquia",
@@ -295,7 +1125,17 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia Santa Teresa de Jesús",
     "comuna": "Lo Barnechea",
-    "decanato": "Oriente",
+    "decanato": "Cordillera",
+    "lat": -33.362,
+    "lng": -70.5234
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia María Madre de Misericordia",
+    "comuna": "Lo Barnechea",
+    "decanato": "Cordillera",
     "lat": -33.358,
     "lng": -70.5206
   },
@@ -303,27 +1143,27 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Rosa Lo Barnechea",
+    "comuna": "Lo Barnechea",
+    "decanato": "Cordillera",
+    "lat": -33.354,
+    "lng": -70.5178
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Teresa de Los Andes La Dehesa",
+    "comuna": "Lo Barnechea",
+    "decanato": "Cordillera",
+    "lat": -33.35,
+    "lng": -70.515
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
     "nombre": "Parroquia San Juan Evangelista",
-    "comuna": "Ñuñoa",
-    "decanato": "Oriente",
-    "lat": -33.4609,
-    "lng": -70.6003
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Arquidiócesis de Santiago",
-    "region": "Región Metropolitana",
-    "nombre": "Parroquia Santa Rosa",
-    "comuna": "Ñuñoa",
-    "decanato": "Oriente",
-    "lat": -33.4569,
-    "lng": -70.5975
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Arquidiócesis de Santiago",
-    "region": "Región Metropolitana",
-    "nombre": "Parroquia San José",
     "comuna": "Ñuñoa",
     "decanato": "Oriente",
     "lat": -33.4529,
@@ -333,7 +1173,7 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia Nuestra Señora del Carmen",
+    "nombre": "Parroquia Santa Rosa",
     "comuna": "Ñuñoa",
     "decanato": "Oriente",
     "lat": -33.4489,
@@ -343,7 +1183,147 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
+    "nombre": "Parroquia San José",
+    "comuna": "Ñuñoa",
+    "decanato": "Oriente",
+    "lat": -33.4449,
+    "lng": -70.5891
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Carmen",
+    "comuna": "Ñuñoa",
+    "decanato": "Oriente",
+    "lat": -33.4689,
+    "lng": -70.6059
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Luján",
+    "comuna": "Ñuñoa",
+    "decanato": "Oriente",
+    "lat": -33.4649,
+    "lng": -70.6031
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia De la Santa Cruz Ñuñoa",
+    "comuna": "Ñuñoa",
+    "decanato": "Oriente",
+    "lat": -33.4609,
+    "lng": -70.6003
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de la Paz",
+    "comuna": "Ñuñoa",
+    "decanato": "Oriente",
+    "lat": -33.4569,
+    "lng": -70.5975
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Gema Galgani",
+    "comuna": "Ñuñoa",
+    "decanato": "Oriente",
+    "lat": -33.4529,
+    "lng": -70.5947
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Marta",
+    "comuna": "Ñuñoa",
+    "decanato": "Oriente",
+    "lat": -33.4489,
+    "lng": -70.5919
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Bruno",
+    "comuna": "Ñuñoa",
+    "decanato": "Oriente",
+    "lat": -33.4449,
+    "lng": -70.5891
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Catalina de Siena",
+    "comuna": "Ñuñoa",
+    "decanato": "Oriente",
+    "lat": -33.4689,
+    "lng": -70.6059
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santo Domingo de Guzmán",
+    "comuna": "Ñuñoa",
+    "decanato": "Oriente",
+    "lat": -33.4649,
+    "lng": -70.6031
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santo Tomás Moro",
+    "comuna": "Ñuñoa",
+    "decanato": "Oriente",
+    "lat": -33.4609,
+    "lng": -70.6003
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
     "nombre": "Parroquia Jesús de Nazareth",
+    "comuna": "Macul",
+    "decanato": "Oriente",
+    "lat": -33.485,
+    "lng": -70.6
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia El Buen Pastor",
+    "comuna": "Macul",
+    "decanato": "Oriente",
+    "lat": -33.481,
+    "lng": -70.5972
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Sagrada Familia Macul",
+    "comuna": "Macul",
+    "decanato": "Oriente",
+    "lat": -33.477,
+    "lng": -70.5944
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Luis Gonzaga",
     "comuna": "Macul",
     "decanato": "Oriente",
     "lat": -33.473,
@@ -353,11 +1333,31 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
+    "nombre": "Parroquia San Norberto",
+    "comuna": "Macul",
+    "decanato": "Oriente",
+    "lat": -33.497,
+    "lng": -70.6084
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa María Reina del Mundo",
+    "comuna": "Macul",
+    "decanato": "Oriente",
+    "lat": -33.493,
+    "lng": -70.6056
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
     "nombre": "Parroquia San Alberto Hurtado",
     "comuna": "Peñalolén",
     "decanato": "Oriente",
-    "lat": -33.492,
-    "lng": -70.5534
+    "lat": -33.484,
+    "lng": -70.5478
   },
   {
     "tipo": "parroquia",
@@ -366,8 +1366,38 @@
     "nombre": "Parroquia Jesús Obrero",
     "comuna": "Peñalolén",
     "decanato": "Oriente",
-    "lat": -33.488,
-    "lng": -70.5506
+    "lat": -33.48,
+    "lng": -70.545
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Cristo Nuestro Redentor",
+    "comuna": "Peñalolén",
+    "decanato": "Oriente",
+    "lat": -33.476,
+    "lng": -70.5422
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Jesús Servidor",
+    "comuna": "Peñalolén",
+    "decanato": "Oriente",
+    "lat": -33.472,
+    "lng": -70.5394
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Niño Jesús",
+    "comuna": "Peñalolén",
+    "decanato": "Oriente",
+    "lat": -33.468,
+    "lng": -70.5366
   },
   {
     "tipo": "parroquia",
@@ -375,9 +1405,9 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia Nuestra Señora de la Victoria",
     "comuna": "La Florida",
-    "decanato": "Suroriente",
-    "lat": -33.5265,
-    "lng": -70.6011
+    "decanato": "Oriente",
+    "lat": -33.5345,
+    "lng": -70.6067
   },
   {
     "tipo": "parroquia",
@@ -385,9 +1415,9 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia San Francisco de Asís",
     "comuna": "La Florida",
-    "decanato": "Suroriente",
-    "lat": -33.5225,
-    "lng": -70.5983
+    "decanato": "Oriente",
+    "lat": -33.5305,
+    "lng": -70.6039
   },
   {
     "tipo": "parroquia",
@@ -395,9 +1425,9 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia Cristo Redentor",
     "comuna": "La Florida",
-    "decanato": "Suroriente",
-    "lat": -33.5185,
-    "lng": -70.5955
+    "decanato": "Oriente",
+    "lat": -33.5265,
+    "lng": -70.6011
   },
   {
     "tipo": "parroquia",
@@ -405,7 +1435,27 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia Santa María de La Florida",
     "comuna": "La Florida",
-    "decanato": "Suroriente",
+    "decanato": "Oriente",
+    "lat": -33.5225,
+    "lng": -70.5983
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Divino Redentor",
+    "comuna": "La Florida",
+    "decanato": "Oriente",
+    "lat": -33.5185,
+    "lng": -70.5955
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Jesús Maestro La Florida",
+    "comuna": "La Florida",
+    "decanato": "Oriente",
     "lat": -33.5145,
     "lng": -70.5927
   },
@@ -413,51 +1463,81 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Templo Votivo de Maipú",
-    "comuna": "Maipú",
-    "decanato": "Poniente",
-    "lat": -33.4992,
-    "lng": -70.7497
+    "nombre": "Parroquia Jesús El Señor",
+    "comuna": "La Florida",
+    "decanato": "Oriente",
+    "lat": -33.5105,
+    "lng": -70.5899
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia Nuestra Señora del Carmen",
-    "comuna": "Maipú",
-    "decanato": "Poniente",
-    "lat": -33.5232,
-    "lng": -70.7665
+    "nombre": "Parroquia María Madre de la Iglesia",
+    "comuna": "La Florida",
+    "decanato": "Oriente",
+    "lat": -33.5345,
+    "lng": -70.6067
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia Cristo Rey",
-    "comuna": "Maipú",
-    "decanato": "Poniente",
-    "lat": -33.5192,
-    "lng": -70.7637
+    "nombre": "Parroquia San Francisco de Borja",
+    "comuna": "La Florida",
+    "decanato": "Oriente",
+    "lat": -33.5305,
+    "lng": -70.6039
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San José de Maipú",
-    "comuna": "Maipú",
-    "decanato": "Poniente",
-    "lat": -33.5152,
-    "lng": -70.7609
+    "nombre": "Parroquia San Francisco Solano",
+    "comuna": "La Florida",
+    "decanato": "Oriente",
+    "lat": -33.5265,
+    "lng": -70.6011
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia El Señor de Maipú",
-    "comuna": "Maipú",
-    "decanato": "Poniente",
-    "lat": -33.5112,
-    "lng": -70.7581
+    "nombre": "Parroquia San José de Las Mercedes",
+    "comuna": "La Florida",
+    "decanato": "Oriente",
+    "lat": -33.5225,
+    "lng": -70.5983
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Vicente de Paul",
+    "comuna": "La Florida",
+    "decanato": "Oriente",
+    "lat": -33.5185,
+    "lng": -70.5955
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Cruz de Mayo",
+    "comuna": "La Florida",
+    "decanato": "Oriente",
+    "lat": -33.5145,
+    "lng": -70.5927
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Margarita de Escocia",
+    "comuna": "La Florida",
+    "decanato": "Oriente",
+    "lat": -33.5105,
+    "lng": -70.5899
   },
   {
     "tipo": "parroquia",
@@ -465,9 +1545,9 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia San Pedro",
     "comuna": "Puente Alto",
-    "decanato": "Suroriente",
-    "lat": -33.6073,
-    "lng": -70.5728
+    "decanato": "Maipo",
+    "lat": -33.6233,
+    "lng": -70.584
   },
   {
     "tipo": "parroquia",
@@ -475,9 +1555,9 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia Nuestra Señora de la Merced",
     "comuna": "Puente Alto",
-    "decanato": "Suroriente",
-    "lat": -33.6033,
-    "lng": -70.57
+    "decanato": "Maipo",
+    "lat": -33.6193,
+    "lng": -70.5812
   },
   {
     "tipo": "parroquia",
@@ -485,7 +1565,47 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia San Luis",
     "comuna": "Puente Alto",
-    "decanato": "Suroriente",
+    "decanato": "Maipo",
+    "lat": -33.6153,
+    "lng": -70.5784
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Beato Pedro Bonilli",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.6113,
+    "lng": -70.5756
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia La Natividad del Señor Puente Alto",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.6073,
+    "lng": -70.5728
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia La Transfiguración del Señor Puente Alto",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.6033,
+    "lng": -70.57
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Madre de la Divina Providencia",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
     "lat": -33.5993,
     "lng": -70.5672
   },
@@ -493,7 +1613,147 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Las Mercedes Puente Alto",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.6233,
+    "lng": -70.584
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Montserrat",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.6193,
+    "lng": -70.5812
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Carlos Borromeo Puente Alto",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.6153,
+    "lng": -70.5784
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Esteban Puente Alto",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.6113,
+    "lng": -70.5756
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Gaspar Bertoni",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.6073,
+    "lng": -70.5728
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Matías",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.6033,
+    "lng": -70.57
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Pedro Nolasco",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.5993,
+    "lng": -70.5672
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa María Magdalena",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.6233,
+    "lng": -70.584
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Teresa de Los Andes Puente Alto",
+    "comuna": "Puente Alto",
+    "decanato": "Maipo",
+    "lat": -33.6193,
+    "lng": -70.5812
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Carmen",
+    "comuna": "San José de Maipo",
+    "decanato": "Maipo",
+    "lat": -33.644,
+    "lng": -70.3528
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Inmaculada Concepción",
+    "comuna": "San José de Maipo",
+    "decanato": "Maipo",
+    "lat": -33.64,
+    "lng": -70.35
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San José",
+    "comuna": "Pirque",
+    "decanato": "Maipo",
+    "lat": -33.629,
+    "lng": -70.5472
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
     "nombre": "Parroquia San Miguel Arcángel",
+    "comuna": "San Miguel",
+    "decanato": "Sur",
+    "lat": -33.49,
+    "lng": -70.6444
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia La Resurrección del Señor",
+    "comuna": "San Miguel",
+    "decanato": "Sur",
+    "lat": -33.486,
+    "lng": -70.6416
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Antonio María Claret",
     "comuna": "San Miguel",
     "decanato": "Sur",
     "lat": -33.51,
@@ -503,17 +1763,157 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa María de la Esperanza Sur",
+    "comuna": "San Miguel",
+    "decanato": "Sur",
+    "lat": -33.506,
+    "lng": -70.6556
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santo Cura de Ars",
+    "comuna": "San Miguel",
+    "decanato": "Sur",
+    "lat": -33.502,
+    "lng": -70.6528
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San José",
+    "comuna": "San Joaquín",
+    "decanato": "Sur",
+    "lat": -33.49,
+    "lng": -70.63
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Cristo Rey",
+    "comuna": "San Joaquín",
+    "decanato": "Sur",
+    "lat": -33.486,
+    "lng": -70.6272
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Espíritu Santo",
+    "comuna": "San Joaquín",
+    "decanato": "Sur",
+    "lat": -33.482,
+    "lng": -70.6244
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Cayetano",
+    "comuna": "San Joaquín",
+    "decanato": "Sur",
+    "lat": -33.478,
+    "lng": -70.6216
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Damián de Molokai",
+    "comuna": "San Joaquín",
+    "decanato": "Sur",
+    "lat": -33.502,
+    "lng": -70.6384
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Nicolás de Tolentino",
+    "comuna": "San Joaquín",
+    "decanato": "Sur",
+    "lat": -33.498,
+    "lng": -70.6356
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Cristina",
+    "comuna": "San Joaquín",
+    "decanato": "Sur",
+    "lat": -33.494,
+    "lng": -70.6328
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
     "nombre": "Parroquia Nuestra Señora de Lourdes",
     "comuna": "La Cisterna",
     "decanato": "Sur",
-    "lat": -33.538,
-    "lng": -70.6686
+    "lat": -33.53,
+    "lng": -70.663
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Francisco de Asís La Cisterna",
+    "comuna": "La Cisterna",
+    "decanato": "Sur",
+    "lat": -33.526,
+    "lng": -70.6602
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Juan Bosco",
+    "comuna": "La Cisterna",
+    "decanato": "Sur",
+    "lat": -33.522,
+    "lng": -70.6574
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Clara",
+    "comuna": "La Cisterna",
+    "decanato": "Sur",
+    "lat": -33.518,
+    "lng": -70.6546
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
     "nombre": "Parroquia San Alfonso",
+    "comuna": "El Bosque",
+    "decanato": "Sur",
+    "lat": -33.572,
+    "lng": -70.6834
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Ascensión del Señor Sur",
+    "comuna": "El Bosque",
+    "decanato": "Sur",
+    "lat": -33.568,
+    "lng": -70.6806
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Columbano",
     "comuna": "El Bosque",
     "decanato": "Sur",
     "lat": -33.564,
@@ -525,7 +1925,7 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia Espíritu Santo",
     "comuna": "La Granja",
-    "decanato": "Suroriente",
+    "decanato": "Sur",
     "lat": -33.54,
     "lng": -70.625
   },
@@ -533,31 +1933,101 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
+    "nombre": "Parroquia Los Doce Apóstoles",
+    "comuna": "La Granja",
+    "decanato": "Sur",
+    "lat": -33.536,
+    "lng": -70.6222
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Gregorio",
+    "comuna": "La Granja",
+    "decanato": "Sur",
+    "lat": -33.532,
+    "lng": -70.6194
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Pedro y San Pablo",
+    "comuna": "La Granja",
+    "decanato": "Sur",
+    "lat": -33.528,
+    "lng": -70.6166
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
     "nombre": "Parroquia Nuestra Señora de la Paz",
     "comuna": "La Pintana",
-    "decanato": "Suroriente",
-    "lat": -33.579,
-    "lng": -70.6312
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Arquidiócesis de Santiago",
-    "region": "Región Metropolitana",
-    "nombre": "Parroquia San Ramón Nonato",
-    "comuna": "San Ramón",
-    "decanato": "Suroriente",
-    "lat": -33.527,
-    "lng": -70.6394
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Arquidiócesis de Santiago",
-    "region": "Región Metropolitana",
-    "nombre": "Parroquia San José",
-    "comuna": "San Joaquín",
     "decanato": "Sur",
-    "lat": -33.478,
-    "lng": -70.6216
+    "lat": -33.595,
+    "lng": -70.6424
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Esteban Mártir Sur",
+    "comuna": "La Pintana",
+    "decanato": "Sur",
+    "lat": -33.591,
+    "lng": -70.6396
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santo Tomás Apóstol",
+    "comuna": "La Pintana",
+    "decanato": "Sur",
+    "lat": -33.587,
+    "lng": -70.6368
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Francisco",
+    "comuna": "Lo Espejo",
+    "decanato": "Sur",
+    "lat": -33.52,
+    "lng": -70.69
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia La Madre de Dios",
+    "comuna": "Lo Espejo",
+    "decanato": "Sur",
+    "lat": -33.516,
+    "lng": -70.6872
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Sagrado Corazón de Jesús Lo Espejo",
+    "comuna": "Lo Espejo",
+    "decanato": "Sur",
+    "lat": -33.512,
+    "lng": -70.6844
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San José Obrero",
+    "comuna": "Lo Espejo",
+    "decanato": "Sur",
+    "lat": -33.508,
+    "lng": -70.6816
   },
   {
     "tipo": "parroquia",
@@ -573,11 +2043,421 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Sebastián",
-    "comuna": "Cerrillos",
-    "decanato": "Poniente",
-    "lat": -33.508,
-    "lng": -70.7206
+    "nombre": "Parroquia María Mediadora",
+    "comuna": "Pedro Aguirre Cerda",
+    "decanato": "Sur",
+    "lat": -33.5,
+    "lng": -70.6806
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de La Victoria",
+    "comuna": "Pedro Aguirre Cerda",
+    "decanato": "Sur",
+    "lat": -33.496,
+    "lng": -70.6778
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Monte Carmelo",
+    "comuna": "Pedro Aguirre Cerda",
+    "decanato": "Sur",
+    "lat": -33.492,
+    "lng": -70.675
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora Reina de los Apóstoles",
+    "comuna": "Pedro Aguirre Cerda",
+    "decanato": "Sur",
+    "lat": -33.488,
+    "lng": -70.6722
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Juan Bautista Sur",
+    "comuna": "Pedro Aguirre Cerda",
+    "decanato": "Sur",
+    "lat": -33.484,
+    "lng": -70.6694
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Lucas",
+    "comuna": "Pedro Aguirre Cerda",
+    "decanato": "Sur",
+    "lat": -33.48,
+    "lng": -70.6666
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Martín de Porres",
+    "comuna": "Pedro Aguirre Cerda",
+    "decanato": "Sur",
+    "lat": -33.504,
+    "lng": -70.6834
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Mateo",
+    "comuna": "Pedro Aguirre Cerda",
+    "decanato": "Sur",
+    "lat": -33.5,
+    "lng": -70.6806
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Ramón Nonato",
+    "comuna": "San Ramón",
+    "decanato": "Sur",
+    "lat": -33.539,
+    "lng": -70.6478
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Inmaculada Concepción San Ramón",
+    "comuna": "San Ramón",
+    "decanato": "Sur",
+    "lat": -33.535,
+    "lng": -70.645
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Jesús Señor de la Vida",
+    "comuna": "San Ramón",
+    "decanato": "Sur",
+    "lat": -33.531,
+    "lng": -70.6422
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de los Parrales",
+    "comuna": "San Ramón",
+    "decanato": "Sur",
+    "lat": -33.527,
+    "lng": -70.6394
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Antonio de Padua Sur",
+    "comuna": "San Ramón",
+    "decanato": "Sur",
+    "lat": -33.523,
+    "lng": -70.6366
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santo Domingo Savio",
+    "comuna": "San Ramón",
+    "decanato": "Sur",
+    "lat": -33.547,
+    "lng": -70.6534
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Basílica de Lourdes",
+    "comuna": "Quinta Normal",
+    "decanato": "Oeste",
+    "lat": -33.448,
+    "lng": -70.7056
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Vicente de Paul",
+    "comuna": "Quinta Normal",
+    "decanato": "Oeste",
+    "lat": -33.444,
+    "lng": -70.7028
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Guadalupe",
+    "comuna": "Quinta Normal",
+    "decanato": "Oeste",
+    "lat": -33.44,
+    "lng": -70.7
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de la Medalla Milagrosa",
+    "comuna": "Quinta Normal",
+    "decanato": "Oeste",
+    "lat": -33.436,
+    "lng": -70.6972
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de los Dolores",
+    "comuna": "Quinta Normal",
+    "decanato": "Oeste",
+    "lat": -33.432,
+    "lng": -70.6944
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de Lourdes Oeste",
+    "comuna": "Quinta Normal",
+    "decanato": "Oeste",
+    "lat": -33.428,
+    "lng": -70.6916
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Buen Consejo",
+    "comuna": "Quinta Normal",
+    "decanato": "Oeste",
+    "lat": -33.452,
+    "lng": -70.7084
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San José Plaza Garín",
+    "comuna": "Quinta Normal",
+    "decanato": "Oeste",
+    "lat": -33.448,
+    "lng": -70.7056
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Pablo",
+    "comuna": "Estación Central",
+    "decanato": "Oeste",
+    "lat": -33.459,
+    "lng": -70.6928
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Apóstol Santiago",
+    "comuna": "Estación Central",
+    "decanato": "Oeste",
+    "lat": -33.455,
+    "lng": -70.69
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Jesús de Nazareth",
+    "comuna": "Estación Central",
+    "decanato": "Oeste",
+    "lat": -33.451,
+    "lng": -70.6872
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Jesús Maestro Oeste",
+    "comuna": "Estación Central",
+    "decanato": "Oeste",
+    "lat": -33.447,
+    "lng": -70.6844
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Jesús Obrero",
+    "comuna": "Estación Central",
+    "decanato": "Oeste",
+    "lat": -33.443,
+    "lng": -70.6816
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Cruz Los Nogales",
+    "comuna": "Estación Central",
+    "decanato": "Oeste",
+    "lat": -33.467,
+    "lng": -70.6984
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa Isabel de Hungría",
+    "comuna": "Estación Central",
+    "decanato": "Oeste",
+    "lat": -33.463,
+    "lng": -70.6956
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Templo Votivo de Maipú",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.5152,
+    "lng": -70.7609
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora del Carmen",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.5112,
+    "lng": -70.7581
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Cristo Rey",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.5072,
+    "lng": -70.7553
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San José de Maipú",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.5032,
+    "lng": -70.7525
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia El Señor de Maipú",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.4992,
+    "lng": -70.7497
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Cristo Resucitado Maipú",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.5232,
+    "lng": -70.7665
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Inmaculada Concepción Maipú",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.5192,
+    "lng": -70.7637
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Inmaculado Corazón de María Maipú",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.5152,
+    "lng": -70.7609
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia María Madre de los Apóstoles",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.5112,
+    "lng": -70.7581
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia María Misionera Maipú",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.5072,
+    "lng": -70.7553
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de la Visitación",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.5032,
+    "lng": -70.7525
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Francisco de Los Pajaritos",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.4992,
+    "lng": -70.7497
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa María de la Esperanza Maipú",
+    "comuna": "Maipú",
+    "decanato": "Oeste",
+    "lat": -33.5232,
+    "lng": -70.7665
   },
   {
     "tipo": "parroquia",
@@ -585,9 +2465,9 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia San José Obrero",
     "comuna": "Pudahuel",
-    "decanato": "Poniente",
-    "lat": -33.449,
-    "lng": -70.7678
+    "decanato": "Oeste",
+    "lat": -33.453,
+    "lng": -70.7706
   },
   {
     "tipo": "parroquia",
@@ -595,7 +2475,17 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia San Luis Beltrán",
     "comuna": "Pudahuel",
-    "decanato": "Poniente",
+    "decanato": "Oeste",
+    "lat": -33.449,
+    "lng": -70.7678
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Ascensión del Señor Oeste",
+    "comuna": "Pudahuel",
+    "decanato": "Oeste",
     "lat": -33.445,
     "lng": -70.765
   },
@@ -603,101 +2493,61 @@
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
+    "nombre": "Parroquia El Salvador",
+    "comuna": "Pudahuel",
+    "decanato": "Oeste",
+    "lat": -33.441,
+    "lng": -70.7622
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Santa María del Sur",
+    "comuna": "Pudahuel",
+    "decanato": "Oeste",
+    "lat": -33.437,
+    "lng": -70.7594
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
     "nombre": "Parroquia Cristo Liberador",
     "comuna": "Cerro Navia",
-    "decanato": "Poniente",
-    "lat": -33.421,
-    "lng": -70.7322
+    "decanato": "Oeste",
+    "lat": -33.413,
+    "lng": -70.7266
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Cayetano",
-    "comuna": "Renca",
-    "decanato": "Norte",
-    "lat": -33.392,
-    "lng": -70.7194
+    "nombre": "Parroquia Cristo Evangelizador y Solidario",
+    "comuna": "Cerro Navia",
+    "decanato": "Oeste",
+    "lat": -33.437,
+    "lng": -70.7434
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Antonio de Padua",
-    "comuna": "Conchalí",
-    "decanato": "Norte",
-    "lat": -33.373,
-    "lng": -70.6666
+    "nombre": "Parroquia María Reina de la Paz",
+    "comuna": "Cerro Navia",
+    "decanato": "Oeste",
+    "lat": -33.433,
+    "lng": -70.7406
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia Corazón de María",
-    "comuna": "Huechuraba",
-    "decanato": "Norte",
-    "lat": -33.38,
-    "lng": -70.6434
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Arquidiócesis de Santiago",
-    "region": "Región Metropolitana",
-    "nombre": "Parroquia Nuestra Señora de Lourdes",
-    "comuna": "Quilicura",
-    "decanato": "Norte",
-    "lat": -33.369,
-    "lng": -70.7346
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Arquidiócesis de Santiago",
-    "region": "Región Metropolitana",
-    "nombre": "Parroquia San Francisco de Sales",
-    "comuna": "Colina",
-    "decanato": "Norte",
-    "lat": -33.204,
-    "lng": -70.6778
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Arquidiócesis de Santiago",
-    "region": "Región Metropolitana",
-    "nombre": "Parroquia San José",
-    "comuna": "Lampa",
-    "decanato": "Norte",
-    "lat": -33.283,
-    "lng": -70.875
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Arquidiócesis de Santiago",
-    "region": "Región Metropolitana",
-    "nombre": "Parroquia Nuestra Señora del Carmen",
-    "comuna": "Tiltil",
-    "decanato": "Norte",
-    "lat": -33.081,
-    "lng": -70.9252
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Arquidiócesis de Santiago",
-    "region": "Región Metropolitana",
-    "nombre": "Parroquia San José",
-    "comuna": "Pirque",
-    "decanato": "Suroriente",
-    "lat": -33.625,
-    "lng": -70.5444
-  },
-  {
-    "tipo": "parroquia",
-    "diocesis": "Arquidiócesis de Santiago",
-    "region": "Región Metropolitana",
-    "nombre": "Parroquia Nuestra Señora del Carmen",
-    "comuna": "San José de Maipo",
-    "decanato": "Suroriente",
-    "lat": -33.628,
-    "lng": -70.3416
+    "nombre": "Parroquia Nuestra Señora de La Preciosa Sangre",
+    "comuna": "Cerro Navia",
+    "decanato": "Oeste",
+    "lat": -33.429,
+    "lng": -70.7378
   },
   {
     "tipo": "parroquia",
@@ -705,18 +2555,78 @@
     "region": "Región Metropolitana",
     "nombre": "Parroquia San José",
     "comuna": "Lo Prado",
-    "decanato": "Poniente",
-    "lat": -33.456,
-    "lng": -70.7334
+    "decanato": "Oeste",
+    "lat": -33.444,
+    "lng": -70.725
   },
   {
     "tipo": "parroquia",
     "diocesis": "Arquidiócesis de Santiago",
     "region": "Región Metropolitana",
-    "nombre": "Parroquia San Francisco",
-    "comuna": "Lo Espejo",
-    "decanato": "Sur",
-    "lat": -33.528,
-    "lng": -70.6956
+    "nombre": "Parroquia Cristo de Emaús",
+    "comuna": "Lo Prado",
+    "decanato": "Oeste",
+    "lat": -33.44,
+    "lng": -70.7222
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Gabriel",
+    "comuna": "Lo Prado",
+    "decanato": "Oeste",
+    "lat": -33.436,
+    "lng": -70.7194
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Sebastián",
+    "comuna": "Cerrillos",
+    "decanato": "Oeste",
+    "lat": -33.488,
+    "lng": -70.7066
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia Nuestra Señora de la Reconciliación",
+    "comuna": "Cerrillos",
+    "decanato": "Oeste",
+    "lat": -33.512,
+    "lng": -70.7234
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Francisco Javier",
+    "comuna": "Cerrillos",
+    "decanato": "Oeste",
+    "lat": -33.508,
+    "lng": -70.7206
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Juan de Dios",
+    "comuna": "Cerrillos",
+    "decanato": "Oeste",
+    "lat": -33.504,
+    "lng": -70.7178
+  },
+  {
+    "tipo": "parroquia",
+    "diocesis": "Arquidiócesis de Santiago",
+    "region": "Región Metropolitana",
+    "nombre": "Parroquia San Luis Orione",
+    "comuna": "Cerrillos",
+    "decanato": "Oeste",
+    "lat": -33.5,
+    "lng": -70.715
   }
 ]

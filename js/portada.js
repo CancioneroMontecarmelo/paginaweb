@@ -9,7 +9,8 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-const ORDEN_DECANATO = ["Centro", "Norte", "Oriente", "Suroriente", "Sur", "Poniente"];
+const ORDEN_DECANATO = ["Centro", "Norte", "Cordillera", "Oriente", "Maipo", "Sur", "Oeste"];
+const esElegir = !!window.MC_ELEGIR;
 
 const lista = Array.isArray(window.MC_PARROQUIAS) ? window.MC_PARROQUIAS : [];
 let tipo = "";
@@ -17,7 +18,7 @@ let comuna = "";
 let decanato = "";
 let cerca = null;
 
-const lugar = (p) => [p.decanato ? "Decanato " + p.decanato : "", p.comuna, p.region].filter(Boolean).join(" · ");
+const lugar = (p) => [p.decanato ? "Zona " + p.decanato : "", p.comuna].filter(Boolean).join(" · ");
 const TIPO = { parroquia: "Parroquia", movimiento: "Movimiento" };
 
 const comunas = [...new Set(lista.map((p) => p.comuna).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
@@ -67,8 +68,9 @@ function ordenClaveDecanato(a, b) {
 
 function htmlAgrupado(r) {
   const q = ($("#po-q").value || "").trim();
-  // Con búsqueda, cerca o filtro fino: lista plana
-  if (q || cerca || comuna || decanato) return r.map(tarjeta).join("");
+  // En /elegir siempre por zona; con búsqueda o «cerca» lista plana
+  if (q || cerca) return r.map(tarjeta).join("");
+  if (!esElegir && (comuna || decanato)) return r.map(tarjeta).join("");
   const grupos = new Map();
   for (const p of r) {
     const k = p.decanato || p.comuna || "Sin zona";
@@ -77,11 +79,11 @@ function htmlAgrupado(r) {
   }
   const keys = [...grupos.keys()].sort(ordenClaveDecanato);
   return keys.map((k) => {
-    const titulo = ORDEN_DECANATO.includes(k) || lista.some((p) => p.decanato === k)
-      ? "Decanato " + k
-      : k;
+    const esZona = ORDEN_DECANATO.includes(k) || lista.some((p) => p.decanato === k);
+    const titulo = esZona ? "Zona " + k : k;
+    const items = grupos.get(k).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
     return `<li class="po-grupo" aria-hidden="true"><h3 class="po-comuna-titulo">${esc(titulo)}</h3></li>` +
-      grupos.get(k).map(tarjeta).join("");
+      items.map(tarjeta).join("");
   }).join("");
 }
 
@@ -111,10 +113,12 @@ function pintar() {
   if (!n) {
     $("#po-resumen").textContent = "Todavía no hay parroquias en el directorio. Puedes sumar la tuya o entrar como feligrés escribiendo su nombre.";
   } else if (r.length === n && !comuna && !decanato && !q) {
-    $("#po-resumen").textContent = n + " en el directorio · " + conCancionero + (conCancionero === 1 ? " ya usa" : " ya usan") +
-      " el Cancionero. Agrupadas por decanato: toca una o entra como feligrés.";
+    $("#po-resumen").textContent = esElegir
+      ? (n + " parroquias de Santiago por zona pastoral. Tocá la tuya para entrar.")
+      : (n + " en el directorio · " + conCancionero + (conCancionero === 1 ? " ya usa" : " ya usan") +
+        " el Cancionero. Agrupadas por zona: toca una o entra como feligrés.");
   } else {
-    const donde = [decanato && ("decanato " + decanato), comuna].filter(Boolean).join(", ");
+    const donde = [decanato && ("zona " + decanato), comuna].filter(Boolean).join(", ");
     $("#po-resumen").textContent = r.length + " de " + n + (donde ? " en " + donde : "") + ".";
   }
   const vacio = $("#po-vacio");
@@ -150,8 +154,8 @@ function pintar() {
 function armarSelects() {
   const selD = $("#po-decanato");
   if (selD) {
-    selD.innerHTML = '<option value="">Todos los decanatos</option>' +
-      decanatos.map((d) => `<option value="${esc(d)}">${esc(d)}</option>`).join("");
+    selD.innerHTML = '<option value="">Todas las zonas</option>' +
+      decanatos.map((d) => `<option value="${esc(d)}">Zona ${esc(d)}</option>`).join("");
     selD.addEventListener("change", () => { decanato = selD.value; pintar(); });
   }
   const sel = $("#po-comuna");
@@ -215,6 +219,13 @@ function conectar() {
     if ($("#po-comuna")) $("#po-comuna").value = comuna;
   }
   if (params.has("unir")) abrirUnirseFeligres({ nombre: params.get("unir") || "" });
+  if (esElegir) {
+    document.body.classList.add("pagina-elegir");
+    const h = $("#buscar-titulo");
+    if (h) h.textContent = "Elegí tu parroquia por zona";
+    const mapa = $("#po-mapa");
+    if (mapa && !cerca) mapa.hidden = true;
+  }
 }
 
 conectar();

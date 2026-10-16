@@ -971,8 +971,8 @@ async function ejecutarImportarCatalogo(c, yo, opciones = {}) {
     const porClave = porNombre.get(clave);
     if (porClave || reservados.has('clave:' + clave)) {
       omitidas++;
-      // Si ya existe, actualizar decanato si faltaba
-      if (porClave && !porClave.decanato && e.decanato) {
+      // Si ya existe, actualizar decanato (zona pastoral) cuando el catálogo lo trae
+      if (porClave && e.decanato && porClave.decanato !== e.decanato) {
         const fila = await c.db.prepare('SELECT datos FROM parroquias WHERE slug = ?').bind(porClave.slug).first();
         if (fila) {
           const prev = parsear(fila.datos, {});

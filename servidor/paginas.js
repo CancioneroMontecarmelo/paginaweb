@@ -90,15 +90,39 @@ function htmlBasico(titulo, cuerpo, status = 200) {
 const BASE = 'https://' + PRINCIPAL;
 const TIPO = { parroquia: 'Parroquia', movimiento: 'Movimiento' };
 
+const ORDEN_ZONA = ['Centro', 'Norte', 'Cordillera', 'Oriente', 'Maipo', 'Sur', 'Oeste'];
+
 // Las tarjetas van escritas en la página (para los buscadores y sin JavaScript); js/portada.js las vuelve a pintar
 function tarjetaPortada(p) {
-  const lugar = [p.comuna, p.region].filter(Boolean).join(', ');
+  const lugar = [p.decanato ? 'Zona ' + p.decanato : '', p.comuna].filter(Boolean).join(' · ');
   const media = p.foto ? `<img class="po-foto" src="${escapar(p.foto)}" alt="" loading="lazy">`
     : `<img class="po-icono" src="${escapar(p.icono)}" alt="" loading="lazy" width="64" height="64">`;
   return `<li><a class="po-tarjeta" href="/${escapar(p.slug)}/"><span class="po-media">${media}</span>` +
     `<span class="po-textos"><strong>${escapar(p.nombre)}</strong><span>${escapar(TIPO[p.tipo] || 'Parroquia')}${lugar ? ' · ' + escapar(lugar) : ''}</span>` +
     (p.lema ? `<em>${escapar(p.lema)}</em>` : '') + `</span></a>` +
     `<a class="po-mas" href="/${escapar(p.slug)}/inicio">Página de la ${p.tipo === 'movimiento' ? 'comunidad' : 'parroquia'}</a></li>`;
+}
+
+function htmlListaPorZona(lista) {
+  const grupos = new Map();
+  for (const p of lista) {
+    const k = p.decanato || p.comuna || 'Sin zona';
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(p);
+  }
+  const keys = [...grupos.keys()].sort((a, b) => {
+    const ia = ORDEN_ZONA.indexOf(a), ib = ORDEN_ZONA.indexOf(b);
+    if (ia >= 0 && ib >= 0) return ia - ib;
+    if (ia >= 0) return -1;
+    if (ib >= 0) return 1;
+    return a.localeCompare(b, 'es');
+  });
+  return keys.map((k) => {
+    const titulo = ORDEN_ZONA.includes(k) || lista.some((p) => p.decanato === k) ? 'Zona ' + k : k;
+    const items = grupos.get(k).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    return `<li class="po-grupo" aria-hidden="true"><h3 class="po-comuna-titulo">${escapar(titulo)}</h3></li>` +
+      items.map(tarjetaPortada).join('');
+  }).join('');
 }
 
 // La portada nacional (/ sin parroquia elegida, y /elegir para cambiarla): buscar, el mapa y sumar la propia
@@ -134,7 +158,7 @@ async function portada(ctx, c, elegir) {
       el.append(`<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`, { html: true });
       if (elegir) el.append('<meta name="robots" content="noindex, follow">', { html: true });
     } })
-    .on('[data-portada="lista"]', { element: (el) => el.setInnerContent(lista.map(tarjetaPortada).join(''), { html: true }) })
+    .on('[data-portada="lista"]', { element: (el) => el.setInnerContent(htmlListaPorZona(lista), { html: true }) })
     .transform(limpia);
 }
 
