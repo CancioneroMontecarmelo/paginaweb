@@ -221,6 +221,38 @@
   margin: 0;
 }
 
+.po-comuna-filtro {
+  display: block;
+  margin: 0 0 1rem;
+  max-width: 22rem;
+}
+
+.po-comuna-filtro select {
+  width: 100%;
+  font: inherit;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(47, 74, 56, 0.3);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.po-lista .po-grupo {
+  grid-column: 1 / -1;
+  background: transparent;
+  box-shadow: none;
+  padding: 0.75rem 0 0.15rem;
+  border-radius: 0;
+}
+
+.po-comuna-titulo {
+  margin: 0;
+  font-family: var(--fuente-display);
+  font-size: 1.15rem;
+  color: var(--verde);
+  border-bottom: 2px solid rgba(47, 74, 56, 0.2);
+  padding-bottom: 0.25rem;
+}
+
 .po-vacio {
   margin: 1rem 0 0;
   font-size: 1.05rem;

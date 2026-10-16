@@ -431,19 +431,71 @@ export async function subirLogo(c, request, p, token) {
 }
 
 const MIMES_PORTADA = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const MAX_PORTADA = Math.min(MAX_ARCHIVO_BYTES, 4 * 1024 * 1024);
+
+/** Detecta jpg/png/webp por cabecera (no confiar solo en Content-Type). */
+function mimeDeBytes(bytes, contentType) {
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) return 'image/jpeg';
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png';
+  if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+      bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'image/webp';
+  const ct = String(contentType || '').split(';')[0].trim().toLowerCase();
+  return MIMES_PORTADA[ct] ? ct : '';
+}
+
+/** Baja una imagen https y la guarda como portada de `slug`. No pisa si ya hay portada salvo `forzar`. */
+async function aplicarPortadaDesdeUrl(c, slug, url, { forzar = false } = {}) {
+  url = String(url || '').trim();
+  if (!/^https:\/\/[^\s"'<>]{8,800}$/i.test(url)) throw new ErrorApi('La URL de la foto tiene que ser https y válida.');
+  const datos = await datosGuardados(c, slug);
+  if (!forzar && datos.portada) return { ok: true, omitida: true, parroquia: parroquiaPublica(await leerParroquia(c, slug)) };
+  const res = await fetch(url, {
+    headers: { Accept: 'image/jpeg,image/png,image/webp,image/*', 'User-Agent': 'CancioneroLiturgico/1.0' },
+    redirect: 'follow'
+  });
+  if (!res.ok) throw new ErrorApi('No se pudo bajar la foto (HTTP ' + res.status + ').');
+  const buf = new Uint8Array(await res.arrayBuffer());
+  if (buf.byteLength < 100) throw new ErrorApi('La foto está vacía o dañada.');
+  if (buf.byteLength > MAX_PORTADA) throw new ErrorApi('La foto supera 4 MB.');
+  const mime = mimeDeBytes(buf, res.headers.get('content-type'));
+  if (!mime) throw new ErrorApi('La foto tiene que ser JPG, PNG o WebP.');
+  const en = { ...c, slug };
+  const { results: previos } = await c.db.prepare('SELECT * FROM archivos WHERE tipo = ? AND carpeta = ? AND ruta = ?')
+    .bind('portada', slug, 'portada').all();
+  const fila = await guardarArchivo(en, {
+    tipo: 'portada', r2: 'parroquias/' + slug + '/portada-' + Date.now(),
+    nombre: 'portada.' + MIMES_PORTADA[mime], mime, bytes: buf, carpeta: slug, ruta: 'portada'
+  });
+  await borrarArchivos(c, previos);
+  datos.portada = '/api/archivo/' + fila.id;
+  datos.fotoUrlOrigen = url.slice(0, 500);
+  await guardarDatos(c, slug, datos);
+  return { ok: true, parroquia: parroquiaPublica(await leerParroquia(c, slug)) };
+}
 
 export async function subirPortada(c, request, p, token) {
   const yo = await usuarioDeToken(c, token);
   exigirResponsable(yo);
   const mime = String(p.mime || '');
   if (!MIMES_PORTADA[mime]) throw new ErrorApi('La foto tiene que ser JPG, PNG o WebP');
-  const bytes = await leerCuerpo(request, Math.min(MAX_ARCHIVO_BYTES, 4 * 1024 * 1024), 'La foto supera 4 MB');
+  const bytes = await leerCuerpo(request, MAX_PORTADA, 'La foto supera 4 MB');
   const fila = await reemplazarImagen(c, 'portada', 'portada', 'portada.' + MIMES_PORTADA[mime], mime, bytes);
   const datos = await datosGuardados(c, c.slug);
   datos.portada = '/api/archivo/' + fila.id;
   await guardarDatos(c, c.slug, datos);
   await auditar(c, { tipo: 'portada', email: yo.email, nombre: yo.nombre, parroquia: c.slug });
   return { parroquia: parroquiaPublica(await laParroquia(c)) };
+}
+
+/** Admin general: pegar URL de la red y guardarla como portada (reemplaza la actual). */
+async function guardarPortadaUrl(c, d) {
+  const yo = await usuarioDeToken(c, d.token);
+  soloGeneral(yo);
+  const slug = String(d.slug || c.slug || '').trim().toLowerCase();
+  if (!slugValido(slug) && slug !== PARROQUIA_DEFECTO) throw new ErrorApi('Parroquia desconocida.');
+  const r = await aplicarPortadaDesdeUrl(c, slug, d.url, { forzar: true });
+  await auditar(c, { tipo: 'portada_url', email: yo.email, nombre: yo.nombre, parroquia: slug });
+  return r;
 }
 
 // ==================== FOTOS ====================
@@ -747,26 +799,35 @@ function ROLES_SAFE(yo) {
   return ['admin_general', 'admin_segundo', 'sacerdote', 'admin', 'editor', 'colaborador'].includes(r) ? r : 'visitante';
 }
 
-/** Importa el catálogo diocesano embebido: solo inserta las que aún no existen (por slug). */
+const MAX_FOTOS_POR_IMPORT = 20;
+
+/** Importa el catálogo: inserta nuevas; baja fotoUrl solo si aún no hay portada (tope por corrida). */
 async function importarCatalogo(c, d) {
   const yo = await usuarioDeToken(c, d.token);
   soloGeneral(yo);
   const lote = Array.isArray(d.entradas) && d.entradas.length ? d.entradas : CATALOGO_CHILE;
-  let creadas = 0, omitidas = 0;
+  let creadas = 0, omitidas = 0, fotosOk = 0, fotosFallidas = 0;
+  const pendientesFoto = [];
   const stmts = [];
   for (const e of lote) {
     const nombre = texto(e.nombre, 120);
     if (!nombre) continue;
     let slug = String(e.slug || '').trim().toLowerCase();
     if (!slugValido(slug)) slug = await slugLibre(c, '', nombre + (e.comuna ? ' ' + e.comuna : ''));
-    const existe = await c.db.prepare('SELECT 1 FROM parroquias WHERE slug = ?').bind(slug).first();
-    if (existe) { omitidas++; continue; }
+    const fila = await c.db.prepare('SELECT datos FROM parroquias WHERE slug = ?').bind(slug).first();
+    if (fila) {
+      omitidas++;
+      const prev = parsear(fila.datos, {});
+      if (!prev.portada && e.fotoUrl) pendientesFoto.push({ slug, url: e.fotoUrl });
+      continue;
+    }
     const datos = {
       nombre, nombreCorto: texto(e.nombreCorto, 40) || nombre.replace(/^(Parroquia|Movimiento)\s+/i, '').slice(0, 40),
       tipo: TIPOS.includes(e.tipo) ? e.tipo : 'parroquia',
       diocesis: texto(e.diocesis, 100) || 'Arquidiócesis de Santiago',
       sitioWeb: '', sacerdoteNombre: '',
-      direccion: texto(e.direccion, 200), comuna: texto(e.comuna, 80), region: texto(e.region, 80) || 'Región Metropolitana',
+      direccion: texto(e.direccion, 200), comuna: texto(e.comuna, 80),
+      region: texto(e.region, 80) || (String(e.diocesis || '').includes('Valparaíso') ? 'Región de Valparaíso' : 'Región Metropolitana'),
       lat: typeof e.lat === 'number' ? e.lat : null, lng: typeof e.lng === 'number' ? e.lng : null,
       lema: '', descripcion: '', correo: '', portada: '', iconos: {}, fotos: [],
       activa: true, oculta: false, estado: 'aprobada',
@@ -775,19 +836,32 @@ async function importarCatalogo(c, d) {
     };
     stmts.push(c.db.prepare('INSERT INTO parroquias (slug, datos) VALUES (?, ?)').bind(slug, JSON.stringify(datos)));
     creadas++;
+    if (e.fotoUrl) pendientesFoto.push({ slug, url: e.fotoUrl });
   }
   if (stmts.length) {
-    // D1 batch límite ~100; trocear
     for (let i = 0; i < stmts.length; i += 40) await c.db.batch(stmts.slice(i, i + 40));
   }
+  for (const f of pendientesFoto.slice(0, MAX_FOTOS_POR_IMPORT)) {
+    try {
+      const r = await aplicarPortadaDesdeUrl(c, f.slug, f.url, { forzar: false });
+      if (!r.omitida) fotosOk++;
+    } catch (_) {
+      fotosFallidas++;
+    }
+  }
+  const fotosPendientes = Math.max(0, pendientesFoto.length - MAX_FOTOS_POR_IMPORT);
   olvidarParroquia('*lista');
   cache.delete('*lista');
   await auditar(c, { tipo: 'catalogo_importado', email: yo.email, nombre: yo.nombre, titulo: creadas + ' nuevas' });
-  return { creadas, omitidas, totalCatalogo: lote.length };
+  return {
+    creadas, omitidas, totalCatalogo: lote.length, fotosOk, fotosFallidas, fotosPendientes,
+    aviso: fotosPendientes ? 'Quedan ' + fotosPendientes + ' fotos por bajar: volvé a Importar catálogo.' : ''
+  };
 }
 
 export const accionesParroquias = {
   guardarParroquia, guardarComunidad, ordenarComunidades, borrarComunidad, listarParroquias, crearParroquia,
-  guardarNoticia, borrarNoticia, quitarFotoComunidad, solicitarParroquia, unirseComoFeligres, importarCatalogo
+  guardarNoticia, borrarNoticia, quitarFotoComunidad, solicitarParroquia, unirseComoFeligres, importarCatalogo,
+  guardarPortadaUrl
 };
 export const lecturasParroquias = { parroquia, parroquias, noticias, slugDisponible };

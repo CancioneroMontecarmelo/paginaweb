@@ -2015,3 +2015,13 @@ a:hover {
 /* Login: «Mostrar mi nombre como colaborador» */
 .opcion-colaborador { display: flex; gap: 0.5rem; align-items: flex-start; margin: 1rem 0 0; font-size: 0.92rem; color: var(--texto-suave, #555); }
 .opcion-colaborador input { margin-top: 0.2rem; }
+
+.vista-portada-cfg {
+  display: block;
+  max-width: 100%;
+  max-height: 160px;
+  width: auto;
+  border-radius: 10px;
+  margin: 0 0 0.75rem;
+  object-fit: cover;
+}

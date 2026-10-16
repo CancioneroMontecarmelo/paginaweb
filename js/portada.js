@@ -1,6 +1,5 @@
 /**
- * portada.js — La portada nacional (/ sin parroquia elegida): buscar por nombre o comuna, ver el mapa y elegir.
- * La lista viene puesta por el servidor (window.MC_PARROQUIAS) y también va escrita en la página (para los buscadores).
+ * portada.js — Portada nacional: buscar, filtrar por tipo/comuna, mapa y feligrés.
  */
 
 import { mostrarMapa, distanciaKm } from "./mapa.js";
@@ -12,10 +11,13 @@ const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g,
 
 const lista = Array.isArray(window.MC_PARROQUIAS) ? window.MC_PARROQUIAS : [];
 let tipo = "";
+let comuna = "";
 let cerca = null;
 
 const lugar = (p) => [p.comuna, p.region].filter(Boolean).join(", ");
 const TIPO = { parroquia: "Parroquia", movimiento: "Movimiento" };
+
+const comunas = [...new Set(lista.map((p) => p.comuna).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
 
 function tarjeta(p) {
   const foto = p.foto ? `<img class="po-foto" src="${esc(p.foto)}" alt="" loading="lazy">` : `<img class="po-icono" src="${esc(p.icono)}" alt="" loading="lazy" width="64" height="64">`;
@@ -38,9 +40,27 @@ function tarjeta(p) {
 function filtradas() {
   const q = norm($("#po-q").value).trim();
   let r = lista.filter((p) => (!tipo || p.tipo === tipo) &&
+    (!comuna || p.comuna === comuna) &&
     (!q || norm([p.nombre, p.nombreCorto, p.comuna, p.region, p.diocesis, ...(p.lugares || []).map((x) => x.nombre + " " + x.comuna)].join(" ")).includes(q)));
   if (cerca) r = r.slice().sort((a, b) => (a.lat == null ? 1e9 : distanciaKm(cerca, a)) - (b.lat == null ? 1e9 : distanciaKm(cerca, b)));
   return r;
+}
+
+function htmlAgrupado(r) {
+  const q = ($("#po-q").value || "").trim();
+  // Con búsqueda o «cerca de mí» o comuna ya elegida: lista plana
+  if (q || cerca || comuna) return r.map(tarjeta).join("");
+  const grupos = new Map();
+  for (const p of r) {
+    const k = p.comuna || "Sin comuna";
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(p);
+  }
+  const keys = [...grupos.keys()].sort((a, b) => a.localeCompare(b, "es"));
+  return keys.map((k) =>
+    `<li class="po-grupo" aria-hidden="true"><h3 class="po-comuna-titulo">${esc(k)}</h3></li>` +
+    grupos.get(k).map(tarjeta).join("")
+  ).join("");
 }
 
 function puntosDe(r) {
@@ -61,37 +81,48 @@ function puntosDe(r) {
 let pendienteMapa = 0;
 function pintar() {
   const r = filtradas();
-  const listaEl = $("#po-lista");
-  listaEl.innerHTML = r.map(tarjeta).join("");
+  $("#po-lista").innerHTML = htmlAgrupado(r);
   $("#po-vacio").hidden = r.length > 0;
   const n = lista.length;
   const conCancionero = lista.filter((p) => p.configurada).length;
   const q = ($("#po-q").value || "").trim();
   if (!n) {
     $("#po-resumen").textContent = "Todavía no hay parroquias en el directorio. Puedes sumar la tuya o entrar como feligrés escribiendo su nombre.";
-  } else if (r.length === n) {
+  } else if (r.length === n && !comuna && !q) {
     $("#po-resumen").textContent = n + " en el directorio · " + conCancionero + (conCancionero === 1 ? " ya usa" : " ya usan") +
-      " el Cancionero. Toca una para abrirla o entra como feligrés.";
+      " el Cancionero. Agrupadas por comuna: toca una o entra como feligrés.";
   } else {
-    $("#po-resumen").textContent = r.length + " de " + n + ".";
+    $("#po-resumen").textContent = r.length + " de " + n + (comuna ? " en " + comuna : "") + ".";
   }
-  // Si busca y no hay resultados, ofrecer crear / unirse por nombre
   const vacio = $("#po-vacio");
   if (!r.length && q) {
     vacio.hidden = false;
     vacio.innerHTML = `No encontramos «${esc(q)}». <button type="button" class="btn btn-primario" id="po-crear-feligres">Entrar como feligrés de esa parroquia</button> o <a href="/sumar">súmala como administrador</a>.`;
     const b = $("#po-crear-feligres");
     if (b) b.addEventListener("click", () => abrirUnirseFeligres({ nombre: q }));
+  } else if (!r.length && comuna) {
+    vacio.hidden = false;
+    vacio.innerHTML = `No hay resultados en ${esc(comuna)}. <button type="button" class="btn btn-secundario" id="po-comuna-todas">Ver todas las comunas</button>`;
+    const b = $("#po-comuna-todas");
+    if (b) b.addEventListener("click", () => { comuna = ""; $("#po-comuna").value = ""; pintar(); });
   }
   clearTimeout(pendienteMapa);
   pendienteMapa = setTimeout(() => {
     const caja = $("#po-mapa");
     const puntos = puntosDe(r);
-    caja.hidden = !puntos.length && !!$("#po-q").value;
+    caja.hidden = !puntos.length && !!(q || comuna);
     mostrarMapa(caja, puntos).then((m) => {
       if (cerca) m.setView([cerca.lat, cerca.lng], 11);
     }).catch(() => (caja.hidden = true));
   }, 250);
+}
+
+function armarSelectComuna() {
+  const sel = $("#po-comuna");
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Todas las comunas</option>' +
+    comunas.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  sel.addEventListener("change", () => { comuna = sel.value; pintar(); });
 }
 
 function conectar() {
@@ -127,17 +158,22 @@ function conectar() {
     const b = e.target.closest("[data-feligres]");
     if (!b) return;
     e.preventDefault();
-    const li = b.closest("li");
+    const li = b.closest("li[data-slug]");
     if (!li) return;
     abrirUnirseFeligres({ slug: li.dataset.slug, nombre: li.dataset.nombre, comuna: li.dataset.comuna });
   });
+  armarSelectComuna();
   const nav = $(".nav-sitio");
   const onScroll = () => nav.classList.toggle("scrolled", window.scrollY > 24);
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
-  const q = new URLSearchParams(location.search).get("q");
-  if (q) $("#po-q").value = q;
   const params = new URLSearchParams(location.search);
+  const q = params.get("q");
+  if (q) $("#po-q").value = q;
+  if (params.get("comuna") && comunas.includes(params.get("comuna"))) {
+    comuna = params.get("comuna");
+    if ($("#po-comuna")) $("#po-comuna").value = comuna;
+  }
   if (params.has("unir")) abrirUnirseFeligres({ nombre: params.get("unir") || "" });
 }
 

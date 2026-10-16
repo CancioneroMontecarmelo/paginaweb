@@ -26,15 +26,18 @@ viven en una base **D1** y los archivos (audios, partituras, cancioneros publica
 
 ## Para todo Chile
 
-- **Catálogo diocesano** (`servidor/catalogo-chile.js`, `datos/catalogo-chile.json`): primera tanda =
-  Arquidiócesis de Santiago + movimientos. El admin general importa con **Importar catálogo** (no pisa
-  slugs existentes). Campos `origen` (`catalogo` / `sumar` / `feligres` / `admin`) y `configurada`.
+- **Catálogo diocesano** (`servidor/catalogo-chile.js`, `datos/catalogo-chile.json`): Santiago + diócesis
+  de San Bernardo, Melipilla y Valparaíso, más movimientos; organizado por comuna. Importar con
+  **Importar catálogo** (no pisa slugs). Algunas entradas traen `fotoUrl` (Wikimedia): al importar se
+  bajan a R2 como portada (tope por corrida; volver a Importar completa el resto). No se pisa una
+  portada ya puesta. Campos `origen` y `configurada`.
+- **Foto de portada**: en **Configurar**, pegar otra URL (`guardarPortadaUrl`) si la del catálogo está
+  mal o antigua. La portada (`/elegir`) filtra y agrupa por **comuna**.
 - **Feligrés** (`unirseComoFeligres`, `js/feligres.js`): correo o Google; usa slug o nombre; si no existe,
   crea un espacio mínimo y entra al reproductor como `visitante`. Distinto de **/sumar** (administrador).
-- **Sumar** (`/sumar`): solo el **nombre** + Google → `admin_segundo` y reproductor al tiro. El mapa, el tipo,
-  la diócesis y el sacerdote se completan después en el panel del administrador general.
-- **Configurar parroquias** (Identificarse → Parroquias): importar catálogo, activar/ocultar y **Configurar**
-  (mapa, tipo, diócesis, `sacerdoteNombre`).
+- **Sumar** (`/sumar`): solo el **nombre** + Google → `admin_segundo` y reproductor al tiro.
+- **Configurar parroquias** (Identificarse → Parroquias): importar catálogo, activar/ocultar, mapa, tipo,
+  diócesis, `sacerdoteNombre` y foto por URL.
 - **Primer ingreso** (`js/bienvenida.js`): feligrés, buscar, sumar o seguir sin identificarse (guardado local).
 - **Ficha de cada parroquia**: tipo, diócesis, sacerdote, sitio web, dirección con mapa (Leaflet + OpenStreetMap,
   `js/mapa.js`) y hasta 12 fotos en R2. Se ve en Inicio y en cada comunidad; la configuración de ubicación la

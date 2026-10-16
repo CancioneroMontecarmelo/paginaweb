@@ -437,6 +437,24 @@ function configurarParroquia(x, alGuardar) {
   elegirUbicacion(cajaMapa, { direccion: x.direccion, comuna: x.comuna, region: x.region, lat: x.lat, lng: x.lng })
     .then((u) => (ubic = u))
     .catch((err) => aviso(msg, err.message, true));
+  const fotoUrl = el("input", { type: "url", maxLength: 500, placeholder: "https://upload.wikimedia.org/…/fachada.jpg" });
+  const vistaFoto = el("img", { className: "vista-portada-cfg", alt: "", hidden: !x.foto && !x.portada, src: x.foto || x.portada || "" });
+  const usarFoto = el("button", { type: "button", className: "btn btn-secundario", textContent: "Usar esta foto" });
+  const msgFoto = el("p", { hidden: true });
+  usarFoto.addEventListener("click", async () => {
+    usarFoto.disabled = true;
+    aviso(msgFoto, "Bajando la foto…");
+    try {
+      const r = await llamarApi("guardarPortadaUrl", { token: token(), slug: x.slug, url: fotoUrl.value.trim() });
+      const url = (r.parroquia && (r.parroquia.foto || r.parroquia.portada)) || "";
+      if (url) { vistaFoto.src = url; vistaFoto.hidden = false; }
+      aviso(msgFoto, "Foto guardada ✓ (reemplaza la anterior)");
+      alGuardar();
+    } catch (err) {
+      aviso(msgFoto, err.message, true);
+    }
+    usarFoto.disabled = false;
+  });
   const guardar = el("button", { type: "submit", className: "btn btn-primario", textContent: "Guardar configuración" });
   const form = el("form", { className: "form-noticia form-admin" },
     campo("Es una…", tipo),
@@ -445,6 +463,12 @@ function configurarParroquia(x, alGuardar) {
     filaSacerdote,
     el("span", { className: "campo-admin" }, el("span", { textContent: "Dirección (aparece en el mapa del Cancionero)" })),
     cajaMapa,
+    el("h3", { className: "auth-h2", textContent: "Foto de portada" }),
+    el("p", { className: "aviso", textContent: "Pegá la URL de una foto de la red (Wikimedia, sitio de la parroquia…). Se guarda en el Cancionero. Si la del catálogo está mal o antigua, reemplazala acá." }),
+    vistaFoto,
+    campo("URL de la foto", fotoUrl),
+    el("div", { className: "acciones-form" }, usarFoto),
+    msgFoto,
     el("div", { className: "acciones-form" }, guardar),
     msg);
   form.addEventListener("submit", async (e) => {
@@ -593,7 +617,7 @@ export async function abrirParroquias() {
     crear.disabled = false;
   });
 
-  const importar = el("button", { type: "button", className: "btn btn-secundario", textContent: "Importar catálogo (Santiago + movimientos)" });
+  const importar = el("button", { type: "button", className: "btn btn-secundario", textContent: "Importar catálogo (Santiago, San Bernardo, Melipilla, Valparaíso)" });
   const msgImport = el("p", { hidden: true });
   importar.addEventListener("click", async () => {
     if (!confirm("¿Importar el catálogo diocesano? Solo agrega las que aún no existen; no borra ni pisa las actuales.")) return;
@@ -601,7 +625,14 @@ export async function abrirParroquias() {
     aviso(msgImport, "Importando…");
     try {
       const r = await llamarApi("importarCatalogo", { token: token() });
-      aviso(msgImport, "Listo: " + r.creadas + " nuevas, " + r.omitidas + " ya estaban (de " + r.totalCatalogo + " en el archivo).");
+      let t = "Listo: " + r.creadas + " nuevas, " + r.omitidas + " ya estaban (de " + r.totalCatalogo + ").";
+      if (r.fotosOk || r.fotosFallidas || r.fotosPendientes) {
+        t += " Fotos: " + (r.fotosOk || 0) + " bajadas" +
+          (r.fotosFallidas ? ", " + r.fotosFallidas + " fallaron" : "") +
+          (r.fotosPendientes ? ", " + r.fotosPendientes + " pendientes (volvé a Importar)" : "") + ".";
+      }
+      if (r.aviso) t += " " + r.aviso;
+      aviso(msgImport, t);
       refrescar();
     } catch (err) {
       aviso(msgImport, err.message, true);
