@@ -947,9 +947,8 @@ async function sugerenciasDe(fecha) {
     lecturas = await lecturasDelDia(fecha).catch(() => null);
     const base = lit.momentosDeMisa(fecha, lecturas, crear.celebracion);
     tiempo = base.tiempo;
-    // El Gloria va los domingos (fuera de Adviento y Cuaresma), en las solemnidades, en las fiestas y en las celebraciones que lo llevan
-    const fiesta = lit.etiquetasDelDia(lecturas?.titulo).fiestas.length || /SOLEMNIDAD|FIESTA/i.test(lecturas?.titulo || "");
-    momentos = ponerHabituales(base.momentos.filter((m) => esDomingo || fiesta || cel?.gloria === true || m.momento !== "Gloria"), habituales);
+    // Gloria ya filtrada en momentosDeMisa (ferias, difuntos, Adviento/Cuaresma…)
+    momentos = ponerHabituales(base.momentos, habituales);
     motivos = new Map();
     const evitar = esDomingo && !cel ? await lit.evitadosDelMes(fecha, lecturasDelDia, { biblioteca, misas }).catch(() => null) : null;
     lit.sugerirCantos(borrador(), lecturas, { biblioteca, misas, motivos, evitar });

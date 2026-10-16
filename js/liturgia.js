@@ -486,13 +486,35 @@ export function celebracionDelDia(lecturas, fecha = "") {
   return d.mariano ? "mariana" : "";
 }
 
-// Momentos de una misa nueva según el día: sin Gloria en Adviento y Cuaresma (salvo fiestas). Con una celebración,
-// sus momentos propios y su Gloria (sí en un matrimonio, no en un funeral).
+/**
+ * ¿Lleva canto del Gloria? Domingos (fuera de Adviento/Cuaresma), solemnidades y fiestas: sí.
+ * Ferias lun–sáb, difuntos/exequias y celebraciones con gloria:false: no.
+ */
+export function llevaGloria(fecha, lecturas, celebracion = "") {
+  const cel = celebracionPorId(celebracion);
+  if (cel?.gloria === false) return false;
+  if (cel?.gloria === true) return true;
+
+  const titulo = lecturas?.titulo || nombreDelDia(fecha) || "";
+  const t = sinTildes(titulo);
+  if (/DIFUNTO|EXEQUIAS|FIELES DIFUNTOS/.test(t)) return false;
+
+  const tiempo = lecturas?.tiempo || tiempoPorFecha(fecha);
+  const dia = etiquetasDelDia(titulo);
+  // «Fieles difuntos» está en el catálogo de fiestas pero nunca lleva Gloria
+  const esFiesta = dia.fiestas.some((f) => f !== "Fieles difuntos") || /\b(SOLEMNIDAD|FIESTA)\b/.test(t);
+  if (TIEMPOS_SIN_GLORIA.includes(tiempo) && !esFiesta) return false;
+
+  const esDomingo = /^\d{4}-\d{2}-\d{2}$/.test(fecha || "") && fechaMedioDia(fecha).getDay() === 0;
+  return esDomingo || esFiesta;
+}
+
+// Momentos de una misa nueva según el día (Gloria según llevaGloria). Con una celebración, sus momentos propios.
 export function momentosDeMisa(fecha, lecturas, celebracion = "") {
   const tiempo = lecturas?.tiempo || tiempoPorFecha(fecha);
   const cel = celebracionPorId(celebracion);
-  const sinGloria = cel?.gloria === false || (cel?.gloria !== true && TIEMPOS_SIN_GLORIA.includes(tiempo) && !etiquetasDelDia(lecturas?.titulo).fiestas.length);
-  const momentos = MOMENTOS_BASE.filter((m) => !(sinGloria && m === "Gloria")).map((momento) => ({ momento, canciones: [] }));
+  const conGloria = llevaGloria(fecha, lecturas, celebracion);
+  const momentos = MOMENTOS_BASE.filter((m) => conGloria || m !== "Gloria").map((momento) => ({ momento, canciones: [] }));
   return { tiempo, momentos: cel ? aplicarCelebracion(momentos, cel) : momentos };
 }
 
