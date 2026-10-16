@@ -1,6 +1,6 @@
 /**
- * Catálogo: Arquidiócesis de Santiago + diócesis San Bernardo, Melipilla y Valparaíso,
- * más movimientos. fotoUrl (opcional): Wikimedia u otra URL pública; se baja al importar.
+ * Catálogo diocesano. Fase actual: Arquidiócesis de Santiago por decanato (sin fotos).
+ * Otras diócesis quedan exportadas en CATALOGO_CHILE para fases siguientes.
  * Coords = centro aproximado de la comuna (no la puerta del templo).
  */
 
@@ -29,20 +29,40 @@ const C = {
   Hijuelas: [-32.8000, -71.1500], Nogales: [-32.7300, -71.2000], 'La Calera': [-32.7850, -71.2050]
 };
 
+/** Decanato pastoral aproximado por comuna (Arquidiócesis de Santiago). */
+const DECANATO_POR_COMUNA = {
+  Santiago: 'Centro',
+  Recoleta: 'Norte', Independencia: 'Norte', Conchalí: 'Norte', Huechuraba: 'Norte',
+  Quilicura: 'Norte', Renca: 'Norte', Colina: 'Norte', Lampa: 'Norte', Tiltil: 'Norte',
+  Providencia: 'Oriente', 'Las Condes': 'Oriente', Vitacura: 'Oriente', 'La Reina': 'Oriente',
+  'Lo Barnechea': 'Oriente', Ñuñoa: 'Oriente', Macul: 'Oriente', Peñalolén: 'Oriente',
+  'La Florida': 'Suroriente', 'Puente Alto': 'Suroriente', Pirque: 'Suroriente',
+  'San José de Maipo': 'Suroriente', 'La Pintana': 'Suroriente', 'San Ramón': 'Suroriente', 'La Granja': 'Suroriente',
+  'San Miguel': 'Sur', 'San Joaquín': 'Sur', 'La Cisterna': 'Sur', 'El Bosque': 'Sur',
+  'Pedro Aguirre Cerda': 'Sur', 'Lo Espejo': 'Sur',
+  'Quinta Normal': 'Poniente', 'Estación Central': 'Poniente', Pudahuel: 'Poniente',
+  'Cerro Navia': 'Poniente', 'Lo Prado': 'Poniente', Cerrillos: 'Poniente', Maipú: 'Poniente'
+};
+
+export const DECANATOS_SANTIAGO = ['Centro', 'Norte', 'Oriente', 'Suroriente', 'Sur', 'Poniente'];
+
 function punto(comuna, i) {
   const c = C[comuna] || C.Santiago;
   const d = ((i % 7) - 3) * 0.004;
   return { lat: Math.round((c[0] + d) * 1e4) / 1e4, lng: Math.round((c[1] + d * 0.7) * 1e4) / 1e4 };
 }
 
-/** Wikimedia Special:FilePath (redirige a la imagen; width limita el peso). */
-const wiki = (file, w = 1600) =>
-  'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(file) + '?width=' + w;
-
 let seq = 0;
 function entrada(nombre, comuna, diocesis, region, extra = {}) {
   const i = seq++;
-  return { tipo: 'parroquia', diocesis, region, nombre, comuna, ...punto(comuna, i), ...extra };
+  const decanato = extra.decanato || DECANATO_POR_COMUNA[comuna] || '';
+  const { fotoUrl: _foto, ...resto } = extra;
+  return {
+    tipo: 'parroquia', diocesis, region, nombre, comuna,
+    ...(decanato ? { decanato } : {}),
+    ...punto(comuna, i),
+    ...resto
+  };
 }
 
 const AS = 'Arquidiócesis de Santiago';
@@ -52,34 +72,20 @@ const DM = 'Diócesis de Melipilla';
 const DV = 'Diócesis de Valparaíso';
 const RV = 'Región de Valparaíso';
 
-const FOTOS = {
-  catedral: wiki('Catedral Metropolitana de Santiago.jpg'),
-  sanFrancisco: wiki('Iglesia de San Francisco, Santiago de Chile.jpg'),
-  lourdes: wiki('Vista Basílica de Nuestra Señora de Lourdes.jpg'),
-  maipu: wiki('Templo Votivo Nacional de Maipú.jpg'),
-  merced: wiki('Basílica de la Merced, Santiago.jpg'),
-  recoleta: wiki('Iglesia de la Recoleta Dominica.jpg'),
-  santaAna: wiki('Iglesia de Santa Ana, Santiago.jpg'),
-  sanIgnacio: wiki('Iglesia de San Ignacio, Santiago.jpg'),
-  compania: wiki('Iglesia de la Compañía, Santiago.jpg'),
-  valpoCatedral: wiki('Catedral de Valparaíso.jpg'),
-  vina: wiki('Iglesia de los Padres Franceses, Viña del Mar.jpg')
-};
-
 // --- Santiago (muestra amplia por comuna; no es el listado canónico completo de las ~200) ---
 const SANTIAGO = [
-  entrada('Parroquia Catedral Metropolitana de Santiago', 'Santiago', AS, RM, { fotoUrl: FOTOS.catedral }),
-  entrada('Parroquia San Francisco de Asís', 'Santiago', AS, RM, { fotoUrl: FOTOS.sanFrancisco }),
-  entrada('Parroquia Santa Ana', 'Santiago', AS, RM, { fotoUrl: FOTOS.santaAna }),
-  entrada('Parroquia San Ignacio', 'Santiago', AS, RM, { fotoUrl: FOTOS.sanIgnacio }),
+  entrada('Parroquia Catedral Metropolitana de Santiago', 'Santiago', AS, RM),
+  entrada('Parroquia San Francisco de Asís', 'Santiago', AS, RM),
+  entrada('Parroquia Santa Ana', 'Santiago', AS, RM),
+  entrada('Parroquia San Ignacio', 'Santiago', AS, RM),
   entrada('Parroquia San Lázaro', 'Santiago', AS, RM),
-  entrada('Basílica de la Merced', 'Santiago', AS, RM, { fotoUrl: FOTOS.merced }),
+  entrada('Basílica de la Merced', 'Santiago', AS, RM),
   entrada('Parroquia El Sagrario', 'Santiago', AS, RM),
   entrada('Parroquia San Saturnino', 'Santiago', AS, RM),
-  entrada('Parroquia de la Recoleta Dominica', 'Recoleta', AS, RM, { fotoUrl: FOTOS.recoleta }),
+  entrada('Parroquia de la Recoleta Dominica', 'Recoleta', AS, RM),
   entrada('Parroquia San Ramón', 'Recoleta', AS, RM),
   entrada('Parroquia Nuestra Señora de la Merced', 'Recoleta', AS, RM),
-  entrada('Basílica de Lourdes', 'Quinta Normal', AS, RM, { fotoUrl: FOTOS.lourdes }),
+  entrada('Basílica de Lourdes', 'Quinta Normal', AS, RM),
   entrada('Parroquia San Vicente de Paul', 'Quinta Normal', AS, RM),
   entrada('Parroquia San José', 'Independencia', AS, RM),
   entrada('Parroquia Santa Teresa de Los Andes', 'Independencia', AS, RM),
@@ -109,7 +115,7 @@ const SANTIAGO = [
   entrada('Parroquia San Francisco de Asís', 'La Florida', AS, RM),
   entrada('Parroquia Cristo Redentor', 'La Florida', AS, RM),
   entrada('Parroquia Santa María de La Florida', 'La Florida', AS, RM),
-  entrada('Templo Votivo de Maipú', 'Maipú', AS, RM, { fotoUrl: FOTOS.maipu }),
+  entrada('Templo Votivo de Maipú', 'Maipú', AS, RM),
   entrada('Parroquia Nuestra Señora del Carmen', 'Maipú', AS, RM),
   entrada('Parroquia Cristo Rey', 'Maipú', AS, RM),
   entrada('Parroquia San José de Maipú', 'Maipú', AS, RM),
@@ -142,7 +148,7 @@ const SANTIAGO = [
   entrada('Parroquia San Francisco', 'Lo Espejo', AS, RM)
 ];
 
-// Diócesis de San Bernardo (antes mezcladas en el listado de Santiago)
+// Diócesis reservadas para fases siguientes
 const SAN_BERNARDO = [
   entrada('Parroquia Catedral de San Bernardo', 'San Bernardo', DSB, RM),
   entrada('Parroquia El Salvador', 'San Bernardo', DSB, RM),
@@ -154,7 +160,6 @@ const SAN_BERNARDO = [
   entrada('Parroquia San Martín de Tours', 'Buin', DSB, RM),
   entrada('Parroquia San José', 'Paine', DSB, RM),
   entrada('Parroquia Nuestra Señora del Carmen', 'Calera de Tango', DSB, RM),
-  entrada('Parroquia San Pedro', 'Puente Alto', DSB, RM),
   entrada('Parroquia Santa Teresa de Los Andes', 'Puente Alto', DSB, RM)
 ];
 
@@ -171,7 +176,7 @@ const MELIPILLA = [
 ];
 
 const VALPARAISO = [
-  entrada('Parroquia Catedral de Valparaíso', 'Valparaíso', DV, RV, { fotoUrl: FOTOS.valpoCatedral }),
+  entrada('Parroquia Catedral de Valparaíso', 'Valparaíso', DV, RV),
   entrada('Parroquia Los Doce Apóstoles', 'Valparaíso', DV, RV),
   entrada('Parroquia Espíritu Santo', 'Valparaíso', DV, RV),
   entrada('Parroquia San Francisco', 'Valparaíso', DV, RV),
@@ -204,15 +209,19 @@ const VALPARAISO = [
 ];
 
 const MOVIMIENTOS = [
-  { tipo: 'movimiento', nombre: 'Movimiento de Schoenstatt', comuna: 'La Florida', region: RM, diocesis: AS, ...punto('La Florida', 200) },
-  { tipo: 'movimiento', nombre: 'Renovación Carismática Católica', comuna: 'Santiago', region: RM, diocesis: AS, ...punto('Santiago', 201) },
-  { tipo: 'movimiento', nombre: 'Comunidad de Vida Cristiana (CVX)', comuna: 'Providencia', region: RM, diocesis: AS, ...punto('Providencia', 202) },
-  { tipo: 'movimiento', nombre: 'Focolares', comuna: 'Ñuñoa', region: RM, diocesis: AS, ...punto('Ñuñoa', 203) },
-  { tipo: 'movimiento', nombre: 'Cursillos de Cristiandad', comuna: 'Santiago', region: RM, diocesis: AS, ...punto('Santiago', 204) },
-  { tipo: 'movimiento', nombre: 'Encuentro Matrimonial Mundial', comuna: 'Las Condes', region: RM, diocesis: AS, ...punto('Las Condes', 205) },
-  { tipo: 'movimiento', nombre: 'Legión de María', comuna: 'Santiago', region: RM, diocesis: AS, ...punto('Santiago', 206) },
-  { tipo: 'movimiento', nombre: 'Jóvenes de San José', comuna: 'Providencia', region: RM, diocesis: AS, ...punto('Providencia', 207) },
+  { tipo: 'movimiento', nombre: 'Movimiento de Schoenstatt', comuna: 'La Florida', region: RM, diocesis: AS, decanato: 'Suroriente', ...punto('La Florida', 200) },
+  { tipo: 'movimiento', nombre: 'Renovación Carismática Católica', comuna: 'Santiago', region: RM, diocesis: AS, decanato: 'Centro', ...punto('Santiago', 201) },
+  { tipo: 'movimiento', nombre: 'Comunidad de Vida Cristiana (CVX)', comuna: 'Providencia', region: RM, diocesis: AS, decanato: 'Oriente', ...punto('Providencia', 202) },
+  { tipo: 'movimiento', nombre: 'Focolares', comuna: 'Ñuñoa', region: RM, diocesis: AS, decanato: 'Oriente', ...punto('Ñuñoa', 203) },
+  { tipo: 'movimiento', nombre: 'Cursillos de Cristiandad', comuna: 'Santiago', region: RM, diocesis: AS, decanato: 'Centro', ...punto('Santiago', 204) },
+  { tipo: 'movimiento', nombre: 'Encuentro Matrimonial Mundial', comuna: 'Las Condes', region: RM, diocesis: AS, decanato: 'Oriente', ...punto('Las Condes', 205) },
+  { tipo: 'movimiento', nombre: 'Legión de María', comuna: 'Santiago', region: RM, diocesis: AS, decanato: 'Centro', ...punto('Santiago', 206) },
+  { tipo: 'movimiento', nombre: 'Jóvenes de San José', comuna: 'Providencia', region: RM, diocesis: AS, decanato: 'Oriente', ...punto('Providencia', 207) },
   { tipo: 'movimiento', nombre: 'Schoenstatt Valparaíso', comuna: 'Viña del Mar', region: RV, diocesis: DV, ...punto('Viña del Mar', 208) }
 ];
 
+/** Fase actual: solo Arquidiócesis de Santiago, sin fotos. */
+export const CATALOGO_SANTIAGO = SANTIAGO;
+
+/** Catálogo completo (otras diócesis para fases siguientes). */
 export const CATALOGO_CHILE = [...SANTIAGO, ...SAN_BERNARDO, ...MELIPILLA, ...VALPARAISO, ...MOVIMIENTOS];

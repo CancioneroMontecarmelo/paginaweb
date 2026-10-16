@@ -6,7 +6,7 @@ import {
   verificarGoogle, crearToken, sesionPublica, registrarVisitante
 } from './auth.js';
 import { guardarArchivo, borrarArchivos, leerCuerpo } from './archivos.js';
-import { CATALOGO_CHILE } from './catalogo-chile.js';
+import { CATALOGO_CHILE, CATALOGO_SANTIAGO } from './catalogo-chile.js';
 
 export const PARROQUIA_DEFECTO = 'montecarmelo';
 
@@ -117,6 +117,7 @@ const fotosPublicas = (fotos) => (Array.isArray(fotos) ? fotos : []).filter((f) 
 
 const ubicacionPublica = (x) => ({
   direccion: x.direccion || '', comuna: x.comuna || '', region: x.region || '',
+  decanato: x.decanato || '',
   lat: typeof x.lat === 'number' ? x.lat : null, lng: typeof x.lng === 'number' ? x.lng : null
 });
 
@@ -158,15 +159,62 @@ async function parroquia(c) {
   return { ok: true, parroquia: parroquiaPublica(await laParroquia(c)) };
 }
 
+/** Una sola ficha por nombre+comuna en listas públicas (/elegir, portada). */
+function dedupeListaPublica(lista) {
+  const grupos = new Map();
+  for (const p of lista) {
+    const k = (p.nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+      + '|' + (p.comuna || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(p);
+  }
+  const out = [];
+  for (const [, g] of grupos) {
+    g.sort((a, b) => {
+      let pa = 0, pb = 0;
+      if (a.slug === PARROQUIA_DEFECTO) pa += 10000;
+      if (b.slug === PARROQUIA_DEFECTO) pb += 10000;
+      if (a.configurada) pa += 1000;
+      if (b.configurada) pb += 1000;
+      if (a.foto) pa += 200;
+      if (b.foto) pb += 200;
+      if (!/-\d+$/.test(a.slug || '')) pa += 100;
+      if (!/-\d+$/.test(b.slug || '')) pb += 100;
+      return pb - pa || a.nombre.localeCompare(b.nombre, 'es');
+    });
+    out.push(g[0]);
+  }
+  return out.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
+
 export async function parroquiasActivas(c) {
   const guardada = cache.get('*lista');
   if (guardada && guardada.vence > Date.now()) return guardada.p;
+
+  // Si hay repeticiones nombre+comuna (p. ej. …-2, …-3), borrarlas de D1 al cargar /elegir o portada
+  try {
+    const { results: filas } = await c.db.prepare('SELECT slug, datos FROM parroquias').all();
+    const vistos = new Map();
+    let hayDup = false;
+    for (const r of filas) {
+      const p = parsear(r.datos, {});
+      const k = (p.nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+        + '|' + (p.comuna || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+      if (!k || k.startsWith('|')) continue;
+      if (vistos.has(k)) { hayDup = true; break; }
+      vistos.set(k, r.slug);
+    }
+    if (hayDup) await ejecutarUnificarDuplicados(c);
+  } catch (err) {
+    console.error('unificar al listar:', err);
+  }
+
   const [{ results }, { results: coms }] = await Promise.all([
     c.db.prepare('SELECT slug, datos FROM parroquias ORDER BY slug').all(),
     c.db.prepare('SELECT parroquia, slug, datos FROM comunidades ORDER BY parroquia, orden, slug').all()
   ]);
   // Las ocultas se abren con su dirección, pero no aparecen en la portada ni en el mapa
-  const lista = results.map((r) => ({ ...parsear(r.datos, {}), slug: r.slug, comunidades: [] }))
+  const lista = dedupeListaPublica(results.map((r) => ({ ...parsear(r.datos, {}), slug: r.slug, comunidades: [] }))
     .filter((p) => p.activa !== false && !p.oculta)
     .map((p) => ({
       slug: p.slug, nombre: p.nombre || p.slug, nombreCorto: p.nombreCorto || p.nombre || p.slug, icono: iconoDe(p, '192'),
@@ -174,8 +222,7 @@ export async function parroquiasActivas(c) {
       lema: p.lema || '', origen: p.origen || '', configurada: esConfigurada(p),
       lugares: coms.filter((x) => x.parroquia === p.slug).map((x) => comunidadPublica({ ...parsear(x.datos, {}), slug: x.slug }))
         .filter((x) => x.lat != null).map(({ slug, nombre, clase, direccion, comuna, lat, lng, foto }) => ({ slug, nombre, clase, direccion, comuna, lat, lng, foto }))
-    }))
-    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    })));
   cache.set('*lista', { p: lista, vence: Date.now() + CACHE_MS });
   return lista;
 }
@@ -901,9 +948,16 @@ async function unificarDuplicados(c, d) {
   return r;
 }
 
-/** Núcleo del import (yo ya autenticado como admin_general). */
-async function ejecutarImportarCatalogo(c, yo, entradas) {
-  const lote = Array.isArray(entradas) && entradas.length ? entradas : CATALOGO_CHILE;
+function loteCatalogo(d) {
+  if (Array.isArray(d?.entradas) && d.entradas.length) return d.entradas;
+  if (d?.lote === 'chile') return CATALOGO_CHILE;
+  return CATALOGO_SANTIAGO;
+}
+
+/** Núcleo del import (yo ya autenticado como admin_general). Por defecto Santiago, sin fotos. */
+async function ejecutarImportarCatalogo(c, yo, opciones = {}) {
+  const lote = loteCatalogo(opciones);
+  const sinFotos = opciones.sinFotos !== false; // fase actual: no bajar fotos
   let creadas = 0, omitidas = 0, fotosOk = 0, fotosFallidas = 0;
   const pendientesFoto = [];
   const stmts = [];
@@ -917,7 +971,17 @@ async function ejecutarImportarCatalogo(c, yo, entradas) {
     const porClave = porNombre.get(clave);
     if (porClave || reservados.has('clave:' + clave)) {
       omitidas++;
-      if (porClave && !porClave.portada && e.fotoUrl) pendientesFoto.push({ slug: porClave.slug, url: e.fotoUrl });
+      // Si ya existe, actualizar decanato si faltaba
+      if (porClave && !porClave.decanato && e.decanato) {
+        const fila = await c.db.prepare('SELECT datos FROM parroquias WHERE slug = ?').bind(porClave.slug).first();
+        if (fila) {
+          const prev = parsear(fila.datos, {});
+          prev.decanato = texto(e.decanato, 40);
+          await c.db.prepare('UPDATE parroquias SET datos = ? WHERE slug = ?').bind(JSON.stringify(prev), porClave.slug).run();
+          olvidarParroquia(porClave.slug);
+        }
+      }
+      if (!sinFotos && porClave && !porClave.portada && e.fotoUrl) pendientesFoto.push({ slug: porClave.slug, url: e.fotoUrl });
       continue;
     }
     let slug = String(e.slug || '').trim().toLowerCase();
@@ -928,13 +992,14 @@ async function ejecutarImportarCatalogo(c, yo, entradas) {
     if (porSlug) {
       omitidas++;
       const prev = parsear(porSlug.datos, {});
-      if (!prev.portada && e.fotoUrl) pendientesFoto.push({ slug: porSlug.slug, url: e.fotoUrl });
+      if (!sinFotos && !prev.portada && e.fotoUrl) pendientesFoto.push({ slug: porSlug.slug, url: e.fotoUrl });
       continue;
     }
     const datos = {
       nombre, nombreCorto: texto(e.nombreCorto, 40) || nombre.replace(/^(Parroquia|Movimiento)\s+/i, '').slice(0, 40),
       tipo: TIPOS.includes(e.tipo) ? e.tipo : 'parroquia',
       diocesis: texto(e.diocesis, 100) || 'Arquidiócesis de Santiago',
+      decanato: texto(e.decanato, 40),
       sitioWeb: '', sacerdoteNombre: '',
       direccion: texto(e.direccion, 200), comuna,
       region: texto(e.region, 80) || (String(e.diocesis || '').includes('Valparaíso') ? 'Región de Valparaíso' : 'Región Metropolitana'),
@@ -949,20 +1014,22 @@ async function ejecutarImportarCatalogo(c, yo, entradas) {
     reservados.add(slug);
     reservados.add('clave:' + clave);
     porNombre.set(clave, { slug, ...datos });
-    if (e.fotoUrl) pendientesFoto.push({ slug, url: e.fotoUrl });
+    if (!sinFotos && e.fotoUrl) pendientesFoto.push({ slug, url: e.fotoUrl });
   }
   if (stmts.length) {
     for (let i = 0; i < stmts.length; i += 40) await c.db.batch(stmts.slice(i, i + 40));
   }
-  for (const f of pendientesFoto.slice(0, MAX_FOTOS_POR_IMPORT)) {
-    try {
-      const r = await aplicarPortadaDesdeUrl(c, f.slug, f.url, { forzar: false });
-      if (!r.omitida) fotosOk++;
-    } catch (_) {
-      fotosFallidas++;
+  if (!sinFotos) {
+    for (const f of pendientesFoto.slice(0, MAX_FOTOS_POR_IMPORT)) {
+      try {
+        const r = await aplicarPortadaDesdeUrl(c, f.slug, f.url, { forzar: false });
+        if (!r.omitida) fotosOk++;
+      } catch (_) {
+        fotosFallidas++;
+      }
     }
   }
-  const fotosPendientes = Math.max(0, pendientesFoto.length - MAX_FOTOS_POR_IMPORT);
+  const fotosPendientes = sinFotos ? 0 : Math.max(0, pendientesFoto.length - MAX_FOTOS_POR_IMPORT);
   const uni = await ejecutarUnificarDuplicados(c);
   olvidarParroquia('*lista');
   cache.delete('*lista');
@@ -980,12 +1047,12 @@ async function ejecutarImportarCatalogo(c, yo, entradas) {
 async function importarCatalogo(c, d) {
   const yo = await usuarioDeToken(c, d.token);
   soloGeneral(yo);
-  return ejecutarImportarCatalogo(c, yo, d.entradas);
+  return ejecutarImportarCatalogo(c, yo, d);
 }
 
 /**
- * Mantenimiento sin panel: unifica duplicadas e importa catálogo (fotos pendientes).
- * Autenticación: d.clave === env.SECRETO (mismo secreto de sesión; solo scripts).
+ * Mantenimiento sin panel: unifica e importa Santiago (sin fotos en esta fase).
+ * Autenticación: d.clave === env.SECRETO.
  */
 async function mantenerCatalogo(c, d) {
   if (!c.env.SECRETO || String(d.clave || '') !== String(c.env.SECRETO)) {
@@ -997,14 +1064,8 @@ async function mantenerCatalogo(c, d) {
     nombre: 'Mantenimiento',
     rol: 'admin_general'
   };
-  // Varias pasadas para bajar fotos (tope por corrida)
-  let imp = await ejecutarImportarCatalogo(c, yo, d.entradas);
-  let vueltas = 1;
-  while (imp.fotosPendientes > 0 && vueltas < 8) {
-    imp = await ejecutarImportarCatalogo(c, yo, d.entradas);
-    vueltas++;
-  }
-  return { unificacion: uni, importacion: imp, vueltasFoto: vueltas };
+  const imp = await ejecutarImportarCatalogo(c, yo, { ...d, sinFotos: d.sinFotos !== false });
+  return { unificacion: uni, importacion: imp };
 }
 
 export const accionesParroquias = {

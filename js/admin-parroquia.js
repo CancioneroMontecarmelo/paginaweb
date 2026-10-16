@@ -617,23 +617,18 @@ export async function abrirParroquias() {
     crear.disabled = false;
   });
 
-  const importar = el("button", { type: "button", className: "btn btn-secundario", textContent: "Importar catálogo (Santiago, San Bernardo, Melipilla, Valparaíso)" });
+  const importar = el("button", { type: "button", className: "btn btn-secundario", textContent: "Importar Santiago (por decanato)" });
   const unificar = el("button", { type: "button", className: "btn btn-secundario", textContent: "Unificar duplicadas" });
   const msgImport = el("p", { hidden: true });
   importar.addEventListener("click", async () => {
-    if (!confirm("¿Importar el catálogo diocesano? Solo agrega las que aún no existen; no borra ni pisa las actuales.")) return;
+    if (!confirm("¿Importar las parroquias de la Arquidiócesis de Santiago por decanato? Solo agrega las que aún no existen; sin fotos.")) return;
     importar.disabled = true;
     unificar.disabled = true;
-    aviso(msgImport, "Importando…");
+    aviso(msgImport, "Importando Santiago…");
     try {
-      const r = await llamarApi("importarCatalogo", { token: token() });
-      let t = "Listo: " + r.creadas + " nuevas, " + r.omitidas + " ya estaban (de " + r.totalCatalogo + ").";
+      const r = await llamarApi("importarCatalogo", { token: token(), lote: "santiago", sinFotos: true });
+      let t = "Listo: " + r.creadas + " nuevas, " + r.omitidas + " ya estaban (de " + r.totalCatalogo + " en Santiago).";
       if (r.unificadas) t += " Unificadas: " + r.unificadas + " duplicadas borradas.";
-      if (r.fotosOk || r.fotosFallidas || r.fotosPendientes) {
-        t += " Fotos: " + (r.fotosOk || 0) + " bajadas" +
-          (r.fotosFallidas ? ", " + r.fotosFallidas + " fallaron" : "") +
-          (r.fotosPendientes ? ", " + r.fotosPendientes + " pendientes (volvé a Importar)" : "") + ".";
-      }
       if (r.aviso) t += " " + r.aviso;
       aviso(msgImport, t);
       refrescar();
@@ -663,7 +658,7 @@ export async function abrirParroquias() {
   });
 
   cuerpo.append(
-    el("p", { className: "aviso", textContent: "Quienes se suman en /sumar o entran como feligreses quedan publicadas al tiro. Acá las activás u ocultás, importás el directorio diocesano y con Configurar completás el mapa y el sacerdote." }),
+    el("p", { className: "aviso", textContent: "Quienes se suman en /sumar o entran como feligreses quedan publicadas al tiro. Acá importás Santiago por decanato (sin fotos por ahora), unificás duplicadas y con Configurar completás el mapa y el sacerdote." }),
     el("div", { className: "acciones-form" }, importar, unificar),
     msgImport,
     el("table", { className: "tabla-personas" },
