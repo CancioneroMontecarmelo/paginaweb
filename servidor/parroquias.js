@@ -866,6 +866,15 @@ async function indicePorNombreComuna(c) {
   return { map, results };
 }
 
+/** Borra filas de una tabla si existe (migraciones nuevas pueden faltar en D1). */
+async function borrarSiExiste(c, sql, ...args) {
+  try {
+    await c.db.prepare(sql).bind(...args).run();
+  } catch (e) {
+    if (!/no such table/i.test(String(e?.message || e))) throw e;
+  }
+}
+
 /** Borra una parroquia de catálogo/vacía y sus filas asociadas (no usar con montecarmelo). */
 async function borrarParroquiaSlug(c, slug) {
   if (slug === PARROQUIA_DEFECTO) throw new ErrorApi('La parroquia principal no se puede borrar.');
@@ -884,10 +893,11 @@ async function borrarParroquiaSlug(c, slug) {
     c.db.prepare('DELETE FROM auditoria WHERE parroquia = ?').bind(slug),
     c.db.prepare('DELETE FROM vivo WHERE parroquia = ?').bind(slug),
     c.db.prepare('DELETE FROM paginas WHERE parroquia = ?').bind(slug),
-    c.db.prepare('DELETE FROM suscripciones WHERE parroquia = ?').bind(slug),
-    c.db.prepare('DELETE FROM reacciones WHERE parroquia = ?').bind(slug),
     c.db.prepare('DELETE FROM parroquias WHERE slug = ?').bind(slug)
   ]);
+  // Tablas de migraciones posteriores (experiencia); no tumbar el borrado si aún no existen
+  await borrarSiExiste(c, 'DELETE FROM suscripciones WHERE parroquia = ?', slug);
+  await borrarSiExiste(c, 'DELETE FROM reacciones WHERE parroquia = ?', slug);
   olvidarParroquia(slug);
 }
 
