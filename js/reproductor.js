@@ -475,8 +475,27 @@ async function pintarInicio() {
     }
   } catch (_) { /* sin sugerencias */ }
 
-  // 2) Misa del día (cancioneros con fecha de hoy)
-  html += estante("Misa del día", hoy === domingo ? "Hoy es domingo" : "Lo que se canta hoy", misasDelDia.slice(0, 12).map(tarjetaMisa));
+  // 2) Misa del día: cancioneros de hoy, o sugerencias del día si aún no hay guardados
+  if (misasDelDia.length) {
+    html += estante("Misa del día", hoy === domingo ? "Hoy es domingo" : "Lo que se canta hoy", misasDelDia.slice(0, 12).map(tarjetaMisa));
+  } else if (lista.length) {
+    try {
+      const lectHoy = (domingos && hoy === domingo)
+        ? (domingos.find((d) => d.fecha === hoy)?.lecturas || null)
+        : null;
+      const leerHoy = lectHoy || await lecturasDelDia(hoy).catch(() => null);
+      const { tiempo: tHoy, momentos: momHoy } = lit.momentosDeMisa(hoy, leerHoy);
+      const misaHoy = { id: "dia-" + hoy, comunidad: "", fechaUso: hoy, tiempoLiturgico: tHoy, momentos: momHoy };
+      const motivosHoy = new Map();
+      lit.sugerirCantos(misaHoy, leerHoy, { biblioteca: lista, misas, motivos: motivosHoy });
+      const paresHoy = misaHoy.momentos.flatMap((m) =>
+        m.canciones.map((c) => [st.porId.get(c.cancionId), m.momento, motivosHoy.get(m.momento)?.corto])).filter(([c]) => c);
+      const nombreHoy = leerHoy?.titulo ? lit.tituloLiturgico(leerHoy.titulo) : lit.nombreDelDia(hoy);
+      html += deCanciones("Misa del día", nombreHoy || (hoy === domingo ? "Hoy es domingo" : "Sugerencias para hoy"), paresHoy);
+    } catch (_) {
+      html += estante("Misa del día", "Todavía no hay cancionero para hoy", []);
+    }
+  }
 
   // 3) Resto (otros domingos del mes, celebraciones, listas…)
   for (const d of otrosDomingos) {
