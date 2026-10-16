@@ -19,10 +19,10 @@ export const SINONIMOS = [
   ["Santo", "Sanctus"],
   ["Cordero de Dios", "Cordero", "Agnus", "Agnus Dei"],
   ["Salida", "Envío", "Despedida"],
-  ["Salmo responsorial", "Salmo"],
+  ["Salmo responsorial", "Salmo", "Salmos"],
   ["Padre Nuestro", "Padrenuestro"],
   ["Paz", "Saludo de la paz"],
-  ["Canto a María", "María", "Virgen"]
+  ["Canto a María", "María", "Virgen", "Marianos", "Mariano"]
 ];
 export const claveMomento = (t) => {
   const k = tagNorm(t);

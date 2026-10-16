@@ -266,6 +266,26 @@ a.rp-pestana[hidden] { display: none; }
 .rp-estante-buscar input:focus { outline: 2px solid var(--rp-acento); outline-offset: 1px; }
 .rp-estante-flechas { display: flex; gap: 8px; flex: none; }
 .rp-estante-flechas .rp-ico { width: 36px; height: 36px; font-size: 22px; line-height: 1; }
+
+.rp-tj-tiempo-cara {
+  display: grid; place-items: center; width: 100%; aspect-ratio: 1; border: none; border-radius: 8px;
+  background: color-mix(in srgb, var(--rp-acento) 22%, var(--rp-panel)); color: var(--rp-texto);
+  cursor: pointer; font: 700 42px/1 Georgia, "Times New Roman", serif;
+}
+.rp-tj-tiempo.ahora .rp-tj-tiempo-cara {
+  background: color-mix(in srgb, var(--rp-acento) 55%, var(--rp-panel));
+}
+.rp-tj-tiempo.abierto .rp-tj-tiempo-cara {
+  outline: 2px solid var(--rp-acento); outline-offset: 2px;
+}
+.rp-tj-tiempo-letra { pointer-events: none; }
+.rp-tiempo-desplegado {
+  margin-top: -18px; padding: 16px 14px 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--rp-panel) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rp-suave) 35%, transparent);
+}
+.rp-tiempo-desplegado[hidden] { display: none !important; }
 .rp-estante-fila {
   display: grid; grid-auto-flow: column; grid-auto-columns: 180px; gap: 18px;
   overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 4px;

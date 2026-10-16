@@ -561,6 +561,12 @@ async function pintarInicio() {
 
   const ins = await inspiracion;
   if (lista.length) {
+    const nombreParroquia = PARROQUIA.nombreCorto || PARROQUIA.nombre || "la parroquia";
+    const cantadosParroquia = masCantadosEnMisas(misas).map((x) => {
+      const c = st.porId.get(x.id);
+      return c && conAudioBib(c) ? [c, "", x.veces === 1 ? "1 vez" : x.veces + " veces"] : null;
+    }).filter(Boolean);
+    html += deCanciones("Lo más cantado en " + nombreParroquia, "En los cancioneros de esta parroquia", cantadosParroquia);
     html += deCanciones("Lo más cantado en Chile", "En los cancioneros de las parroquias este mes", ins.cantados
       .map((x) => [st.porId.get(x.id), "", x.parroquias > 1 ? `En ${x.parroquias} parroquias` : "En 1 parroquia"]).filter(([c]) => c));
     st.otras = ins.otras.map((m) => ({ ...m, items: m.items.filter((x) => st.porId.has(x.cancionId) && conAudioBib(st.porId.get(x.cancionId))) })).filter((m) => m.items.length);
@@ -575,9 +581,7 @@ async function pintarInicio() {
     </div>`));
 
   if (lista.length) {
-    const t = tiempoDomingo.toLowerCase();
-    html += deCanciones("Del tiempo: " + tiempoDomingo, "Tiempo litúrgico",
-      lista.filter((c) => conAudioBib(c) && (c.etiquetas || []).some((x) => x.toLowerCase() === t)).sort(ordenInicio).map((c) => [c]));
+    html += estanteTiempos(lista);
     for (const m of MOMENTOS_INICIO) {
       if (m === "Canto a María") {
         const tema = lit.temaMarianoDe(tiempoDomingo, domingo);
@@ -592,6 +596,80 @@ async function pintarInicio() {
   }
   html += seccionColaboran(ins.colaboran);
   $("#rp-estantes").innerHTML = html || `<p class="rp-aviso">${esc($("#rp-estado-bib").textContent || "Todavía no hay canciones.")}</p>`;
+}
+
+/** Canciones más usadas en los cancioneros de misa de esta parroquia. */
+function masCantadosEnMisas(misas) {
+  const cuenta = new Map();
+  for (const m of misas || []) {
+    const ids = new Set();
+    for (const mom of m.momentos || []) {
+      for (const c of mom.canciones || []) if (c.cancionId) ids.add(c.cancionId);
+    }
+    for (const id of ids) cuenta.set(id, (cuenta.get(id) || 0) + 1);
+  }
+  return [...cuenta.entries()].sort((a, b) => b[1] - a[1]).slice(0, 24).map(([id, veces]) => ({ id, veces }));
+}
+
+const esDelTiempoTag = (c, tiempo) => (c.etiquetas || []).some((t) => tagNorm(t) === tagNorm(tiempo));
+
+/** Estante con nombres de tiempos; al tocar uno se despliegan sus canciones. */
+function estanteTiempos(lista) {
+  const extras = ["Misa a la chilena"];
+  const nombres = [...lit.TIEMPOS, ...extras.filter((t) => !lit.TIEMPOS.some((x) => tagNorm(x) === tagNorm(t)))];
+  st.porTiempo = {};
+  for (const t of nombres) {
+    const cans = lista.filter((c) => conAudioBib(c) && esDelTiempoTag(c, t)).sort(ordenInicio);
+    if (cans.length) st.porTiempo[t] = cans;
+  }
+  const orden = Object.keys(st.porTiempo).sort((a, b) => {
+    if (tagNorm(a) === tagNorm(tiempoDomingo)) return -1;
+    if (tagNorm(b) === tagNorm(tiempoDomingo)) return 1;
+    return a.localeCompare(b, "es");
+  });
+  if (!orden.length) return "";
+  const tarjetas = orden.map((t) => {
+    const n = st.porTiempo[t].length;
+    const ahora = tagNorm(t) === tagNorm(tiempoDomingo);
+    return `<div class="rp-tj rp-tj-tiempo${ahora ? " ahora" : ""}">
+      <button type="button" class="rp-tj-cara rp-tj-tiempo-cara" data-tiempo="${esc(t)}" aria-label="Ver cantos de ${esc(t)}">
+        <span class="rp-tj-tiempo-letra">${esc(t.slice(0, 1))}</span>
+      </button>
+      <button type="button" class="rp-tj-titulo" data-tiempo="${esc(t)}">${esc(t)}</button>
+      <div class="rp-tj-sub">${ahora ? "Ahora · " : ""}${n} ${n === 1 ? "canción" : "canciones"}</div>
+    </div>`;
+  });
+  return estante("Tiempos litúrgicos", "Tocá un tiempo para ver sus cantos", tarjetas)
+    + `<section class="rp-estante rp-tiempo-desplegado" id="rp-tiempo-lista" hidden></section>`;
+}
+
+function desplegarTiempo(nombre) {
+  const cans = st.porTiempo?.[nombre];
+  const panel = $("#rp-tiempo-lista");
+  if (!panel || !cans?.length) return;
+  document.querySelectorAll("#rp-estantes .rp-tj-tiempo").forEach((el) => {
+    el.classList.toggle("abierto", el.querySelector("[data-tiempo]")?.dataset.tiempo === nombre);
+  });
+  const items = cans.map((c) => ({ cancionId: c.id, desplazamiento: 0 }));
+  let k = st.estantes.findIndex((e) => e.tiempoLista);
+  if (k < 0) k = st.estantes.push({ nombre, tipo: "biblioteca", tiempoLista: true, items }) - 1;
+  else {
+    st.estantes[k].nombre = nombre;
+    st.estantes[k].items = items;
+  }
+  const fila = cans.slice(0, 48).map((c, i) =>
+    tarjeta(cara(c, "grande"), `data-estante="${k}" data-i="${i}"`, c.titulo, subCancion(c))).join("");
+  panel.hidden = false;
+  panel.innerHTML = `<div class="rp-estante-cabeza">
+      <span class="rp-estante-titulos"><small>Cantos para el tiempo</small><h2>${esc(nombre)}</h2></span>
+      <span class="rp-estante-flechas">
+        <button type="button" class="rp-ico" data-desplazar="-1" aria-label="Anteriores">‹</button>
+        <button type="button" class="rp-ico" data-desplazar="1" aria-label="Siguientes">›</button>
+        <button type="button" class="rp-ico" data-cerrar-tiempo="1" aria-label="Cerrar">✕</button>
+      </span>
+    </div>
+    <div class="rp-estante-fila">${fila}</div>`;
+  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function tarjetasDeEstante(k) {
@@ -623,6 +701,19 @@ function accionInicio(e) {
   const b = e.target.closest("button, a");
   if (!b) return;
   const d = b.dataset;
+  if (d.tiempo) {
+    desplegarTiempo(d.tiempo);
+    return;
+  }
+  if (d.cerrarTiempo) {
+    const panel = $("#rp-tiempo-lista");
+    if (panel) {
+      panel.hidden = true;
+      panel.innerHTML = "";
+    }
+    document.querySelectorAll("#rp-estantes .rp-tj-tiempo.abierto").forEach((el) => el.classList.remove("abierto"));
+    return;
+  }
   if (d.desplazar) {
     const fila = b.closest(".rp-estante").querySelector(".rp-estante-fila");
     fila.scrollBy({ left: +d.desplazar * fila.clientWidth * 0.9, behavior: "smooth" });
