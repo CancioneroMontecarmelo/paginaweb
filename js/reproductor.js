@@ -449,24 +449,56 @@ async function pintarInicio() {
   const hoy = lit.hoyIso();
   const proximas = misas.filter((m) => (m.fechaUso || "") >= hoy).sort((a, b) => a.fechaUso.localeCompare(b.fechaUso));
   const pasadas = misas.filter((m) => !proximas.includes(m)).sort((a, b) => String(b.fechaUso || "").localeCompare(String(a.fechaUso || "")));
-  // Bautizos, matrimonios, primeras comuniones…: los que vienen y los de las últimas dos semanas
+  const misasDelDia = misas.filter((m) => (m.fechaUso || "") === hoy);
   const desde = lit.hoyIso(-14);
   const ceremonia = (m) => lit.celebracionPorId(m.celebracion)?.grupo === "sacramento";
-  let html = estante("Celebraciones", "Lo que se cantará en cada una", [...proximas, ...pasadas.filter((m) => (m.fechaUso || "") >= desde)]
+  const tarjetaMisa = (m) => {
+    const n = cuantas(m);
+    return tarjeta(caraMisa(m, "grande"), `data-misa="${esc(m.id)}"`, m.nombre || "Cancionero de misa",
+      [nombreComunidad(m.comunidad), fechaCorta(m.fechaUso), n + (n === 1 ? " canción" : " canciones")].filter(Boolean).join(" · "));
+  };
+
+  let html = "";
+  let otrosDomingos = [];
+
+  // 1) Sugerencia del próximo domingo (antes que cualquier otra estantería)
+  if (lista.length && domingos) try {
+    const cadena = lit.sugerirDomingos(domingos, { biblioteca: lista, misas }).filter((x) => x.fecha >= domingo);
+    const prox = cadena.find((x) => x.fecha === domingo) || cadena[0];
+    if (prox) {
+      const ev = lit.evangelioDe(prox.lecturas);
+      const nombre = prox.lecturas?.titulo ? lit.tituloLiturgico(prox.lecturas.titulo) : lit.nombreDelDia(prox.fecha);
+      const sobre = [nombre, ev ? "Evangelio según " + ev.cita : "Según el tiempo litúrgico"].join(" · ");
+      html += deCanciones("Misa del próximo domingo", sobre, prox.misa.momentos.flatMap((m) =>
+        m.canciones.map((c) => [st.porId.get(c.cancionId), m.momento, prox.motivos.get(m.momento)?.corto])).filter(([c]) => c));
+      otrosDomingos = cadena.filter((x) => x.fecha !== prox.fecha);
+    }
+  } catch (_) { /* sin sugerencias */ }
+
+  // 2) Misa del día (cancioneros con fecha de hoy)
+  html += estante("Misa del día", hoy === domingo ? "Hoy es domingo" : "Lo que se canta hoy", misasDelDia.slice(0, 12).map(tarjetaMisa));
+
+  // 3) Resto (otros domingos del mes, celebraciones, listas…)
+  for (const d of otrosDomingos) {
+    const ev2 = lit.evangelioDe(d.lecturas);
+    const nom2 = d.lecturas?.titulo ? lit.tituloLiturgico(d.lecturas.titulo) : lit.nombreDelDia(d.fecha);
+    const sobre2 = [nom2, ev2 ? "Evangelio según " + ev2.cita : "Según el tiempo litúrgico"].join(" · ");
+    const dia = new Date(d.fecha + "T12:00:00").toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
+    html += deCanciones(dia.charAt(0).toUpperCase() + dia.slice(1), sobre2, d.misa.momentos.flatMap((m) =>
+      m.canciones.map((c) => [st.porId.get(c.cancionId), m.momento, d.motivos.get(m.momento)?.corto])).filter(([c]) => c));
+  }
+
+  html += estante("Celebraciones", "Lo que se cantará en cada una", [...proximas, ...pasadas.filter((m) => (m.fechaUso || "") >= desde)]
     .filter(ceremonia).slice(0, 20).map((m) => {
       const cel = lit.celebracionPorId(m.celebracion);
       return tarjeta(caraCelebracion(m, "grande"), `data-misa="${esc(m.id)}"`, cel.nombre + (m.intencion ? ": " + m.intencion : ""),
         [fechaCorta(m.fechaUso), nombreComunidad(m.comunidad)].filter(Boolean).join(" · "));
     }));
-  html += estante("Cancioneros de misa", "Para escuchar y ensayar", [...proximas, ...pasadas].slice(0, 20).map((m) => {
-    const n = cuantas(m);
-    return tarjeta(caraMisa(m, "grande"), `data-misa="${esc(m.id)}"`, m.nombre || "Cancionero de misa",
-      [nombreComunidad(m.comunidad), fechaCorta(m.fechaUso), n + (n === 1 ? " canción" : " canciones")].filter(Boolean).join(" · "));
-  }));
+  html += estante("Cancioneros de misa", "Para escuchar y ensayar",
+    [...proximas, ...pasadas].filter((m) => (m.fechaUso || "") !== hoy).slice(0, 20).map(tarjetaMisa));
   html += estante("Tus listas", "En este equipo", st.listas.filter((l) => l.items.length).map((l) =>
     tarjeta(caraLista(l, "grande"), `data-inicio-lista="${esc(l.id)}"`, l.nombre, l.items.length + (l.items.length === 1 ? " canción" : " canciones"))));
 
-  // Inspiración: lo que cantan las demás parroquias y movimientos de Chile
   const ins = await inspiracion;
   if (lista.length) {
     html += deCanciones("Lo más cantado en Chile", "En los cancioneros de las parroquias este mes", ins.cantados
@@ -483,23 +515,11 @@ async function pintarInicio() {
     </div>`));
 
   if (lista.length) {
-    // Un estante por domingo desde hoy: los cantos sugeridos sin repetir ninguno en el mes
-    if (domingos) try {
-      for (const d of lit.sugerirDomingos(domingos, { biblioteca: lista, misas }).filter((x) => x.fecha >= domingo)) {
-        const ev = lit.evangelioDe(d.lecturas);
-        const nombre = d.lecturas?.titulo ? lit.tituloLiturgico(d.lecturas.titulo) : lit.nombreDelDia(d.fecha);
-        const sobre = [nombre, ev ? "Evangelio según " + ev.cita : "Según el tiempo litúrgico (lecturas aún no publicadas)"].join(" · ");
-        const dia = new Date(d.fecha + "T12:00:00").toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
-        html += deCanciones(dia.charAt(0).toUpperCase() + dia.slice(1), sobre, d.misa.momentos.flatMap((m) =>
-          m.canciones.map((c) => [st.porId.get(c.cancionId), m.momento, d.motivos.get(m.momento)?.corto])).filter(([c]) => c));
-      }
-    } catch (_) { /* sin sugerencias */ }
     const t = tiempoDomingo.toLowerCase();
     html += deCanciones("Del tiempo: " + tiempoDomingo, "Tiempo litúrgico",
       lista.filter((c) => (c.etiquetas || []).some((x) => x.toLowerCase() === t)).sort(ordenInicio).map((c) => [c]));
     for (const m of MOMENTOS_INICIO) {
       if (m === "Canto a María") {
-        // Los de María según el tiempo: en Navidad villancicos, en Cuaresma la Dolorosa…
         const tema = lit.temaMarianoDe(tiempoDomingo, domingo);
         html += deCanciones(m, tema ? "Para " + tema.nombre : "Momentos de la misa", lit.candidatosMomento(lista, m, { fechaUso: domingo, tiempoLiturgico: tiempoDomingo })
           .filter((x) => x.delMomento).map((x) => [x.cancion, m]));

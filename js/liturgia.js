@@ -812,10 +812,13 @@ export function sugerirCantos(misa, lecturas, { reemplazar = false, biblioteca =
     return temaDe.get(c.id);
   };
   const pesoTema = (c) => 12 * (ctx.temas.length - ctx.temas.indexOf(temaDeCanto(c).tema));
+  // Solo con audio/video: al reproducir de corrido se saltan las que no tienen y se pierde el momento
+  const conAudio = (c) => (c.audios || []).some((a) => a.fileId || (a.url && String(a.url).trim()
+    && !/^(javascript:|data:)/i.test(String(a.url))));
   const elegir = (filtro, extra = () => 0) => {
     let mejor = null, mejorP = -Infinity, mejorH = 0;
     for (const c of biblioteca) {
-      if (usadas.has(c.id) || !filtro(c)) continue;
+      if (usadas.has(c.id) || !conAudio(c) || !filtro(c)) continue;
       const p = puntajeCanto(c, ctx) + extra(c);
       const h = hashTexto((misa.fechaUso || "") + "|" + (misa.comunidad || "") + "|" + c.id);
       if (p > mejorP || (p === mejorP && h < mejorH)) [mejor, mejorP, mejorH] = [c, p, h];

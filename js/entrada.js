@@ -44,14 +44,14 @@ function limpiarQueryCambiar() {
   history.replaceState({}, "", u.pathname + (u.search || "") + u.hash);
 }
 
+/** Solo si ya respondió la bienvenida vieja (no usar mc-parroquia: config.js la setea siempre). */
 function migrarBienvenidaVieja() {
   try {
-    const yaVieja = localStorage.getItem("mc-bienvenida") === "1";
+    if (localStorage.getItem("mc-bienvenida") !== "1") return false;
     const slugViejo = localStorage.getItem("mc-parroquia");
-    if (!yaVieja && !slugViejo) return false;
     if (slugViejo && !leerPertenencias().length && localStorage.getItem("mc-solo-local") !== "1") {
       guardarPertenencias([{ slug: slugViejo, tipo: "parroquia", nombre: slugViejo }]);
-    } else if (!slugViejo && !leerPertenencias().length) {
+    } else if (!leerPertenencias().length) {
       marcarSoloLocal();
       return true;
     }
@@ -64,20 +64,24 @@ function migrarBienvenidaVieja() {
 
 const SLIDES = [
   {
+    img: "/Imagenes/onboarding/slide-1.jpg",
     titulo: "Cantos para el domingo",
-    texto: "Mirá el próximo domingo y las sugerencias según el tiempo litúrgico y las lecturas. Entrá y explorá qué tocar en la misa."
+    texto: "El próximo domingo y las sugerencias según el tiempo litúrgico y las lecturas: sabés qué tocar en la misa."
   },
   {
+    img: "/Imagenes/onboarding/slide-2.jpg",
     titulo: "Letra, acordes y audio",
     texto: "Cada canción trae letra con acordes en notación latina y audio. Transponé el tono y ensayá en el celular."
   },
   {
+    img: "/Imagenes/onboarding/slide-3.jpg",
     titulo: "Listas y cancioneros",
     texto: "Armá listas, guardá el cancionero de la misa y compartilo con el coro o la asamblea."
   },
   {
+    img: "/Imagenes/onboarding/slide-4.jpg",
     titulo: "Tu parroquia, cuando quieras",
-    texto: "Podés usar el cancionero ya. Después, en «Cambiar parroquia», unís tu comunidad para guardar en el sitio."
+    texto: "Podés usar el cancionero ya, sin identificarte. Después, en «Cambiar parroquia», unís tu comunidad."
   }
 ];
 
@@ -99,7 +103,10 @@ export function mostrarOnboardingSiCorresponde() {
       <div class="onb-pista" id="onb-pista">
         ${SLIDES.map(
           (s, i) => `<article class="onb-slide" data-i="${i}" ${i === 0 ? "" : "hidden"}>
-            <h2 id="onb-titulo">${esc(s.titulo)}</h2>
+            <figure class="onb-figura">
+              <img class="onb-captura" src="${esc(s.img)}" alt="" width="640" height="480" ${i === 0 ? 'fetchpriority="high"' : 'loading="lazy"'}>
+            </figure>
+            <h2>${esc(s.titulo)}</h2>
             <p class="onb-texto">${esc(s.texto)}</p>
           </article>`
         ).join("")}
@@ -113,6 +120,7 @@ export function mostrarOnboardingSiCorresponde() {
       </div>
     </div>
     <button type="button" class="btn btn-primario onb-entrar" id="onb-entrar">Entrar</button>
+    <p class="onb-pie">Sin identificarte podés usar el cancionero en este equipo.</p>
     <p class="onb-admin"><a href="/montecarmelo/login">Soy administrador</a></p>
   `
   );
