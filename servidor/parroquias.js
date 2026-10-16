@@ -3,9 +3,10 @@
 import { ErrorApi, ahora, texto, fecha as fechaValida, normEmail, emailValido, parsear, slug as slugDe, MAX_ARCHIVO_BYTES } from './util.js';
 import {
   usuarioDeToken, exigirResponsable, conPrivilegios, puedeEditar, auditar, buscarUsuario, guardarUsuario,
-  verificarGoogle, crearToken, sesionPublica
+  verificarGoogle, crearToken, sesionPublica, registrarVisitante
 } from './auth.js';
 import { guardarArchivo, borrarArchivos, leerCuerpo } from './archivos.js';
+import { CATALOGO_CHILE } from './catalogo-chile.js';
 
 export const PARROQUIA_DEFECTO = 'montecarmelo';
 
@@ -127,14 +128,22 @@ const comunidadPublica = (x) => ({
 // La foto que representa a la parroquia: la portada o la primera de su galería
 const fotoPrincipal = (p) => p.portada || (fotosPublicas(p.fotos)[0] || {}).url || '';
 
+// Catálogo / feligrés: aún sin ficha armada. Las ya existentes (sin origen) se consideran configuradas.
+export function esConfigurada(p) {
+  if (typeof p.configurada === 'boolean') return p.configurada;
+  return p.origen !== 'catalogo' && p.origen !== 'feligres';
+}
+
 // Lo que ven todos (páginas, manifest, app instalada)
 export function parroquiaPublica(p) {
   return {
     slug: p.slug, nombre: p.nombre || '', nombreCorto: p.nombreCorto || p.nombre || '', lema: p.lema || '',
     descripcion: p.descripcion || '', correo: p.correo || '', portada: p.portada || '',
     tipo: TIPOS.includes(p.tipo) ? p.tipo : 'parroquia', diocesis: p.diocesis || '', sitioWeb: p.sitioWeb || '',
+    sacerdoteNombre: p.sacerdoteNombre || '',
     ...ubicacionPublica(p), fotos: fotosPublicas(p.fotos), foto: fotoPrincipal(p),
     estado: p.estado || 'aprobada', oculta: !!p.oculta,
+    origen: p.origen || '', configurada: esConfigurada(p),
     iconos: Object.fromEntries(TAMANOS_ICONO.map((t) => [t, iconoDe(p, t)])),
     logoPropio: !!(p.iconos && p.iconos['192']),
     activa: p.activa !== false,
@@ -156,13 +165,13 @@ export async function parroquiasActivas(c) {
     c.db.prepare('SELECT slug, datos FROM parroquias ORDER BY slug').all(),
     c.db.prepare('SELECT parroquia, slug, datos FROM comunidades ORDER BY parroquia, orden, slug').all()
   ]);
-  // Las ocultas (de prueba o pendientes de aprobación) se abren con su dirección, pero no aparecen en la portada ni en el mapa
+  // Las ocultas se abren con su dirección, pero no aparecen en la portada ni en el mapa
   const lista = results.map((r) => ({ ...parsear(r.datos, {}), slug: r.slug, comunidades: [] }))
     .filter((p) => p.activa !== false && !p.oculta)
     .map((p) => ({
       slug: p.slug, nombre: p.nombre || p.slug, nombreCorto: p.nombreCorto || p.nombre || p.slug, icono: iconoDe(p, '192'),
       tipo: TIPOS.includes(p.tipo) ? p.tipo : 'parroquia', diocesis: p.diocesis || '', ...ubicacionPublica(p), foto: fotoPrincipal(p),
-      lema: p.lema || '',
+      lema: p.lema || '', origen: p.origen || '', configurada: esConfigurada(p),
       lugares: coms.filter((x) => x.parroquia === p.slug).map((x) => comunidadPublica({ ...parsear(x.datos, {}), slug: x.slug }))
         .filter((x) => x.lat != null).map(({ slug, nombre, clase, direccion, comuna, lat, lng, foto }) => ({ slug, nombre, clase, direccion, comuna, lat, lng, foto }))
     }))
@@ -194,7 +203,8 @@ const portadaValida = (s) => {
   return /^\/[\w%./-]{1,300}$/.test(s) || /^https:\/\/[^\s"'<>]{1,500}$/.test(s) ? s : '';
 };
 
-// Un responsable cambia la suya; el administrador general puede cambiar cualquiera (d.slug) y activarla o no
+// Un responsable cambia nombre, presentación, logo y galería de la suya.
+// Tipo, mapa, diócesis, sacerdote y activar/ocultar: solo el administrador general (panel Parroquias).
 async function guardarParroquia(c, d) {
   const yo = await usuarioDeToken(c, d.token);
   exigirResponsable(yo);
@@ -202,6 +212,7 @@ async function guardarParroquia(c, d) {
   if (slug !== c.slug && yo.rol !== 'admin_general') throw new ErrorApi('Solo el administrador general puede cambiar otra parroquia.');
   const actual = await datosGuardados(c, slug);
   const x = d.parroquia || {};
+  const general = yo.rol === 'admin_general';
   const nombre = texto(x.nombre ?? actual.nombre, 120);
   if (!nombre) throw new ErrorApi('Escribí el nombre de la parroquia.');
   const correo = normEmail(x.correo ?? actual.correo);
@@ -214,13 +225,25 @@ async function guardarParroquia(c, d) {
     descripcion: texto(x.descripcion ?? actual.descripcion, 4000),
     correo,
     portada: x.portada === undefined ? actual.portada || '' : portadaValida(x.portada),
-    tipo: TIPOS.includes(x.tipo) ? x.tipo : actual.tipo || 'parroquia',
-    diocesis: x.diocesis === undefined ? actual.diocesis || '' : texto(x.diocesis, 100),
-    sitioWeb: x.sitioWeb === undefined ? actual.sitioWeb || '' : urlWeb(x.sitioWeb),
-    ...limpiarUbicacion(x, actual),
     actualizado: ahora(),
     modificadoPor: yo.email
   };
+  if (general) {
+    nuevos.tipo = TIPOS.includes(x.tipo) ? x.tipo : actual.tipo || 'parroquia';
+    nuevos.diocesis = x.diocesis === undefined ? actual.diocesis || '' : texto(x.diocesis, 100);
+    nuevos.sitioWeb = x.sitioWeb === undefined ? actual.sitioWeb || '' : urlWeb(x.sitioWeb);
+    nuevos.sacerdoteNombre = x.sacerdoteNombre === undefined ? actual.sacerdoteNombre || '' : texto(x.sacerdoteNombre, 120);
+    Object.assign(nuevos, limpiarUbicacion(x, actual));
+    if (typeof x.configurada === 'boolean') nuevos.configurada = x.configurada;
+    else if (nuevos.lat != null || nuevos.sacerdoteNombre || (nuevos.comuna && nuevos.diocesis)) nuevos.configurada = true;
+  } else {
+    // El responsable no cambia la ficha de configuración (mapa, tipo, sacerdote…)
+    nuevos.tipo = actual.tipo || 'parroquia';
+    nuevos.diocesis = actual.diocesis || '';
+    nuevos.sitioWeb = actual.sitioWeb || '';
+    nuevos.sacerdoteNombre = actual.sacerdoteNombre || '';
+    Object.assign(nuevos, limpiarUbicacion({}, actual));
+  }
   // La galería: se reordena o se cambian los pies; las que se quitan se borran del almacenamiento
   let quitadas = [];
   if (Array.isArray(x.fotos)) {
@@ -231,11 +254,11 @@ async function guardarParroquia(c, d) {
     quitadas = previas.filter((f) => !quedan.has(f.id)).map((f) => f.id);
     if (quitadas.some((id) => '/api/archivo/' + id === nuevos.portada)) nuevos.portada = '';
   }
-  if (yo.rol === 'admin_general' && typeof x.activa === 'boolean') {
+  if (general && typeof x.activa === 'boolean') {
     if (!x.activa && slug === PARROQUIA_DEFECTO) throw new ErrorApi('La parroquia principal no se puede desactivar.');
     nuevos.activa = x.activa;
   }
-  if (yo.rol === 'admin_general' && typeof x.oculta === 'boolean') {
+  if (general && typeof x.oculta === 'boolean') {
     if (x.oculta && slug === PARROQUIA_DEFECTO) throw new ErrorApi('La parroquia principal no se puede ocultar.');
     nuevos.oculta = x.oculta;
   }
@@ -336,7 +359,9 @@ async function listarParroquias(c, d) {
         responsables: resp.filter((x) => x.parroquia === p.slug).map((x) => x.email),
         estado: p.estado || 'aprobada', tipo: TIPOS.includes(p.tipo) ? p.tipo : 'parroquia', diocesis: p.diocesis || '',
         comuna: p.comuna || '', region: p.region || '', direccion: p.direccion || '', sitioWeb: p.sitioWeb || '',
-        solicitud: p.solicitud || null, cambiosPedidos: p.cambiosPedidos || ''
+        lat: typeof p.lat === 'number' ? p.lat : null, lng: typeof p.lng === 'number' ? p.lng : null,
+        sacerdoteNombre: p.sacerdoteNombre || '', origen: p.origen || '', configurada: esConfigurada(p),
+        solicitud: p.solicitud || null, creadoPor: p.creadoPor || ''
       };
     })
   };
@@ -356,7 +381,8 @@ async function crearParroquia(c, d) {
   if (correo && !emailValido(correo)) throw new ErrorApi('El correo del responsable no es válido.');
   const datos = {
     nombre, nombreCorto: texto(d.nombreCorto, 40) || nombre.replace(/^Parroquia\s+/i, '').slice(0, 40),
-    lema: '', descripcion: '', correo, portada: '', iconos: {}, activa: true, oculta: !!d.oculta, creado: ahora(), creadoPor: yo.email
+    lema: '', descripcion: '', correo, portada: '', iconos: {}, activa: true, oculta: !!d.oculta,
+    origen: 'admin', configurada: false, creado: ahora(), creadoPor: yo.email
   };
   await c.db.prepare('INSERT INTO parroquias (slug, datos) VALUES (?, ?)').bind(slug, JSON.stringify(datos)).run();
   olvidarParroquia(slug);
@@ -548,11 +574,11 @@ async function borrarNoticia(c, d) {
   return {};
 }
 
-// ==================== SOLICITUDES (/sumar) ====================
-// Una parroquia o un movimiento se suma solo: queda oculta y pendiente hasta que el administrador general la aprueba.
-// Quien la pide entra con Google y queda como Responsable; puede ir cargando todo mientras tanto.
+// ==================== ALTA (/sumar) ====================
+// Nombre + Google: se publica al tiro; quien entra queda como Responsable (admin_segundo).
+// El mapa, el sacerdote y el resto los completa después el administrador general.
 
-const MAX_SOLICITUDES_DIA = 20;
+const MAX_ALTAS_DIA = 20;
 
 async function slugDisponible(c, p) {
   const s = String(p.slug || '').trim().toLowerCase();
@@ -561,50 +587,48 @@ async function slugDisponible(c, p) {
   return { ok: true, disponible: !existe, motivo: existe ? 'Esa dirección ya está ocupada.' : '' };
 }
 
+/** Propone un slug libre a partir del nombre (o del slug pedido), con sufijo -2, -3… si hace falta. */
+async function slugLibre(c, preferido, nombre) {
+  let base = String(preferido || '').trim().toLowerCase();
+  if (!slugValido(base)) {
+    base = slugDe(nombre || '').replace(/^(parroquia|movimiento)-/, '').slice(0, 40);
+  }
+  if (!slugValido(base)) base = ('p-' + Date.now().toString(36)).slice(0, 40);
+  let s = base;
+  for (let i = 2; !slugValido(s) || await c.db.prepare('SELECT 1 FROM parroquias WHERE slug = ?').bind(s).first(); i++) {
+    const suf = '-' + i;
+    s = (base.slice(0, 40 - suf.length) + suf).replace(/-+$/, '');
+    if (i > 50) throw new ErrorApi('No se pudo inventar una dirección libre. Probá con otro nombre.');
+  }
+  return s;
+}
+
 async function solicitarParroquia(c, d) {
   const g = await verificarGoogle(c, d.credential);
   const s = d.solicitud || {};
-  const slug = String(s.slug || '').trim().toLowerCase();
-  if (!slugValido(slug)) throw new ErrorApi('La dirección tiene que tener entre 3 y 40 letras minúsculas, números o guiones (sin tildes ni espacios).');
-  if (await c.db.prepare('SELECT 1 FROM parroquias WHERE slug = ?').bind(slug).first()) throw new ErrorApi('La dirección «' + slug + '» ya está ocupada: probá otra.');
   const nombre = texto(s.nombre, 120);
   if (!nombre) throw new ErrorApi('Escribí el nombre de la parroquia o del movimiento.');
-  const r = s.responsable || {};
-  const telefono = texto(r.telefono, 30);
-  if (telefono.replace(/\D/g, '').length < 8) throw new ErrorApi('Escribí un WhatsApp para contactarte (con código de país, por ejemplo +56 9 1234 5678).');
-  const { results: solicitudes } = await c.db.prepare(
-    "SELECT json_extract(datos, '$.solicitud.email') AS email, json_extract(datos, '$.creado') AS creado FROM parroquias " +
-    "WHERE json_extract(datos, '$.solicitud') IS NOT NULL").all();
-  const enRevision = await c.db.prepare(
-    "SELECT 1 FROM parroquias WHERE json_extract(datos, '$.estado') = 'pendiente' AND json_extract(datos, '$.solicitud.email') = ?").bind(g.email).first();
-  if (enRevision) throw new ErrorApi('Ya tenés una solicitud en revisión. Te escribimos apenas la revisemos.');
+  const { results: altas } = await c.db.prepare(
+    "SELECT json_extract(datos, '$.creado') AS creado FROM parroquias " +
+    "WHERE json_extract(datos, '$.creadoPor') IS NOT NULL OR json_extract(datos, '$.solicitud') IS NOT NULL").all();
   const desde = new Date(Date.now() - 86400000).toISOString();
-  if (solicitudes.filter((x) => (x.creado || '') > desde).length >= MAX_SOLICITUDES_DIA) {
-    throw new ErrorApi('Hoy llegaron muchas solicitudes. Probá mañana o escribinos a cancionerolitugico@gmail.com.');
+  if (altas.filter((x) => (x.creado || '') > desde).length >= MAX_ALTAS_DIA) {
+    throw new ErrorApi('Hoy se sumaron muchas parroquias. Probá mañana o escribinos a cancionerolitugico@gmail.com.');
   }
-  const tipo = TIPOS.includes(s.tipo) ? s.tipo : 'parroquia';
+  const slug = await slugLibre(c, s.slug, nombre);
   const solicitud = {
-    nombre: texto(r.nombre, 100) || g.nombre || g.email, cargo: texto(r.cargo, 80), telefono, email: g.email, fecha: ahora()
+    nombre: texto((s.responsable || {}).nombre, 100) || g.nombre || g.email,
+    email: g.email, fecha: ahora()
   };
   const datos = {
     nombre, nombreCorto: texto(s.nombreCorto, 40) || nombre.replace(/^(Parroquia|Movimiento)\s+/i, '').slice(0, 40),
-    tipo, diocesis: texto(s.diocesis, 100), sitioWeb: urlWeb(s.sitioWeb), ...limpiarUbicacion(s),
-    lema: '', descripcion: texto(s.descripcion, 4000), correo: g.email, portada: '', iconos: {}, fotos: [],
-    activa: true, oculta: true, estado: 'pendiente', solicitud, creado: ahora(), creadoPor: g.email
+    tipo: 'parroquia', diocesis: '', sitioWeb: '', sacerdoteNombre: '',
+    direccion: '', comuna: '', region: '', lat: null, lng: null,
+    lema: '', descripcion: '', correo: g.email, portada: '', iconos: {}, fotos: [],
+    activa: true, oculta: false, estado: 'aprobada', origen: 'sumar', configurada: false,
+    solicitud, creado: ahora(), creadoPor: g.email
   };
-  const coms = [];
-  for (const x of (Array.isArray(s.comunidades) ? s.comunidades : []).slice(0, 40)) {
-    const n = texto(x && x.nombre, 100);
-    if (!n) continue;
-    let cs = slugDe(n).slice(0, 50);
-    for (let i = 2; cs === 'parroquia' || coms.some((y) => y.slug === cs); i++) cs = slugDe(n).slice(0, 50) + '-' + i;
-    coms.push({ slug: cs, datos: { nombre: n, carpetaCancioneros: n, clase: CLASES.includes(x.clase) ? x.clase : 'comunidad', ...limpiarUbicacion(x), foto: '' } });
-  }
-  await c.db.batch([
-    c.db.prepare('INSERT INTO parroquias (slug, datos) VALUES (?, ?)').bind(slug, JSON.stringify(datos)),
-    ...coms.map((x, i) => c.db.prepare('INSERT INTO comunidades (parroquia, slug, orden, datos) VALUES (?, ?, ?, ?)')
-      .bind(slug, x.slug, i + 1, JSON.stringify(x.datos)))
-  ]);
+  await c.db.prepare('INSERT INTO parroquias (slug, datos) VALUES (?, ?)').bind(slug, JSON.stringify(datos)).run();
   olvidarParroquia(slug);
   const enNueva = { ...c, slug, parroquia: null };
   const yo = (await buscarUsuario(enNueva, g.email)) || { id: 'u-' + Date.now(), email: g.email, creado: ahora() };
@@ -613,57 +637,157 @@ async function solicitarParroquia(c, d) {
   if (yo.rol !== 'admin_general') Object.assign(yo, { rol: 'admin_segundo', comunidad: 'parroquia', activo: true });
   Object.assign(yo, { verificado: true, ultimaEntrada: ahora() });
   await guardarUsuario(enNueva, yo);
-  await auditar(enNueva, { tipo: 'parroquia_solicitada', email: g.email, nombre: yo.nombre, titulo: nombre, parroquia: slug, telefono });
+  await auditar(enNueva, { tipo: 'parroquia_creada', email: g.email, nombre: yo.nombre, titulo: nombre, parroquia: slug });
   return {
     slug, url: urlParroquia(c, slug), parroquia: parroquiaPublica(await leerParroquia(c, slug)),
     token: await crearToken(enNueva, yo), sesion: sesionPublica(await buscarUsuario(enNueva, g.email))
   };
 }
 
-const PIE_BIENVENIDA = '\n\nEl Cancionero Litúrgico es gratuito y lo sostenemos entre todos. Si pueden, nos ayuda mucho que:\n' +
-  '• suban los audios y las letras de los cantos que usan (con acordes en notación latina);\n' +
-  '• nos avisen si encuentran un error en una canción;\n' +
-  '• lo compartan con otras parroquias y movimientos;\n' +
-  '• y, si quieren, colaboren con una donación desde el editor (Colaborar).\n\nQue Dios los bendiga.\nCancionero Litúrgico · cancionerolitugico@gmail.com';
+const normBusca = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
-// Aprobar, pedir cambios o rechazar una solicitud. Devuelve el mensaje para mandar por WhatsApp o correo.
-async function resolverSolicitud(c, d) {
+async function buscarPorNombre(c, nombre, comuna) {
+  const q = normBusca(nombre);
+  if (!q) return null;
+  const com = normBusca(comuna);
+  const { results } = await c.db.prepare('SELECT slug, datos FROM parroquias').all();
+  let mejor = null, mejorPuntos = 0;
+  for (const r of results) {
+    const p = { ...parsear(r.datos, {}), slug: r.slug };
+    if (p.activa === false) continue;
+    const n = normBusca(p.nombre);
+    const nc = normBusca(p.nombreCorto);
+    let pts = 0;
+    if (n === q || nc === q) pts = 100;
+    else if (n.includes(q) || q.includes(n) || nc.includes(q)) pts = 50;
+    else continue;
+    if (com && normBusca(p.comuna) === com) pts += 20;
+    if (pts > mejorPuntos) { mejor = p; mejorPuntos = pts; }
+  }
+  return mejor;
+}
+
+async function crearMinima(c, { nombre, comuna, region, diocesis, tipo, lat, lng, origen, creadoPor }) {
+  const slug = await slugLibre(c, '', nombre);
+  const datos = {
+    nombre, nombreCorto: nombre.replace(/^(Parroquia|Movimiento)\s+/i, '').slice(0, 40),
+    tipo: TIPOS.includes(tipo) ? tipo : 'parroquia',
+    diocesis: texto(diocesis, 100), sitioWeb: '', sacerdoteNombre: '',
+    direccion: '', comuna: texto(comuna, 80), region: texto(region, 80) || 'Región Metropolitana',
+    lat: typeof lat === 'number' ? lat : null, lng: typeof lng === 'number' ? lng : null,
+    lema: '', descripcion: '', correo: '', portada: '', iconos: {}, fotos: [],
+    activa: true, oculta: false, estado: 'aprobada',
+    origen: origen || 'feligres', configurada: false,
+    creado: ahora(), creadoPor: creadoPor || ''
+  };
+  await c.db.prepare('INSERT INTO parroquias (slug, datos) VALUES (?, ?)').bind(slug, JSON.stringify(datos)).run();
+  olvidarParroquia(slug);
+  return { slug, ...datos };
+}
+
+const MAX_FELIGRES_DIA = 40;
+
+/** Feligrés: correo o Google. Usa slug existente, busca por nombre, o crea un espacio mínimo. */
+async function unirseComoFeligres(c, d) {
+  let email = '', nombre = '', via = 'correo';
+  if (d.credential) {
+    const g = await verificarGoogle(c, d.credential);
+    email = g.email; nombre = g.nombre || ''; via = 'google';
+  } else {
+    email = normEmail(d.email);
+    if (!emailValido(email)) throw new ErrorApi('Escribí un correo electrónico válido (Gmail u otro).');
+    nombre = texto(d.nombre, 80);
+  }
+  let slug = String(d.slug || '').trim().toLowerCase();
+  let p = slugValido(slug) ? await leerParroquia(c, slug) : null;
+  let creada = false;
+  if (!p || !p.activa) {
+    const hallada = await buscarPorNombre(c, d.nombre || '', d.comuna || '');
+    if (hallada && hallada.activa !== false) {
+      p = hallada;
+      slug = hallada.slug;
+    } else {
+      const nom = texto(d.nombre, 120);
+      if (!nom) throw new ErrorApi('Escribí el nombre de tu parroquia o movimiento.');
+      const { results: altas } = await c.db.prepare(
+        "SELECT json_extract(datos, '$.creado') AS creado FROM parroquias WHERE json_extract(datos, '$.origen') IN ('feligres','catalogo','sumar')"
+      ).all();
+      const desde = new Date(Date.now() - 86400000).toISOString();
+      if (altas.filter((x) => (x.creado || '') > desde).length >= MAX_FELIGRES_DIA) {
+        throw new ErrorApi('Hoy se crearon muchas parroquias nuevas. Probá mañana o escribinos a cancionerolitugico@gmail.com.');
+      }
+      p = await crearMinima(c, {
+        nombre: nom, comuna: d.comuna || '', region: d.region || '', diocesis: d.diocesis || '',
+        tipo: d.tipo || 'parroquia', origen: 'feligres', creadoPor: email
+      });
+      slug = p.slug;
+      creada = true;
+    }
+  }
+  if (!p.activa) throw new ErrorApi('Esa parroquia no está disponible por ahora.');
+  const en = { ...c, slug, parroquia: null };
+  let yo = await buscarUsuario(en, email);
+  if (!yo) yo = { id: 'u-' + Date.now(), email, nombre: nombre || email, rol: 'visitante', comunidad: '', activo: true, creado: ahora() };
+  else if (nombre && (!yo.nombre || yo.nombre === yo.email)) yo.nombre = nombre;
+  if (via === 'google') yo.verificado = true;
+  yo.ultimaEntrada = ahora();
+  await guardarUsuario(en, yo);
+  await registrarVisitante(en, email, yo.nombre, via);
+  await auditar(en, { tipo: 'entrada_feligres', email, nombre: yo.nombre, parroquia: slug });
+  const sesion = {
+    email, nombre: yo.nombre || email, rol: ROLES_SAFE(yo), comunidad: yo.comunidad || '',
+    activo: true, parroquia: slug, foto: yo.foto || ''
+  };
+  return { slug, url: urlParroquia(c, slug), sesion, creada };
+}
+
+function ROLES_SAFE(yo) {
+  // Sin importar ROLES acá: visitante salvo que ya sea miembro con privilegios
+  const r = yo.rol || 'visitante';
+  return ['admin_general', 'admin_segundo', 'sacerdote', 'admin', 'editor', 'colaborador'].includes(r) ? r : 'visitante';
+}
+
+/** Importa el catálogo diocesano embebido: solo inserta las que aún no existen (por slug). */
+async function importarCatalogo(c, d) {
   const yo = await usuarioDeToken(c, d.token);
   soloGeneral(yo);
-  const slug = String(d.slug || '');
-  const datos = await datosGuardados(c, slug);
-  const decision = String(d.decision || '');
-  const nota = texto(d.nota, 2000);
-  const s = datos.solicitud || {};
-  const quien = (s.nombre || '').split(' ')[0] || '';
-  const url = urlParroquia(c, slug);
-  const de = datos.tipo === 'movimiento' ? 'del movimiento ' : 'de la ';
-  let mensaje;
-  if (decision === 'aprobar') {
-    Object.assign(datos, { estado: 'aprobada', oculta: false, activa: true, aprobada: ahora(), aprobadaPor: yo.email });
-    mensaje = '¡Hola' + (quien ? ' ' + quien : '') + '! Bienvenidos al Cancionero Litúrgico 🎶\n\nYa está publicada la página ' + de + datos.nombre +
-      ': ' + url + '\n\nDesde ahí pueden armar los cancioneros de cada misa, subir fotos, noticias y sumar a las personas de sus comunidades. ' +
-      'Compartan el enlace con su comunidad: se abre en el celular, el PC o la pantalla del templo, y se instala como app.' +
-      (nota ? '\n\n' + nota : '') + PIE_BIENVENIDA;
-  } else if (decision === 'cambios') {
-    Object.assign(datos, { estado: 'pendiente', cambiosPedidos: ahora() });
-    mensaje = 'Hola' + (quien ? ' ' + quien : '') + ', gracias por sumar ' + (datos.tipo === 'movimiento' ? 'el movimiento ' : 'la ') + datos.nombre +
-      ' al Cancionero Litúrgico. Antes de publicarla necesitamos un par de cambios:\n\n' + (nota || '…') +
-      '\n\nPueden hacerlos entrando a ' + url + 'inicio con su cuenta de Google. Cuando estén, avísennos por acá. ¡Gracias!';
-  } else if (decision === 'rechazar') {
-    Object.assign(datos, { estado: 'rechazada', oculta: true, activa: false, rechazada: ahora() });
-    mensaje = 'Hola' + (quien ? ' ' + quien : '') + ', gracias por escribir al Cancionero Litúrgico. Por ahora no podemos publicar ' + datos.nombre + '.' +
-      (nota ? '\n\n' + nota : '') + '\n\nSi tienen dudas, escríbannos a cancionerolitugico@gmail.com.';
-  } else {
-    throw new ErrorApi('Decisión desconocida.');
+  const lote = Array.isArray(d.entradas) && d.entradas.length ? d.entradas : CATALOGO_CHILE;
+  let creadas = 0, omitidas = 0;
+  const stmts = [];
+  for (const e of lote) {
+    const nombre = texto(e.nombre, 120);
+    if (!nombre) continue;
+    let slug = String(e.slug || '').trim().toLowerCase();
+    if (!slugValido(slug)) slug = await slugLibre(c, '', nombre + (e.comuna ? ' ' + e.comuna : ''));
+    const existe = await c.db.prepare('SELECT 1 FROM parroquias WHERE slug = ?').bind(slug).first();
+    if (existe) { omitidas++; continue; }
+    const datos = {
+      nombre, nombreCorto: texto(e.nombreCorto, 40) || nombre.replace(/^(Parroquia|Movimiento)\s+/i, '').slice(0, 40),
+      tipo: TIPOS.includes(e.tipo) ? e.tipo : 'parroquia',
+      diocesis: texto(e.diocesis, 100) || 'Arquidiócesis de Santiago',
+      sitioWeb: '', sacerdoteNombre: '',
+      direccion: texto(e.direccion, 200), comuna: texto(e.comuna, 80), region: texto(e.region, 80) || 'Región Metropolitana',
+      lat: typeof e.lat === 'number' ? e.lat : null, lng: typeof e.lng === 'number' ? e.lng : null,
+      lema: '', descripcion: '', correo: '', portada: '', iconos: {}, fotos: [],
+      activa: true, oculta: false, estado: 'aprobada',
+      origen: 'catalogo', configurada: false,
+      creado: ahora(), creadoPor: yo.email
+    };
+    stmts.push(c.db.prepare('INSERT INTO parroquias (slug, datos) VALUES (?, ?)').bind(slug, JSON.stringify(datos)));
+    creadas++;
   }
-  await guardarDatos(c, slug, datos);
-  await auditar(c, { tipo: 'solicitud_' + decision, email: yo.email, nombre: yo.nombre, parroquia: slug, titulo: datos.nombre });
-  return { mensaje, telefono: s.telefono || '', email: s.email || datos.correo || '', nombre: datos.nombre };
+  if (stmts.length) {
+    // D1 batch límite ~100; trocear
+    for (let i = 0; i < stmts.length; i += 40) await c.db.batch(stmts.slice(i, i + 40));
+  }
+  olvidarParroquia('*lista');
+  cache.delete('*lista');
+  await auditar(c, { tipo: 'catalogo_importado', email: yo.email, nombre: yo.nombre, titulo: creadas + ' nuevas' });
+  return { creadas, omitidas, totalCatalogo: lote.length };
 }
 
 export const accionesParroquias = {
   guardarParroquia, guardarComunidad, ordenarComunidades, borrarComunidad, listarParroquias, crearParroquia,
-  guardarNoticia, borrarNoticia, quitarFotoComunidad, solicitarParroquia, resolverSolicitud
+  guardarNoticia, borrarNoticia, quitarFotoComunidad, solicitarParroquia, unirseComoFeligres, importarCatalogo
 };
 export const lecturasParroquias = { parroquia, parroquias, noticias, slugDisponible };

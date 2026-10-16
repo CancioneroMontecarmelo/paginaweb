@@ -28,6 +28,7 @@
  */
 
 import { initNavSitio, sesionActual, llamarApi, puedeEditar } from "./auth.js";
+import { mostrarBienvenidaSiCorresponde } from "./bienvenida.js";
 import { COMUNIDADES, PARROQUIA } from "./comunidades.js";
 import * as lit from "./liturgia.js";
 import { activarPosturas, cerrar as cerrarPostura } from "./posturas.js";
@@ -3486,6 +3487,7 @@ async function iniciar() {
   await cargarBiblioteca();
   pintarInicio();
   arrancar();
+  mostrarBienvenidaSiCorresponde();
 }
 
 iniciar();

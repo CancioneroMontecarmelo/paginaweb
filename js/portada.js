@@ -4,6 +4,7 @@
  */
 
 import { mostrarMapa, distanciaKm } from "./mapa.js";
+import { abrirUnirseFeligres } from "./feligres.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -19,12 +20,19 @@ const TIPO = { parroquia: "Parroquia", movimiento: "Movimiento" };
 function tarjeta(p) {
   const foto = p.foto ? `<img class="po-foto" src="${esc(p.foto)}" alt="" loading="lazy">` : `<img class="po-icono" src="${esc(p.icono)}" alt="" loading="lazy" width="64" height="64">`;
   const dist = cerca && p.lat != null ? ` · a ${Math.round(distanciaKm(cerca, p))} km` : "";
-  return `<li><a class="po-tarjeta" href="/${esc(p.slug)}/">
+  const estado = p.configurada
+    ? ""
+    : `<em class="po-catalogo">Aún sin cancionero propio · entra como feligrés</em>`;
+  return `<li data-slug="${esc(p.slug)}" data-nombre="${esc(p.nombre)}" data-comuna="${esc(p.comuna || "")}" data-configurada="${p.configurada ? "1" : "0"}">
+    <a class="po-tarjeta" href="/${esc(p.slug)}/">
     <span class="po-media">${foto}</span>
     <span class="po-textos"><strong>${esc(p.nombre)}</strong>
       <span>${esc(TIPO[p.tipo] || "Parroquia")}${lugar(p) ? " · " + esc(lugar(p)) : ""}${dist}</span>
-      ${p.lema ? `<em>${esc(p.lema)}</em>` : ""}</span></a>
-    <a class="po-mas" href="/${esc(p.slug)}/inicio">Página de la ${p.tipo === "movimiento" ? "comunidad" : "parroquia"}</a></li>`;
+      ${p.lema ? `<em>${esc(p.lema)}</em>` : ""}${estado}</span></a>
+    <span class="po-acciones">
+      <a class="po-mas" href="/${esc(p.slug)}/">Abrir cancionero</a>
+      <button type="button" class="po-feligres btn-chico" data-feligres>Soy feligrés</button>
+    </span></li>`;
 }
 
 function filtradas() {
@@ -40,7 +48,7 @@ function puntosDe(r) {
   for (const p of r) {
     if (p.lat != null) {
       puntos.push({ lat: p.lat, lng: p.lng, titulo: p.nombre, subtitulo: lugar(p), tipo: p.tipo, grande: true, foto: p.foto,
-        href: "/" + p.slug + "/", textoEnlace: "Abrir su cancionero" });
+        href: "/" + p.slug + "/", textoEnlace: p.configurada ? "Abrir su cancionero" : "Entrar (feligrés)" });
     }
     for (const x of p.lugares || []) {
       puntos.push({ lat: x.lat, lng: x.lng, titulo: x.nombre, subtitulo: p.nombreCorto + (x.comuna ? " · " + x.comuna : ""), tipo: x.clase, foto: x.foto,
@@ -53,13 +61,28 @@ function puntosDe(r) {
 let pendienteMapa = 0;
 function pintar() {
   const r = filtradas();
-  $("#po-lista").innerHTML = r.map(tarjeta).join("");
+  const listaEl = $("#po-lista");
+  listaEl.innerHTML = r.map(tarjeta).join("");
   $("#po-vacio").hidden = r.length > 0;
   const n = lista.length;
-  $("#po-resumen").textContent = n
-    ? (r.length === n ? n + (n === 1 ? " parroquia o movimiento ya usa" : " parroquias y movimientos ya usan") + " el Cancionero. Toca una para abrir su cancionero."
-      : r.length + " de " + n + ".")
-    : "Toca una para abrir su cancionero.";
+  const conCancionero = lista.filter((p) => p.configurada).length;
+  const q = ($("#po-q").value || "").trim();
+  if (!n) {
+    $("#po-resumen").textContent = "Todavía no hay parroquias en el directorio. Puedes sumar la tuya o entrar como feligrés escribiendo su nombre.";
+  } else if (r.length === n) {
+    $("#po-resumen").textContent = n + " en el directorio · " + conCancionero + (conCancionero === 1 ? " ya usa" : " ya usan") +
+      " el Cancionero. Toca una para abrirla o entra como feligrés.";
+  } else {
+    $("#po-resumen").textContent = r.length + " de " + n + ".";
+  }
+  // Si busca y no hay resultados, ofrecer crear / unirse por nombre
+  const vacio = $("#po-vacio");
+  if (!r.length && q) {
+    vacio.hidden = false;
+    vacio.innerHTML = `No encontramos «${esc(q)}». <button type="button" class="btn btn-primario" id="po-crear-feligres">Entrar como feligrés de esa parroquia</button> o <a href="/sumar">súmala como administrador</a>.`;
+    const b = $("#po-crear-feligres");
+    if (b) b.addEventListener("click", () => abrirUnirseFeligres({ nombre: q }));
+  }
   clearTimeout(pendienteMapa);
   pendienteMapa = setTimeout(() => {
     const caja = $("#po-mapa");
@@ -100,12 +123,22 @@ function conectar() {
       alert("No pudimos saber dónde estás. Busca por tu comuna.");
     }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
   });
+  $("#po-lista").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-feligres]");
+    if (!b) return;
+    e.preventDefault();
+    const li = b.closest("li");
+    if (!li) return;
+    abrirUnirseFeligres({ slug: li.dataset.slug, nombre: li.dataset.nombre, comuna: li.dataset.comuna });
+  });
   const nav = $(".nav-sitio");
   const onScroll = () => nav.classList.toggle("scrolled", window.scrollY > 24);
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
   const q = new URLSearchParams(location.search).get("q");
   if (q) $("#po-q").value = q;
+  const params = new URLSearchParams(location.search);
+  if (params.has("unir")) abrirUnirseFeligres({ nombre: params.get("unir") || "" });
 }
 
 conectar();

@@ -197,9 +197,28 @@
   color: var(--texto-suave);
 }
 
+.po-catalogo {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--terracota, #8a5a3c);
+  font-style: normal;
+}
+
+.po-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  padding: 0 1rem 0.85rem;
+}
+
 .po-mas {
-  padding: 0.2rem 1rem 0.85rem;
   font-size: 0.85rem;
+}
+
+.po-feligres {
+  margin: 0;
 }
 
 .po-vacio {

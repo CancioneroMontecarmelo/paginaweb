@@ -6,7 +6,7 @@
 // El aviso del sábado (Web Push) llega sin contenido: se pide el texto a la parroquia y se guardan las letras del
 // cancionero del domingo (caché «mc-datos», con la misma dirección que pide el reproductor).
 
-const CACHE = 'mc-app-8';
+const CACHE = 'mc-app-10';
 const DATOS = 'mc-datos';
 const AUDIOS = 'mc-audios';
 const AVISO = '/__aviso';
@@ -16,7 +16,7 @@ const SHELL = [
   '/icons/reproductor-180.png', '/icons/reproductor-192.png', '/icons/reproductor-512.png',
   ...['site', 'posturas', 'partituras', 'voces', 'dialogos', 'reproductor'].map((n) => `/css/${n}.css`),
   ...['reproductor', 'auth', 'comunidades', 'liturgia', 'posturas', 'partituras', 'voces', 'youtube-embed', 'misas-shim', 'sala', 'lector-qr',
-    'cambiar-cancion', 'momento-nuevo', 'aviso', 'tarjeta'].map((n) => `/js/${n}.js`),
+    'cambiar-cancion', 'momento-nuevo', 'aviso', 'tarjeta', 'bienvenida', 'feligres'].map((n) => `/js/${n}.js`),
   '/js/vendor/qrcode.mjs',
   ...['acordes', 'markdown', 'etiquetas', 'buscar', 'instrumentos', 'rasgueos', 'render', 'caratula'].map((n) => `/editor/js/${n}.js`)
 ];

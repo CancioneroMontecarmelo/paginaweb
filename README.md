@@ -26,22 +26,24 @@ viven en una base **D1** y los archivos (audios, partituras, cancioneros publica
 
 ## Para todo Chile
 
-- **Sumar una parroquia o movimiento** (`/sumar`, `sumar.html` + `js/sumar.js`): un asistente de cinco pasos
-  (tipo, nombre y dirección propia, ubicación en el mapa y foto, capillas o grupos, responsable con Google). La
-  parroquia queda creada **oculta y pendiente** y quien la pidió entra como responsable (`admin_segundo`): puede
-  usarla al tiro. Se avisa por correo a la parroquia (formsubmit).
-- **Solicitudes** (Identificarse → Parroquias, solo administrador general): aprobar (la parroquia aparece en la
-  portada, el mapa y los buscadores), pedir cambios o rechazar, con el mensaje de bienvenida listo para
-  WhatsApp o correo.
-- **Ficha de cada parroquia**: tipo, diócesis, sitio web, dirección con mapa (Leaflet + OpenStreetMap,
-  `js/mapa.js`; la búsqueda de direcciones usa Nominatim, máximo una por segundo) y hasta 12 fotos en R2
-  (`parroquias/<slug>/fotos/`). Las capillas y grupos también tienen dirección y foto. Se edita en
-  **Datos de la parroquia** (`js/ficha-parroquia.js`) y se ve en Inicio y en cada comunidad.
+- **Catálogo diocesano** (`servidor/catalogo-chile.js`, `datos/catalogo-chile.json`): primera tanda =
+  Arquidiócesis de Santiago + movimientos. El admin general importa con **Importar catálogo** (no pisa
+  slugs existentes). Campos `origen` (`catalogo` / `sumar` / `feligres` / `admin`) y `configurada`.
+- **Feligrés** (`unirseComoFeligres`, `js/feligres.js`): correo o Google; usa slug o nombre; si no existe,
+  crea un espacio mínimo y entra al reproductor como `visitante`. Distinto de **/sumar** (administrador).
+- **Sumar** (`/sumar`): solo el **nombre** + Google → `admin_segundo` y reproductor al tiro. El mapa, el tipo,
+  la diócesis y el sacerdote se completan después en el panel del administrador general.
+- **Configurar parroquias** (Identificarse → Parroquias): importar catálogo, activar/ocultar y **Configurar**
+  (mapa, tipo, diócesis, `sacerdoteNombre`).
+- **Primer ingreso** (`js/bienvenida.js`): feligrés, buscar, sumar o seguir sin identificarse (guardado local).
+- **Ficha de cada parroquia**: tipo, diócesis, sacerdote, sitio web, dirección con mapa (Leaflet + OpenStreetMap,
+  `js/mapa.js`) y hasta 12 fotos en R2. Se ve en Inicio y en cada comunidad; la configuración de ubicación la
+  hace el administrador general.
 - **En el sitio de la parroquia**: `/<parroquia>/embebido` es el reproductor sin el menú del sitio, para un
-  `<iframe>`; el código del recuadro y del botón está en Datos de la parroquia y al final de `/sumar`.
+  `<iframe>`; el código del recuadro y del botón está en Datos de la parroquia.
 - **Buscadores**: la portada lleva JSON-LD (WebSite con búsqueda, Organization, la lista de parroquias); cada
-  parroquia, `Church` u `Organization` con dirección, mapa y foto (`og:image`). Las ocultas o pendientes van con
-  `noindex`. El sitemap suma `/sumar`, `/agradecimientos` y las parroquias aprobadas.
+  parroquia, `Church` u `Organization` con dirección, mapa y foto (`og:image`). Las ocultas van con
+  `noindex`. El sitemap suma `/sumar`, `/agradecimientos` y las parroquias visibles.
 - **Agradecimientos** (`/agradecimientos`): inspiración (cancionerocatolico.cl y René Valencia), los cantos
   propios, los autores (de los créditos de la Biblioteca), los canales de YouTube y sitios de donde vienen los
   audios (nombres por oEmbed, tabla `fuentes`), las parroquias y quienes colaboran. Se arma en el servidor

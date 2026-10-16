@@ -304,16 +304,23 @@ export async function botonGoogle(contenedor, alEntrar, alFallar) {
   });
 }
 
+function avisarPertenenciaSiVisitante(sesion) {
+  if (!sesion || sesion.rol !== "visitante") return;
+  import("./bienvenida.js").then((m) => m.preguntarPertenenciaTrasEntrar()).catch(() => {});
+}
+
 export async function entrarConGoogle(credential) {
   const r = await llamarApi("entrarGoogle", { credential });
   const sesion = { ...r.sesion, token: r.token };
   guardarSesion(sesion);
+  avisarPertenenciaSiVisitante(sesion);
   return sesion;
 }
 
 export async function entrarVisitante(email, nombre) {
   const r = await llamarApi("entrarVisitante", { email: normalizarEmail(email), nombre });
   guardarSesion(r.sesion);
+  avisarPertenenciaSiVisitante(r.sesion);
   return { sesion: r.sesion, aviso: r.aviso };
 }
 

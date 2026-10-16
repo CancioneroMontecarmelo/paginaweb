@@ -241,3 +241,83 @@
     border-radius: 0;
   }
 }
+
+/* Primera visita: pertenencia a parroquia o movimiento */
+.dlg-bienvenida {
+  width: min(26rem, 92vw);
+  padding: 1.4rem 1.35rem 1.25rem;
+  border: 1px solid rgba(47, 74, 56, 0.22);
+  border-radius: 16px;
+  background: var(--crema-clara, #fffef9);
+  color: var(--texto, #2a241c);
+  box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.28);
+}
+
+.dlg-bienvenida::backdrop {
+  background: rgba(20, 28, 22, 0.55);
+}
+
+.dlg-bienvenida h2 {
+  margin: 0 0 0.55rem;
+  font-family: var(--fuente-display, Fraunces, serif);
+  font-size: 1.35rem;
+  color: var(--verde, #2f4a38);
+  line-height: 1.2;
+}
+
+.dlg-bienvenida p {
+  margin: 0 0 1.1rem;
+  color: var(--texto-suave, #6a5f50);
+  line-height: 1.45;
+}
+
+.dlg-bienvenida-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dlg-bienvenida-acciones .btn {
+  text-align: center;
+}
+
+.pagina-reproductor .dlg-bienvenida {
+  background: var(--rp-panel, #fffef9);
+  color: var(--rp-texto, #2a241c);
+  border-color: var(--rp-linea, rgba(47, 74, 56, 0.22));
+}
+
+.pagina-reproductor .dlg-bienvenida h2 {
+  color: var(--rp-acento, #2f4a38);
+}
+
+.pagina-reproductor .dlg-bienvenida p {
+  color: var(--rp-suave, #6a5f50);
+}
+
+.dlg-feligres .campo-admin {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0 0.75rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+.dlg-feligres .campo-admin input {
+  font: inherit;
+  font-weight: 400;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(47, 74, 56, 0.35);
+  border-radius: 10px;
+}
+
+.dlg-feligres .su-google {
+  display: flex;
+  justify-content: center;
+  min-height: 40px;
+}
+
+.dlg-feligres .suave {
+  color: var(--texto-suave, #6a5f50);
+  margin: 0 0 0.75rem;
+}

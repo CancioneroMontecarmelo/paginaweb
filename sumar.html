@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sumar mi parroquia o movimiento · Cancionero Litúrgico</title>
-  <meta name="description" content="Suma tu parroquia, capilla o movimiento al Cancionero Litúrgico en pocos minutos: tu propia dirección, tus comunidades en el mapa y los cancioneros de cada misa. Gratis para todo Chile.">
+  <meta name="description" content="Suma tu parroquia o movimiento al Cancionero Litúrgico: escribe el nombre, entra con Google y queda como administrador. Gratis para todo Chile.">
   <link rel="canonical" href="https://www.cancioneroliturgico.cl/sumar">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Cancionero Litúrgico">
   <meta property="og:locale" content="es_CL">
   <meta property="og:title" content="Suma tu parroquia o movimiento al Cancionero Litúrgico">
-  <meta property="og:description" content="Tu propia dirección, tus capillas en el mapa y los cancioneros de cada misa. Gratis.">
+  <meta property="og:description" content="Escribe el nombre, entra con Google y queda como administrador. Empiezas al tiro. Gratis.">
   <meta property="og:url" content="https://www.cancioneroliturgico.cl/sumar">
   <meta property="og:image" content="https://www.cancioneroliturgico.cl/Imagenes/compartir.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -39,115 +39,22 @@
   <main class="su-main">
     <header class="su-cabeza">
       <h1>Suma tu parroquia o movimiento</h1>
-      <p>Tu propia dirección en el Cancionero, tus capillas y grupos en el mapa, y los cancioneros de cada misa. Gratis. Toma unos minutos.</p>
-      <ol class="su-progreso" id="su-progreso" aria-label="Pasos">
-        <li data-paso="1">Quiénes son</li>
-        <li data-paso="2">Dónde</li>
-        <li data-paso="3">Capillas</li>
-        <li data-paso="4">Responsable</li>
-        <li data-paso="5">Listo</li>
-      </ol>
+      <p>Escribe el nombre, entra con Google y quedas como administrador. Entras al cancionero al tiro. El mapa y el resto se configuran después.</p>
     </header>
 
-    <!-- 1 -->
-    <section class="su-paso" data-paso="1" aria-labelledby="su-t1">
-      <h2 id="su-t1">¿Qué quieres sumar?</h2>
-      <div class="su-tipos" role="radiogroup" aria-label="Tipo">
-        <label class="su-tipo"><input type="radio" name="tipo" value="parroquia" checked>
-          <span><strong>Una parroquia</strong><small>Con sus capillas y comunidades</small></span></label>
-        <label class="su-tipo"><input type="radio" name="tipo" value="movimiento">
-          <span><strong>Un movimiento o comunidad</strong><small>Schoenstatt, Renovación, coros, grupos juveniles…</small></span></label>
-      </div>
-      <label class="su-campo"><span id="su-nombre-et">Nombre de la parroquia</span>
-        <input id="su-nombre" maxlength="120" autocomplete="organization" placeholder="Parroquia Santo Domingo de Guzmán"></label>
-      <div class="su-dos">
-        <label class="su-campo"><span>Diócesis</span>
-          <input id="su-diocesis" maxlength="100" list="su-diocesis-lista" placeholder="Arquidiócesis de Santiago"></label>
-        <label class="su-campo"><span>Comuna</span>
-          <input id="su-comuna" maxlength="80" autocomplete="address-level2" placeholder="Molina"></label>
-      </div>
-      <datalist id="su-diocesis-lista">
-        <option>Arquidiócesis de Santiago</option><option>Arquidiócesis de Concepción</option><option>Arquidiócesis de La Serena</option>
-        <option>Arquidiócesis de Antofagasta</option><option>Arquidiócesis de Puerto Montt</option><option>Diócesis de Arica</option>
-        <option>Diócesis de Iquique</option><option>Diócesis de San Juan Bautista de Calama</option><option>Diócesis de Copiapó</option>
-        <option>Prelatura de Illapel</option><option>Diócesis de San Felipe</option><option>Diócesis de Valparaíso</option>
-        <option>Diócesis de San Bernardo</option><option>Diócesis de Melipilla</option><option>Diócesis de Rancagua</option>
-        <option>Diócesis de Talca</option><option>Diócesis de Linares</option><option>Diócesis de Chillán</option>
-        <option>Diócesis de Santa María de Los Ángeles</option><option>Diócesis de Temuco</option><option>Diócesis de Villarrica</option>
-        <option>Diócesis de Valdivia</option><option>Diócesis de Osorno</option><option>Diócesis de San Carlos de Ancud</option>
-        <option>Vicariato Apostólico de Aysén</option><option>Diócesis de Punta Arenas</option><option>Obispado Castrense de Chile</option>
-      </datalist>
+    <section class="su-paso" aria-labelledby="su-t1">
+      <h2 id="su-t1">¿Cómo se llama?</h2>
+      <label class="su-campo"><span>Nombre de la parroquia o del movimiento</span>
+        <input id="su-nombre" maxlength="120" autocomplete="organization" placeholder="Parroquia Santo Domingo de Guzmán" required></label>
       <label class="su-campo"><span>Su dirección en el Cancionero</span>
-        <span class="su-slug"><span class="su-slug-base">cancioneroliturgico.cl/</span><input id="su-slug" maxlength="40" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="santo-domingo-molina"></span>
+        <span class="su-slug"><span class="su-slug-base">cancioneroliturgico.cl/</span><input id="su-slug" maxlength="40" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="santo-domingo"></span>
         <small id="su-slug-estado" class="su-estado" aria-live="polite"></small></label>
-      <label class="su-campo"><span>Sitio web propio <small>(opcional)</small></span>
-        <input id="su-web" type="url" maxlength="300" placeholder="https://www.miparroquia.cl"></label>
-    </section>
-
-    <!-- 2 -->
-    <section class="su-paso" data-paso="2" aria-labelledby="su-t2" hidden>
-      <h2 id="su-t2">¿Dónde está?</h2>
-      <p class="su-ayuda" id="su-donde-ayuda">Busca la dirección del templo y revisa que el punto quede bien: así aparece en el mapa y la encuentran por su comuna.</p>
-      <div id="su-mapa"></div>
-      <label class="su-campo su-foto"><span>Una foto del templo o de la comunidad <small>(opcional, se achica sola)</small></span>
-        <input id="su-foto" type="file" accept="image/*">
-        <img id="su-foto-vista" alt="" hidden></label>
-    </section>
-
-    <!-- 3 -->
-    <section class="su-paso" data-paso="3" aria-labelledby="su-t3" hidden>
-      <h2 id="su-t3">Capillas, comunidades o grupos</h2>
-      <p class="su-ayuda">Opcional: cada una tiene su página, sus noticias y sus cancioneros de misa. Puedes agregarlas o cambiarlas después, con su dirección y su foto.</p>
-      <ul class="su-coms" id="su-coms"></ul>
-      <div class="su-agregar">
-        <input id="su-com-nombre" maxlength="100" placeholder="Capilla San José">
-        <select id="su-com-clase" aria-label="Qué es"><option value="capilla">Capilla</option><option value="comunidad">Comunidad</option><option value="grupo">Grupo</option></select>
-        <button type="button" class="btn btn-secundario" id="su-com-agregar">Agregar</button>
-      </div>
-    </section>
-
-    <!-- 4 -->
-    <section class="su-paso" data-paso="4" aria-labelledby="su-t4" hidden>
-      <h2 id="su-t4">¿Quién la administra?</h2>
-      <p class="su-ayuda">Quedas como responsable: podrás armar los cancioneros, subir fotos y sumar a las personas de tus comunidades. Te escribimos por WhatsApp para darte la bienvenida.</p>
-      <div class="su-dos">
-        <label class="su-campo"><span>Tu nombre</span><input id="su-resp-nombre" maxlength="100" autocomplete="name"></label>
-        <label class="su-campo"><span>Tu cargo</span>
-          <input id="su-resp-cargo" maxlength="80" list="su-cargos" placeholder="Coordinadora de liturgia"></label>
-      </div>
-      <datalist id="su-cargos">
-        <option>Párroco</option><option>Vicario parroquial</option><option>Diácono</option><option>Secretaría parroquial</option>
-        <option>Coordinador/a de liturgia</option><option>Director/a de coro</option><option>Músico</option>
-        <option>Responsable del movimiento</option><option>Catequista</option>
-      </datalist>
-      <label class="su-campo"><span>WhatsApp</span><input id="su-resp-tel" type="tel" maxlength="30" autocomplete="tel" placeholder="+56 9 1234 5678"></label>
-      <p class="su-ayuda">Para terminar, entra con tu cuenta de Google (no necesitas clave nueva):</p>
+      <p class="su-ayuda">Para empezar, entra con tu cuenta de Google (no necesitas clave nueva). Quedas como administrador de esa página.</p>
       <div id="su-google" class="su-google"></div>
       <p class="su-estado" id="su-enviando" aria-live="polite"></p>
     </section>
 
-    <!-- 5 -->
-    <section class="su-paso" data-paso="5" aria-labelledby="su-t5" hidden>
-      <h2 id="su-t5">¡Listo! 🎶</h2>
-      <p class="su-lead" id="su-listo-texto"></p>
-      <p class="su-botones">
-        <a class="btn btn-primario" id="su-abrir" href="/">Abrir mi parroquia</a>
-        <a class="btn btn-secundario" id="su-compartir" href="#" target="_blank" rel="noopener">Compartir por WhatsApp</a>
-      </p>
-      <h3>Úsalo en tu sitio web</h3>
-      <p class="su-ayuda">Copia este código en la página de tu parroquia para mostrar el cancionero adentro:</p>
-      <pre class="po-codigo" id="su-codigo-iframe"></pre>
-      <button type="button" class="btn btn-secundario" data-copiar="su-codigo-iframe">Copiar el recuadro</button>
-      <p class="su-ayuda">O solo un botón que lo abre:</p>
-      <pre class="po-codigo" id="su-codigo-boton"></pre>
-      <button type="button" class="btn btn-secundario" data-copiar="su-codigo-boton">Copiar el botón</button>
-    </section>
-
     <p class="msg-error" id="su-error" hidden></p>
-    <div class="su-nav" id="su-nav">
-      <button type="button" class="btn btn-secundario" id="su-atras" hidden>Atrás</button>
-      <button type="button" class="btn btn-primario" id="su-seguir">Seguir</button>
-    </div>
   </main>
 
   <footer class="pie">

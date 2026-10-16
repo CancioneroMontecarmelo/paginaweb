@@ -145,7 +145,7 @@ export async function auditar(c, evento) {
   ]);
 }
 
-async function registrarVisitante(c, email, nombre, via) {
+export async function registrarVisitante(c, email, nombre, via) {
   try {
     const fila = await c.db.prepare('SELECT datos FROM visitantes WHERE parroquia = ? AND email = ?').bind(c.slug, email).first();
     const x = (fila && parsear(fila.datos)) || { email, nombre: nombre || '', primera: ahora(), veces: 0 };

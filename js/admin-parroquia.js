@@ -1,12 +1,14 @@
 /**
  * Ventanas del panel de Identificarse para quien administra la parroquia:
- *  - «Datos de la parroquia»: nombre, presentación, logo (pestaña del navegador y app instalada), foto de portada y comunidades.
- *  - «Parroquias» (solo el administrador general): crear parroquias nuevas, invitar a su responsable y activarlas o no.
+ *  - «Datos de la parroquia»: nombre, presentación, logo, portada, comunidades y páginas.
+ *  - «Parroquias» (solo el administrador general): listar, crear, activar/ocultar y configurar
+ *    tipo, mapa, diócesis y nombre del sacerdote (después de llamar a quien se sumó).
  */
 
 import { llamarApi, subirBinario, sesionActual } from "./auth.js";
 import { cargarParroquia, ponerParroquia } from "./comunidades.js";
-import { seccionFicha, seccionGaleria, extrasComunidad } from "./ficha-parroquia.js";
+import { seccionGaleria, extrasComunidad, TIPOS } from "./ficha-parroquia.js";
+import { elegirUbicacion } from "./mapa.js";
 
 const token = () => (sesionActual() || {}).token || "";
 const config = () => window.MONTECARMELO_CONFIG || {};
@@ -253,19 +255,12 @@ export async function abrirDatosParroquia(opciones) {
   });
 
   const paginas = seccionPaginas(listo);
-  const ficha = seccionFicha(() => p, listo);
   const galeria = seccionGaleria(() => p, listo);
-  const enRevision = p.estado === "pendiente"
-    ? el("p", { className: "aviso-revision", textContent: "Tu solicitud está en revisión: mientras tanto podés cargar todo. Cuando la aprobemos aparecerá en el mapa y en la portada del Cancionero." })
-    : null;
+  const esGeneral = (sesionActual() || {}).rol === "admin_general";
 
   cuerpo.replaceChildren(
-    ...(enRevision ? [enRevision] : []),
     el("h3", { className: "auth-h2", textContent: "Nombre y presentación" }),
     formDatos,
-    el("h3", { className: "auth-h2", textContent: "Tipo y ubicación" }),
-    el("p", { className: "aviso", textContent: "Con la dirección, la parroquia aparece en el mapa de la portada y la gente puede encontrarla por su comuna." }),
-    ficha,
     el("h3", { className: "auth-h2", textContent: "Logo" }),
     el("p", { className: "aviso", textContent: "Aparece en la pestaña del navegador y como ícono de la app instalada en el teléfono. Usá una imagen cuadrada (si no lo es, se toma el centro), de 512 px o más." }),
     el("div", { className: "fila-imagen" }, vistaLogo, archivoLogo),
@@ -287,7 +282,10 @@ export async function abrirDatosParroquia(opciones) {
     codigoEmbebido(p),
     el("h3", { className: "auth-h2", textContent: "Páginas propias" }),
     el("p", { className: "aviso", textContent: "Páginas de la parroquia con su propio contenido (historia, horarios, contacto…), en " + (config().base || "/") + "p/… Las marcadas «en el menú» aparecen en el menú de arriba. Se pueden pegar textos con formato HTML o cargar un archivo .html; los scripts se quitan." }),
-    paginas
+    paginas,
+    ...(esGeneral
+      ? [el("p", { className: "aviso", textContent: "El tipo, el mapa, la diócesis y el nombre del sacerdote se configuran en Parroquias → Configurar (después de hablar con quien se sumó)." })]
+      : [el("p", { className: "aviso", textContent: "El mapa y los datos de ubicación los completa el equipo del Cancionero después de contactarte." })])
   );
 }
 
@@ -422,92 +420,73 @@ function seccionPaginas(listo) {
 const enlaceWhatsapp = (tel, texto) =>
   "https://wa.me/" + String(tel || "").replace(/\D/g, "") + "?text=" + encodeURIComponent(texto);
 
-const mailto = (email, asunto, texto) =>
-  "mailto:" + encodeURIComponent(email || "") + "?subject=" + encodeURIComponent(asunto) + "&body=" + encodeURIComponent(texto);
-
-/** Una solicitud de /sumar: los datos, quién la pide y aprobar, pedir cambios o rechazar (con el mensaje listo para mandar). */
-function tarjetaSolicitud(x, alResolver) {
-  const s = x.solicitud || {};
-  const nota = el("textarea", { rows: 2, maxLength: 2000, placeholder: "Nota para el mensaje (opcional; para «Pedir cambios», qué hay que cambiar)" });
-  const msg = el("p", { hidden: true, style: "white-space: pre-line" });
-  const acciones = el("div", { className: "acciones-form" });
-  const resultado = el("div", { className: "acciones-form" });
-  const decidir = async (decision, confirmar) => {
-    if (confirmar && !confirm(confirmar)) return;
-    acciones.querySelectorAll("button").forEach((b) => (b.disabled = true));
+/** Configurar tipo, mapa, diócesis y sacerdote de una parroquia (solo admin_general). */
+function configurarParroquia(x, alGuardar) {
+  const { cuerpo } = dialogo("Configurar · " + x.nombre);
+  const tipo = el("select", {}, ...Object.entries(TIPOS).map(([v, t]) => el("option", { value: v, textContent: t, selected: (x.tipo || "parroquia") === v })));
+  const diocesis = el("input", { maxLength: 100, value: x.diocesis || "", placeholder: "Arquidiócesis de Santiago" });
+  const sitioWeb = el("input", { type: "url", maxLength: 300, value: x.sitioWeb || "", placeholder: "https://www.miparroquia.cl" });
+  const sacerdote = el("input", { maxLength: 120, value: x.sacerdoteNombre || "", placeholder: "P. Juan Pérez (sin correo)" });
+  const filaSacerdote = campo("Sacerdote responsable (nombre; no hace falta correo)", sacerdote);
+  const actualizarSacerdote = () => { filaSacerdote.hidden = tipo.value === "movimiento"; };
+  tipo.addEventListener("change", actualizarSacerdote);
+  actualizarSacerdote();
+  const cajaMapa = el("div", { className: "ficha-ubicacion" });
+  const msg = el("p", { hidden: true });
+  let ubic = null;
+  elegirUbicacion(cajaMapa, { direccion: x.direccion, comuna: x.comuna, region: x.region, lat: x.lat, lng: x.lng })
+    .then((u) => (ubic = u))
+    .catch((err) => aviso(msg, err.message, true));
+  const guardar = el("button", { type: "submit", className: "btn btn-primario", textContent: "Guardar configuración" });
+  const form = el("form", { className: "form-noticia form-admin" },
+    campo("Es una…", tipo),
+    campo("Diócesis", diocesis),
+    campo("Sitio web propio (si tiene)", sitioWeb),
+    filaSacerdote,
+    el("span", { className: "campo-admin" }, el("span", { textContent: "Dirección (aparece en el mapa del Cancionero)" })),
+    cajaMapa,
+    el("div", { className: "acciones-form" }, guardar),
+    msg);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    guardar.disabled = true;
     aviso(msg, "Guardando…");
     try {
-      const r = await llamarApi("resolverSolicitud", { token: token(), slug: x.slug, decision, nota: nota.value });
-      aviso(msg, r.mensaje);
-      const copiar = el("button", { type: "button", className: "btn btn-secundario", textContent: "Copiar mensaje" });
-      copiar.addEventListener("click", () => navigator.clipboard && navigator.clipboard.writeText(r.mensaje).then(() => (copiar.textContent = "Copiado ✓")));
-      resultado.replaceChildren(copiar);
-      if (String(r.telefono || "").replace(/\D/g, "")) {
-        resultado.append(" ", el("a", { className: "btn btn-primario", href: enlaceWhatsapp(r.telefono, r.mensaje), target: "_blank", rel: "noopener", textContent: "Enviar por WhatsApp" }));
-      }
-      if (r.email) {
-        const asunto = decision === "aprobar" ? "¡Bienvenidos al Cancionero Litúrgico!" : "Tu solicitud en el Cancionero Litúrgico";
-        resultado.append(" ", el("a", { className: "btn btn-secundario", href: mailto(r.email, asunto, r.mensaje), textContent: "Enviar por correo" }));
-      }
-      alResolver();
+      const u = ubic ? ubic.valor() : {};
+      await llamarApi("guardarParroquia", {
+        token: token(),
+        slug: x.slug,
+        parroquia: {
+          tipo: tipo.value, diocesis: diocesis.value, sitioWeb: sitioWeb.value,
+          sacerdoteNombre: tipo.value === "parroquia" ? sacerdote.value : "",
+          configurada: true,
+          ...u
+        }
+      });
+      aviso(msg, "Guardado ✓");
+      alGuardar();
     } catch (err) {
       aviso(msg, err.message, true);
-      acciones.querySelectorAll("button").forEach((b) => (b.disabled = false));
     }
-  };
-  const boton = (texto, clase, fn) => {
-    const b = el("button", { type: "button", className: "btn " + clase, textContent: texto });
-    b.addEventListener("click", fn);
-    return b;
-  };
-  acciones.append(
-    boton("Aprobar y dar la bienvenida", "btn-primario", () => decidir("aprobar")),
-    " ", boton("Pedir cambios", "btn-secundario", () => decidir("cambios")),
-    " ", boton("Rechazar", "btn-secundario", () => decidir("rechazar", "¿Rechazar " + x.nombre + "? Queda desactivada.")));
-  const fecha = s.fecha ? new Date(s.fecha).toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short" }) : "";
-  const lugar = [x.direccion, x.comuna, x.region].filter(Boolean).join(", ");
-  return el("article", { className: "solicitud" },
-    el("h4", {}, el("img", { src: x.icono, alt: "", className: "icono-parroquia" }), " ", x.nombre,
-      el("small", { textContent: " · " + (x.tipo === "movimiento" ? "Movimiento" : "Parroquia") + (x.cambiosPedidos ? " · cambios pedidos" : "") })),
-    el("p", {}, el("a", { href: x.url + "inicio", target: "_blank", textContent: x.url.replace(/^https?:\/\//, "") }),
-      lugar ? " · " + lugar : "", x.diocesis ? " · " + x.diocesis : "", x.sitioWeb ? " · " : "",
-      x.sitioWeb ? el("a", { href: x.sitioWeb, target: "_blank", rel: "noopener", textContent: "sitio web" }) : null),
-    el("p", { textContent: "Pide: " + (s.nombre || "") + (s.cargo ? " (" + s.cargo + ")" : "") + " · " + (s.email || "") +
-      (s.telefono ? " · WhatsApp " + s.telefono : "") + (fecha ? " · " + fecha : "") }),
-    nota, acciones, msg, resultado);
+    guardar.disabled = false;
+  });
+  const quien = (x.solicitud && x.solicitud.email) || (x.responsables || [])[0] || x.creadoPor || "";
+  cuerpo.append(
+    el("p", { className: "aviso", textContent: "Después de llamar a quien se sumó, completa el mapa y (si es parroquia) el nombre del sacerdote. Quien la creó: " + (quien || "—") }),
+    form
+  );
 }
 
 export async function abrirParroquias() {
   const { cuerpo } = dialogo("Parroquias del Cancionero");
   const tabla = el("tbody");
   const msgLista = el("p", { hidden: true });
-  const listaSolicitudes = el("div", { className: "lista-solicitudes" });
-  const pestanaLista = el("button", { type: "button", className: "pestana-admin", textContent: "Parroquias", ariaPressed: "true" });
-  const pestanaSolic = el("button", { type: "button", className: "pestana-admin", textContent: "Solicitudes", ariaPressed: "false" });
-  const panelLista = el("div");
-  const panelSolic = el("div", { hidden: true }, el("p", { className: "aviso", textContent: "Las que llegaron desde /sumar: quedan ocultas y en revisión hasta aprobarlas. Quien la pidió ya es su responsable y puede ir cargándola." }), listaSolicitudes);
-  const verPestana = (solic) => {
-    panelLista.hidden = solic;
-    panelSolic.hidden = !solic;
-    pestanaLista.ariaPressed = String(!solic);
-    pestanaSolic.ariaPressed = String(solic);
-  };
-  pestanaLista.addEventListener("click", () => verPestana(false));
-  pestanaSolic.addEventListener("click", () => verPestana(true));
 
-  // Después de resolver una solicitud se refresca la lista y el contador, sin borrar el mensaje para mandar
-  async function refrescar(sinSolicitudes) {
+  async function refrescar() {
     tabla.replaceChildren(el("tr", {}, el("td", { colSpan: 4, className: "aviso", textContent: "Cargando…" })));
     try {
       const r = await llamarApi("listarParroquias", { token: token() });
       tabla.replaceChildren(...r.parroquias.map(filaParroquia));
-      const pendientes = r.parroquias.filter((x) => x.estado === "pendiente").sort((a, b) => String((b.solicitud || {}).fecha).localeCompare(String((a.solicitud || {}).fecha)));
-      pestanaSolic.textContent = "Solicitudes" + (pendientes.length ? " (" + pendientes.length + ")" : "");
-      pestanaSolic.classList.toggle("con-pendientes", pendientes.length > 0);
-      if (!sinSolicitudes) {
-        listaSolicitudes.replaceChildren(...(pendientes.length ? pendientes.map((x) => tarjetaSolicitud(x, () => refrescar(true)))
-          : [el("p", { className: "aviso", textContent: "No hay solicitudes pendientes." })]));
-      }
     } catch (err) {
       tabla.replaceChildren();
       aviso(msgLista, err.message, true);
@@ -538,14 +517,20 @@ export async function abrirParroquias() {
         estado.textContent = err.message;
       }
     });
-    const ESTADOS = { pendiente: " · en revisión", rechazada: " · rechazada" };
-    const persona = el("td", { className: "persona" },
-      el("strong", {}, el("img", { src: x.icono, alt: "", className: "icono-parroquia" }), " ", x.nombre, el("small", { textContent: ESTADOS[x.estado] || "" })),
-      el("span", {}, el("a", { href: x.url, target: "_blank", textContent: x.url.replace(/^https?:\/\//, "") }),
-        x.responsables.length ? " · Responsable: " + x.responsables.join(", ") : " · sin responsable"));
-    return el("tr", {}, persona, el("td", {}, el("label", { title: activa.title }, activa, " Activa"), el("br"),
-      el("label", { title: oculta.title }, oculta, " Oculta")), estado);
-  }
+    const configBtn = el("button", { type: "button", className: "btn-chico", textContent: "Configurar" });
+    configBtn.addEventListener("click", () => configurarParroquia(x, refrescar));
+  const origen = x.origen === "catalogo" ? " · catálogo" : x.origen === "feligres" ? " · feligrés" : "";
+  const falta = x.configurada ? "" : (!x.comuna && x.lat == null ? " · sin mapa" : " · por configurar");
+  const tipoTxt = x.tipo === "movimiento" ? "Movimiento" : "Parroquia";
+  const persona = el("td", { className: "persona" },
+    el("strong", {}, el("img", { src: x.icono, alt: "", className: "icono-parroquia" }), " ", x.nombre,
+      el("small", { textContent: " · " + tipoTxt + origen + falta })),
+    el("span", {}, el("a", { href: x.url, target: "_blank", textContent: x.url.replace(/^https?:\/\//, "") }),
+      x.responsables.length ? " · Responsable: " + x.responsables.join(", ") : " · sin responsable",
+      x.sacerdoteNombre ? " · Sacerdote: " + x.sacerdoteNombre : ""));
+  return el("tr", {}, persona, el("td", {}, el("label", { title: activa.title }, activa, " Activa"), el("br"),
+    el("label", { title: oculta.title }, oculta, " Oculta"), el("br"), configBtn), estado);
+}
 
   // --- Parroquia nueva ---
   const slug = el("input", { required: true, maxLength: 40, pattern: "[a-z0-9][a-z0-9-]{1,38}[a-z0-9]", placeholder: "sanjose-lareina" });
@@ -608,15 +593,32 @@ export async function abrirParroquias() {
     crear.disabled = false;
   });
 
-  cuerpo.append(el("div", { className: "pestanas-admin" }, pestanaLista, pestanaSolic), panelLista, panelSolic);
-  panelLista.append(
-    el("p", { className: "aviso", textContent: "Cada parroquia tiene su dirección, su logo, sus comunidades, sus noticias y sus administradores. La biblioteca de canciones y las lecturas son comunes a todas." }),
+  const importar = el("button", { type: "button", className: "btn btn-secundario", textContent: "Importar catálogo (Santiago + movimientos)" });
+  const msgImport = el("p", { hidden: true });
+  importar.addEventListener("click", async () => {
+    if (!confirm("¿Importar el catálogo diocesano? Solo agrega las que aún no existen; no borra ni pisa las actuales.")) return;
+    importar.disabled = true;
+    aviso(msgImport, "Importando…");
+    try {
+      const r = await llamarApi("importarCatalogo", { token: token() });
+      aviso(msgImport, "Listo: " + r.creadas + " nuevas, " + r.omitidas + " ya estaban (de " + r.totalCatalogo + " en el archivo).");
+      refrescar();
+    } catch (err) {
+      aviso(msgImport, err.message, true);
+    }
+    importar.disabled = false;
+  });
+
+  cuerpo.append(
+    el("p", { className: "aviso", textContent: "Quienes se suman en /sumar o entran como feligreses quedan publicadas al tiro. Acá las activás u ocultás, importás el directorio diocesano y con Configurar completás el mapa y el sacerdote." }),
+    el("div", { className: "acciones-form" }, importar),
+    msgImport,
     el("table", { className: "tabla-personas" },
       el("thead", {}, el("tr", {}, el("th", { textContent: "Parroquia" }), el("th", { textContent: "Activa" }), el("th"))),
       tabla),
     msgLista,
     el("h3", { className: "auth-h2", textContent: "Parroquia nueva" }),
-    el("p", { className: "aviso", textContent: "El responsable puede después cargar el logo y las comunidades, e invitar a quienes administran cada comunidad." }),
+    el("p", { className: "aviso", textContent: "También podés crear una a mano e invitar a su responsable. El mapa y el sacerdote se configuran después." }),
     form,
     vistaUrl,
     msgCrear,

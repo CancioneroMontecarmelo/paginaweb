@@ -2,7 +2,8 @@
  * ficha-parroquia.js — La ficha de una parroquia o movimiento: tipo, diócesis, dirección en el mapa, sitio web,
  * galería de fotos (hasta 12) y la ubicación y foto de cada capilla, comunidad o grupo.
  *
- *  - Para los responsables (Identificarse → Datos de la parroquia): seccionFicha, seccionGaleria, extrasComunidad.
+ *  - Galería y extras de comunidad: Identificarse → Datos de la parroquia.
+ *  - Tipo, mapa y sacerdote: panel Parroquias → Configurar (solo admin_general); seccionFicha queda por si se reutiliza.
  *  - Para todos (Inicio y Comunidad): pintarFichaPublica, con la galería y el mapa.
  * Las fotos se achican en el navegador (1600 px, JPG o WebP) antes de subirlas a /api/subir?tipo=foto.
  */
