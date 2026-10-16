@@ -345,13 +345,21 @@ const subCancion = (c) => creditsText(normalizeCredits({ letra: c.letraDe, music
   || (audiosReproducibles(c).length ? "" : "Sin audio: con la letra");
 const nombreComunidad = (slug) => COMUNIDADES.find((c) => c.slug === slug)?.nombre || "";
 
-const estante = (titulo, sobre, tarjetas) => tarjetas.length ? `<section class="rp-estante">
+const estante = (titulo, sobre, tarjetas, extraCabeza = "") => tarjetas.length ? `<section class="rp-estante">
     <div class="rp-estante-cabeza">
-      <span><small>${esc(sobre)}</small><h2>${esc(titulo)}</h2></span>
+      <span class="rp-estante-titulos"><small>${esc(sobre)}</small><h2>${esc(titulo)}</h2>${extraCabeza}</span>
       <span class="rp-estante-flechas"><button type="button" class="rp-ico" data-desplazar="-1" aria-label="Anteriores">‹</button><button type="button" class="rp-ico" data-desplazar="1" aria-label="Siguientes">›</button></span>
     </div>
     <div class="rp-estante-fila">${tarjetas.join("")}</div>
   </section>` : "";
+
+const conAudioBib = (c) => c && lit.tieneAudioReproducible(c);
+const notaSalmoFalta = (motivos) => {
+  for (const m of motivos?.values?.() || []) {
+    if (m?.corto === "falta en Biblioteca") return m.texto;
+  }
+  return "";
+};
 
 const tarjeta = (caraHtmlTxt, accion, titulo, sub) => `<div class="rp-tj">
     <div class="rp-tj-cara">${caraHtmlTxt}<button type="button" class="rp-tj-play" ${accion} aria-label="Reproducir «${esc(titulo)}»">${icono("play")}</button></div>
@@ -436,14 +444,30 @@ async function pintarInicio() {
   const misas = (await todasLasMisas()).filter(cuantas);
 
   st.estantes = [];
-  // pares: [canción, momento, motivo corto]
-  const deCanciones = (titulo, sobre, pares) => {
-    pares = pares.slice(0, 24);
+  // pares: [canción, momento, motivo corto]; tipo "misa" = secuencia litúrgica (nunca aleatorio)
+  const deCanciones = (titulo, sobre, pares, tipo = "biblioteca") => {
+    pares = pares.filter(([c]) => conAudioBib(c)).slice(0, 24);
     if (!pares.length) return "";
-    const k = st.estantes.push({ nombre: titulo, items: pares.map(([c, momento]) => ({ cancionId: c.id, desplazamiento: 0, ...(momento ? { momento } : {}) })) }) - 1;
+    const k = st.estantes.push({
+      nombre: titulo, tipo,
+      items: pares.map(([c, momento]) => ({ cancionId: c.id, desplazamiento: 0, ...(momento ? { momento } : {}) }))
+    }) - 1;
     return estante(titulo, sobre, pares.map(([c, momento, motivo], i) =>
       tarjeta(cara(c, "grande", momento), `data-estante="${k}" data-i="${i}"`, c.titulo,
         momento ? momento + (motivo ? " · " + motivo : "") : motivo || subCancion(c))));
+  };
+  const deMomento = (titulo, sobre, momento, canciones) => {
+    const todos = canciones.filter(conAudioBib);
+    if (!todos.length) return "";
+    const pares = todos.slice(0, 24).map((c) => [c, momento]);
+    const k = st.estantes.push({
+      nombre: titulo, tipo: "biblioteca", momento, todos,
+      items: pares.map(([c]) => ({ cancionId: c.id, desplazamiento: 0, momento }))
+    }) - 1;
+    const buscar = `<label class="rp-estante-buscar"><span class="visually-hidden">Buscar en ${esc(titulo)}</span>
+      <input type="search" placeholder="Buscar en ${esc(titulo)}…" data-buscar-estante="${k}" autocomplete="off"></label>`;
+    return estante(titulo, sobre, pares.map(([c], i) =>
+      tarjeta(cara(c, "grande", momento), `data-estante="${k}" data-i="${i}"`, c.titulo, subCancion(c))), buscar);
   };
 
   const hoy = lit.hoyIso();
@@ -468,9 +492,10 @@ async function pintarInicio() {
     if (prox) {
       const ev = lit.evangelioDe(prox.lecturas);
       const nombre = prox.lecturas?.titulo ? lit.tituloLiturgico(prox.lecturas.titulo) : lit.nombreDelDia(prox.fecha);
-      const sobre = [nombre, ev ? "Evangelio según " + ev.cita : "Según el tiempo litúrgico"].join(" · ");
+      const salmoFalta = notaSalmoFalta(prox.motivos);
+      const sobre = [nombre, ev ? "Evangelio según " + ev.cita : "Según el tiempo litúrgico", salmoFalta].filter(Boolean).join(" · ");
       html += deCanciones("Misa del próximo domingo", sobre, prox.misa.momentos.flatMap((m) =>
-        m.canciones.map((c) => [st.porId.get(c.cancionId), m.momento, prox.motivos.get(m.momento)?.corto])).filter(([c]) => c));
+        m.canciones.map((c) => [st.porId.get(c.cancionId), m.momento, prox.motivos.get(m.momento)?.corto])).filter(([c]) => c), "misa");
       otrosDomingos = cadena.filter((x) => x.fecha !== prox.fecha);
     }
   } catch (_) { /* sin sugerencias */ }
@@ -493,10 +518,12 @@ async function pintarInicio() {
       const { tiempo: tHoy, momentos: momHoy } = lit.momentosDeMisa(hoy, leerHoy);
       const misaHoy = { id: "dia-" + hoy, comunidad: "", fechaUso: hoy, tiempoLiturgico: tHoy, momentos: momHoy };
       const motivosHoy = new Map();
-      lit.sugerirCantos(misaHoy, leerHoy, { biblioteca: lista, misas, motivos: motivosHoy });
+      const evitarHoy = await lit.evitadosSemanaYMes(hoy, lecturasDelDia, { biblioteca: lista, misas }).catch(() => null);
+      lit.sugerirCantos(misaHoy, leerHoy, { biblioteca: lista, misas, motivos: motivosHoy, evitar: evitarHoy });
+      const salmoFaltaHoy = notaSalmoFalta(motivosHoy);
       const paresHoy = misaHoy.momentos.flatMap((m) =>
         m.canciones.map((c) => [st.porId.get(c.cancionId), m.momento, motivosHoy.get(m.momento)?.corto])).filter(([c]) => c);
-      html += deCanciones("Misa del día", sobreDia, paresHoy);
+      html += deCanciones("Misa del día", [sobreDia, salmoFaltaHoy].filter(Boolean).join(" · "), paresHoy, "misa");
     } catch (_) {
       html += estante("Misa del día", sobreDia, []);
     }
@@ -508,10 +535,11 @@ async function pintarInicio() {
   for (const d of otrosDomingos) {
     const ev2 = lit.evangelioDe(d.lecturas);
     const nom2 = d.lecturas?.titulo ? lit.tituloLiturgico(d.lecturas.titulo) : lit.nombreDelDia(d.fecha);
-    const sobre2 = [nom2, ev2 ? "Evangelio según " + ev2.cita : "Según el tiempo litúrgico"].join(" · ");
+    const salmo2 = notaSalmoFalta(d.motivos);
+    const sobre2 = [nom2, ev2 ? "Evangelio según " + ev2.cita : "Según el tiempo litúrgico", salmo2].filter(Boolean).join(" · ");
     const dia = new Date(d.fecha + "T12:00:00").toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
     html += deCanciones(dia.charAt(0).toUpperCase() + dia.slice(1), sobre2, d.misa.momentos.flatMap((m) =>
-      m.canciones.map((c) => [st.porId.get(c.cancionId), m.momento, d.motivos.get(m.momento)?.corto])).filter(([c]) => c));
+      m.canciones.map((c) => [st.porId.get(c.cancionId), m.momento, d.motivos.get(m.momento)?.corto])).filter(([c]) => c), "misa");
   }
 
   html += estante("Celebraciones", "Lo que se cantará en cada una", [...proximas, ...pasadas.filter((m) => (m.fechaUso || "") >= desde)]
@@ -529,7 +557,7 @@ async function pintarInicio() {
   if (lista.length) {
     html += deCanciones("Lo más cantado en Chile", "En los cancioneros de las parroquias este mes", ins.cantados
       .map((x) => [st.porId.get(x.id), "", x.parroquias > 1 ? `En ${x.parroquias} parroquias` : "En 1 parroquia"]).filter(([c]) => c));
-    st.otras = ins.otras.map((m) => ({ ...m, items: m.items.filter((x) => st.porId.has(x.cancionId)) })).filter((m) => m.items.length);
+    st.otras = ins.otras.map((m) => ({ ...m, items: m.items.filter((x) => st.porId.has(x.cancionId) && conAudioBib(st.porId.get(x.cancionId))) })).filter((m) => m.items.length);
     html += estante("Este domingo en otras parroquias", "Para escuchar e inspirarse", st.otras.map((m, k) =>
       tarjeta(caraCelebracion(m, "grande"), `data-otra="${k}"`, m.nombre || "Cancionero de misa",
         [m.parroquia.nombreCorto, m.km != null ? "a " + km(m.km) : "", m.items.length + " cantos"].filter(Boolean).join(" · "))));
@@ -543,17 +571,46 @@ async function pintarInicio() {
   if (lista.length) {
     const t = tiempoDomingo.toLowerCase();
     html += deCanciones("Del tiempo: " + tiempoDomingo, "Tiempo litúrgico",
-      lista.filter((c) => (c.etiquetas || []).some((x) => x.toLowerCase() === t)).sort(ordenInicio).map((c) => [c]));
+      lista.filter((c) => conAudioBib(c) && (c.etiquetas || []).some((x) => x.toLowerCase() === t)).sort(ordenInicio).map((c) => [c]));
     for (const m of MOMENTOS_INICIO) {
       if (m === "Canto a María") {
         const tema = lit.temaMarianoDe(tiempoDomingo, domingo);
-        html += deCanciones(m, tema ? "Para " + tema.nombre : "Momentos de la misa", lit.candidatosMomento(lista, m, { fechaUso: domingo, tiempoLiturgico: tiempoDomingo })
-          .filter((x) => x.delMomento).map((x) => [x.cancion, m]));
-      } else html += deCanciones(m, "Momentos de la misa", lista.filter((c) => lit.esDelMomento(c, m)).sort(ordenInicio).map((c) => [c, m]));
+        html += deMomento(m, tema ? "Para " + tema.nombre : "Momentos de la misa", m,
+          lit.candidatosMomento(lista, m, { fechaUso: domingo, tiempoLiturgico: tiempoDomingo })
+            .filter((x) => x.delMomento).map((x) => x.cancion));
+      } else {
+        html += deMomento(m, "Momentos de la misa", m,
+          lista.filter((c) => lit.esDelMomento(c, m)).sort(ordenInicio));
+      }
     }
   }
   html += seccionColaboran(ins.colaboran);
   $("#rp-estantes").innerHTML = html || `<p class="rp-aviso">${esc($("#rp-estado-bib").textContent || "Todavía no hay canciones.")}</p>`;
+}
+
+function tarjetasDeEstante(k) {
+  const s = st.estantes[k];
+  if (!s) return "";
+  return s.items.map((it, i) => {
+    const c = st.porId.get(it.cancionId);
+    if (!c) return "";
+    return tarjeta(cara(c, "grande", it.momento), `data-estante="${k}" data-i="${i}"`, c.titulo,
+      it.momento || subCancion(c));
+  }).join("");
+}
+
+function filtrarEstanteMomento(k, q) {
+  const s = st.estantes[k];
+  if (!s?.todos) return;
+  const texto = (q || "").trim();
+  const hallados = texto
+    ? (typeof buscarCanciones === "function" ? buscarCanciones(s.todos, texto) : s.todos.filter((c) =>
+      (c.titulo || "").toLowerCase().includes(texto.toLowerCase())))
+    : s.todos;
+  const lista = hallados.slice(0, 24);
+  s.items = lista.map((c) => ({ cancionId: c.id, desplazamiento: 0, ...(s.momento ? { momento: s.momento } : {}) }));
+  const fila = document.querySelector(`#rp-estantes [data-buscar-estante="${k}"]`)?.closest(".rp-estante")?.querySelector(".rp-estante-fila");
+  if (fila) fila.innerHTML = tarjetasDeEstante(k) || `<p class="rp-aviso">Ninguna canción coincide.</p>`;
 }
 
 function accionInicio(e) {
@@ -565,7 +622,8 @@ function accionInicio(e) {
     fila.scrollBy({ left: +d.desplazar * fila.clientWidth * 0.9, behavior: "smooth" });
   } else if (d.estante) {
     const s = st.estantes[+d.estante];
-    colaPropia({ nombre: s.nombre, tipo: "biblioteca", items: s.items.map((x) => ({ ...x })) });
+    colaPropia({ nombre: s.nombre, tipo: s.tipo || "biblioteca", items: s.items.map((x) => ({ ...x })) });
+    if (s.tipo === "misa" && modos.aleatorio) avisar("En misa se reproduce en orden.");
     reproducir(+d.i);
     mostrarVista("sonando");
   } else if (d.misa) {
@@ -808,9 +866,12 @@ async function abrirMisa(id, tocar = true) {
   }
   if (!m || !cuantas(m)) return avisar("Ese cancionero no existe o todavía no tiene canciones.");
   st.cola = colaDeMisa(m);
+  ordenDe = null;
   colaHash = location.hash;
+  if (modos.aleatorio) avisar("En misa se reproduce en orden.");
   mostrarVista("sonando");
   reproducir(0, tocar);
+  pintarModos();
   return true;
 }
 
@@ -942,7 +1003,10 @@ async function sugerenciasDe(fecha) {
     tiempo = listo.misa.tiempoLiturgico;
     motivos = new Map(listo.motivos);
     momentos = ponerHabituales(listo.misa.momentos.map((m) => ({ momento: m.momento, canciones: m.canciones.map((c) => ({ ...c })) })), habituales);
-    if (habituales.length) lit.sugerirCantos(borrador(), lecturas, { biblioteca, misas, motivos });
+    if (habituales.length) {
+      const evitar = await lit.evitadosSemanaYMes(fecha, lecturasDelDia, { biblioteca, misas }).catch(() => null);
+      lit.sugerirCantos(borrador(), lecturas, { biblioteca, misas, motivos, evitar });
+    }
   } else {
     lecturas = await lecturasDelDia(fecha).catch(() => null);
     const base = lit.momentosDeMisa(fecha, lecturas, crear.celebracion);
@@ -950,7 +1014,7 @@ async function sugerenciasDe(fecha) {
     // Gloria ya filtrada en momentosDeMisa (ferias, difuntos, Adviento/Cuaresma…)
     momentos = ponerHabituales(base.momentos, habituales);
     motivos = new Map();
-    const evitar = esDomingo && !cel ? await lit.evitadosDelMes(fecha, lecturasDelDia, { biblioteca, misas }).catch(() => null) : null;
+    const evitar = await lit.evitadosSemanaYMes(fecha, lecturasDelDia, { biblioteca, misas }).catch(() => null);
     lit.sugerirCantos(borrador(), lecturas, { biblioteca, misas, motivos, evitar });
   }
   for (const h of habituales) if (h.cancionId) motivos.set(h.momento, { texto: "El que cantaron la última vez", corto: "como la última vez" });
@@ -1017,7 +1081,12 @@ async function sugerirParaFecha() {
   if (t !== crear.turno) return;
   Object.assign(crear, r);
   crear.sugeridas = r.momentos.map((m) => m.canciones[0]?.cancionId || "");
-  crear.eleccion = crear.sugeridas.map((id) => id || undefined);
+  crear.eleccion = crear.sugeridas.map((id, i) => {
+    if (id) return id;
+    // Salmo del día sin grabación en la Biblioteca: momento vacío, sin sustituto
+    if (r.motivos.get(r.momentos[i].momento)?.corto === "falta en Biblioteca") return "";
+    return undefined;
+  });
   crear.candidatos = r.momentos.map((m, i) => candidatosDe(m.momento, crear.sugeridas[i]));
   pintarElegir();
 }
@@ -1049,15 +1118,19 @@ function pintarElegir() {
   pintarResumen();
   $("#rp-crear-estantes").innerHTML = crear.momentos.map((m, i) => {
     const elegida = crear.eleccion[i], motivo = crear.motivos.get(m.momento);
+    const sobre = motivo?.corto === "falta en Biblioteca" && !elegida
+      ? motivo.texto
+      : estadoMomento(i);
     let lista = hallados || crear.candidatos[i];
     if (elegida && !lista.some((c) => c.id === elegida) && st.porId.get(elegida)) lista = [st.porId.get(elegida), ...lista];
     const tarjetas = lista.map((c) => tarjetaCrear(c, i, m.momento, c.id === elegida,
       c.id === crear.sugeridas[i] ? "Sugerida" + (motivo?.corto ? " · " + motivo.corto : "") : subCancion(c)));
     tarjetas.push(`<div class="rp-tj rp-tj-sin${elegida === "" ? " elegida" : ""}" data-c-elegir="${i}" data-id="">
       <div class="rp-tj-cara"><span class="cara grande rp-cara-sin" aria-hidden="true">—</span></div>
-      <button type="button" class="rp-tj-titulo">Sin canto</button><div class="rp-tj-sub">Dejar este momento vacío</div></div>`);
+      <button type="button" class="rp-tj-titulo">Sin canto</button>
+      <div class="rp-tj-sub">${esc(motivo?.corto === "falta en Biblioteca" ? motivo.texto : "Dejar este momento vacío")}</div></div>`);
     return `<div class="rp-crear-momento" data-c-momento="${i}"><button type="button" class="rp-ico rp-crear-quitar" data-c-quitar="${i}"
-      title="Quitar «${esc(m.momento)}» de esta misa" aria-label="Quitar ${esc(m.momento)}">✕</button>${estante(m.momento, estadoMomento(i), tarjetas)}</div>`;
+      title="Quitar «${esc(m.momento)}» de esta misa" aria-label="Quitar ${esc(m.momento)}">✕</button>${estante(m.momento, sobre, tarjetas)}</div>`;
   }).join("");
   $("#rp-crear-agregar").innerHTML = opcionesMomento(gruposDeMomentos(crear.momentos, { habituales: crear.habituales, celebracion: crear.celebracion }),
     "Elegí uno o creá uno nuevo…");
@@ -1248,6 +1321,8 @@ function colaPropia(cola) {
   if (/^#(l|misa)=/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
   colaHash = "";
   st.cola = cola;
+  ordenDe = null;
+  pintarModos();
 }
 
 function guardarSonando(desde) {
@@ -1260,7 +1335,7 @@ function guardarSonando(desde) {
     cola: st.cola, indice: st.indice,
     segundo: Math.floor(desde ?? (retomarEn || actual || 0)),
     audio: st.elegido.get(actualId()) ?? null,
-    orden: modos.aleatorio && ordenDe === st.cola ? orden : null,
+    orden: modos.aleatorio && !colaEsMisa() && ordenDe === st.cola ? orden : null,
     hash: colaHash, cuando: Date.now()
   }));
 }
@@ -1281,7 +1356,7 @@ function recuperarSonando(s) {
   st.cola = s.cola;
   colaHash = s.hash || "";
   if (Number.isInteger(s.audio)) st.elegido.set(s.cola.items[s.indice].cancionId, s.audio);
-  if (modos.aleatorio && s.orden?.length === s.cola.items.length) {
+  if (modos.aleatorio && !colaEsMisa(s.cola) && s.orden?.length === s.cola.items.length) {
     orden = s.orden;
     ordenDe = st.cola;
   }
@@ -1954,9 +2029,12 @@ function mezclar(n, primero) {
   return primero >= 0 ? [primero, ...a] : a;
 }
 
-// En aleatorio, la cola se recorre en un orden mezclado que empieza por la canción que suena
+const colaEsMisa = (cola = st.cola) => cola?.tipo === "misa";
+
+// En aleatorio, la cola se recorre en un orden mezclado que empieza por la canción que suena.
+// Las colas de misa (y sugerencias de misa) siempre van en orden litúrgico.
 function ordenActual() {
-  if (!modos.aleatorio || !st.cola) return null;
+  if (!modos.aleatorio || !st.cola || colaEsMisa()) return null;
   if (ordenDe !== st.cola || orden.length !== st.cola.items.length) {
     orden = mezclar(st.cola.items.length, st.indice);
     ordenDe = st.cola;
@@ -2037,8 +2115,10 @@ function alTerminarPista() {
 
 function pintarModos() {
   const a = $("#rp-aleatorio"), r = $("#rp-repetir");
-  a.setAttribute("aria-pressed", modos.aleatorio);
-  a.title = modos.aleatorio ? "Aleatorio: sí" : "Aleatorio: no";
+  const enMisa = colaEsMisa();
+  a.disabled = enMisa;
+  a.setAttribute("aria-pressed", !enMisa && modos.aleatorio);
+  a.title = enMisa ? "En misa se reproduce en orden" : (modos.aleatorio ? "Aleatorio: sí" : "Aleatorio: no");
   const texto = { no: "Repetir: no", lista: "Repetir toda la lista", una: "Repetir esta canción" }[modos.repetir];
   r.setAttribute("aria-pressed", modos.repetir !== "no");
   r.setAttribute("aria-label", texto);
@@ -3365,6 +3445,11 @@ function conectar() {
   $("#rp-anterior").addEventListener("click", anterior);
   for (const id of ["#rp-barra-titulo", "#rp-barra-cara"]) $(id).addEventListener("click", () => mostrarVista("sonando"));
   $("#rp-estantes").addEventListener("click", accionInicio);
+  $("#rp-estantes").addEventListener("input", (e) => {
+    const inp = e.target.closest("[data-buscar-estante]");
+    if (!inp) return;
+    filtrarEstanteMomento(+inp.dataset.buscarEstante, inp.value);
+  });
   $("#rp-portada-acciones").addEventListener("click", accionInicio);
   $("#rp-cola-lista").addEventListener("click", (e) => {
     const x = e.target.closest("[data-cola-cambiar]");
@@ -3419,6 +3504,10 @@ function conectar() {
   });
   audio.addEventListener("ended", alTerminarPista);
   $("#rp-aleatorio").addEventListener("click", () => {
+    if (colaEsMisa()) {
+      avisar("En misa se reproduce en orden.");
+      return;
+    }
     modos.aleatorio = !modos.aleatorio;
     guardar("mc-rp-aleatorio", modos.aleatorio ? "si" : "no");
     ordenDe = null;

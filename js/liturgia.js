@@ -812,12 +812,25 @@ function contexto(misa, lecturas, misas) {
   };
 }
 
+/** Mismo criterio que el reproductor: fileId o URL usable (YouTube u otra http, no Vimeo). */
+export function tieneAudioReproducible(c) {
+  return (c?.audios || []).some((a) => {
+    if (a.fileId) return true;
+    const u = String(a.url || "").trim();
+    if (!u || /^(javascript:|data:)/i.test(u)) return false;
+    if (/vimeo\.com/i.test(u)) return false;
+    if (/youtu\.?be|youtube\.com/i.test(u)) return true;
+    return /^https?:\/\//i.test(u);
+  });
+}
+
 // Las canciones de la Biblioteca que sirven para un momento, de la mejor a la peor (para cambiar una canción
 // en una emergencia). Con pocas del momento, completa con el resto ordenado por el tiempo.
-export function candidatosMomento(biblioteca, momento, { fechaUso = "", tiempoLiturgico = "", celebracion = "", comunidad = "", lecturas = null, misas = [], limite = 0 } = {}) {
+export function candidatosMomento(biblioteca, momento, { fechaUso = "", tiempoLiturgico = "", celebracion = "", comunidad = "", lecturas = null, misas = [], limite = 0, soloConAudio = true } = {}) {
   const ctx = contexto({ fechaUso, tiempoLiturgico, celebracion, comunidad, id: "" }, lecturas, misas);
   const { filtro, extra } = criterioMomento(momento, ctx);
-  const lista = biblioteca.map((c) => ({ c, del: filtro(c), p: puntajeCanto(c, ctx) + extra(c) }));
+  let lista = biblioteca.map((c) => ({ c, del: filtro(c), p: puntajeCanto(c, ctx) + extra(c) }));
+  if (soloConAudio) lista = lista.filter((x) => tieneAudioReproducible(x.c));
   lista.sort((a, b) => b.del - a.del || b.p - a.p || String(a.c.titulo).localeCompare(String(b.c.titulo), "es"));
   const r = lista.map((x) => ({ cancion: x.c, delMomento: x.del, puntaje: x.p }));
   return limite ? r.slice(0, limite) : r;
@@ -834,14 +847,12 @@ export function sugerirCantos(misa, lecturas, { reemplazar = false, biblioteca =
     return temaDe.get(c.id);
   };
   const pesoTema = (c) => 12 * (ctx.temas.length - ctx.temas.indexOf(temaDeCanto(c).tema));
-  // Solo con audio/video: al reproducir de corrido se saltan las que no tienen y se pierde el momento
-  const conAudio = (c) => (c.audios || []).some((a) => a.fileId || (a.url && String(a.url).trim()
-    && !/^(javascript:|data:)/i.test(String(a.url))));
   const elegir = (filtro, extra = () => 0) => {
     let mejor = null, mejorP = -Infinity, mejorH = 0;
     for (const c of biblioteca) {
-      if (usadas.has(c.id) || !conAudio(c) || !filtro(c)) continue;
-      const p = puntajeCanto(c, ctx) + extra(c);
+      if (usadas.has(c.id) || !tieneAudioReproducible(c) || !filtro(c)) continue;
+      // Más penalización a recientes para no repetir siempre el mismo top
+      const p = puntajeCanto(c, ctx) + extra(c) + (ctx.recientes.has(c.id) ? -5 : 0);
       const h = hashTexto((misa.fechaUso || "") + "|" + (misa.comunidad || "") + "|" + c.id);
       if (p > mejorP || (p === mejorP && h < mejorH)) [mejor, mejorP, mejorH] = [c, p, h];
     }
@@ -876,10 +887,23 @@ export function sugerirCantos(misa, lecturas, { reemplazar = false, biblioteca =
       if (mejor) motivo = motivoTema(mejor);
     } else if (k === claveSalmo) {
       const delDia = salmosDelDia(misa.fechaUso, lecturas, biblioteca);
-      mejor = delDia.ids.size ? elegir((c) => delDia.ids.has(c.id)) : null;
-      if (mejor) motivo = { texto: `El salmo del día (${delDia.nombre})`, corto: "del día" };
-      // Si no está el del día, mejor uno que no sea propio de otro domingo
-      else mejor = elegir((c) => esDelMomento(c, m.momento) || esSalmo(c), (c) => salmoPropio(c) ? -20 : 0);
+      if (delDia.ids.size) {
+        mejor = elegir((c) => delDia.ids.has(c.id));
+        if (mejor) motivo = { texto: `El salmo del día (${delDia.nombre})`, corto: "del día" };
+        else if (delDia.nombre) {
+          // Está en la Biblioteca pero sin audio reproducible: no sustituir por otro salmo
+          motivo = { texto: `Salmo del día (sin audio en la Biblioteca): ${delDia.nombre}`, corto: "falta en Biblioteca" };
+          motivos?.set(m.momento, motivo);
+          m.canciones = [];
+          continue;
+        }
+      } else if (delDia.nombre) {
+        // Sin el salmo en la Biblioteca: no poner otro que no corresponda al día
+        motivo = { texto: `Salmo del día (no en la Biblioteca): ${delDia.nombre}`, corto: "falta en Biblioteca" };
+        motivos?.set(m.momento, motivo);
+        m.canciones = [];
+        continue;
+      }
     }
     if (motivo) motivos?.set(m.momento, motivo);
     else if (!mejor) {
@@ -918,6 +942,8 @@ export function sugerirDomingos(domingos, { biblioteca = [], misas = [] } = {}) 
     const mes = fecha.slice(0, 7);
     if (!porMes.has(mes)) porMes.set(mes, new Set());
     const usadas = porMes.get(mes), evitados = new Set(usadas);
+    const { desde, hasta } = rangoSemana(fecha);
+    for (const id of evitadosDeMisasEnRango(misas, desde, hasta)) evitados.add(id);
     const { tiempo, momentos } = momentosDeMisa(fecha, lecturas);
     const misa = { id: "domingo-" + fecha, comunidad: "", fechaUso: fecha, tiempoLiturgico: tiempo, momentos };
     const motivos = new Map();
@@ -933,8 +959,42 @@ const conLecturas = (fechas, leerLecturas) => Promise.all(fechas.map((f) =>
   Promise.resolve().then(() => leerLecturas(f)).catch(() => null).then((lecturas) => ({ fecha: f, lecturas: lecturas || null }))));
 
 export async function evitadosDelMes(fecha, leerLecturas, opciones) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || "") || fechaMedioDia(fecha).getDay() !== 0) return new Set();
-  return sugerirDomingos(await conLecturas(domingosDelMes(fecha), leerLecturas), opciones).at(-1).evitados;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || "")) return new Set();
+  const ancla = fechaMedioDia(fecha).getDay() === 0 ? fecha : proximoDomingo();
+  const cadena = sugerirDomingos(await conLecturas(domingosDelMes(ancla), leerLecturas), opciones);
+  // Solo domingos anteriores a «fecha» (no repetir lo ya sugerido en el mes)
+  return new Set(cadena.filter((d) => d.fecha < fecha)
+    .flatMap((d) => d.misa.momentos.flatMap((m) => m.canciones.map((c) => c.cancionId))));
+}
+
+/** Lunes–domingo civil de la semana de «fecha». */
+export function rangoSemana(fecha) {
+  const d = fechaMedioDia(fecha);
+  const day = d.getDay();
+  const lun = sumarDias(d, day === 0 ? -6 : 1 - day);
+  return { desde: isoDe(lun), hasta: isoDe(sumarDias(lun, 6)) };
+}
+
+/** Canciones ya usadas en cancioneros con fechaUso en [desde, hasta]. */
+export function evitadosDeMisasEnRango(misas, desde, hasta, excluirId = "") {
+  const ids = new Set();
+  for (const m of misas || []) {
+    if (excluirId && m.id === excluirId) continue;
+    const f = m.fechaUso || "";
+    if (f < desde || f > hasta) continue;
+    for (const mom of m.momentos || []) {
+      for (const c of mom.canciones || []) if (c.cancionId) ids.add(c.cancionId);
+    }
+  }
+  return ids;
+}
+
+/** Unión de evitados de la semana (misas) y del mes (cadena de domingos sugeridos). */
+export async function evitadosSemanaYMes(fecha, leerLecturas, { biblioteca = [], misas = [], excluirId = "" } = {}) {
+  const { desde, hasta } = rangoSemana(fecha);
+  const semana = evitadosDeMisasEnRango(misas, desde, hasta, excluirId);
+  const mes = await evitadosDelMes(fecha, leerLecturas, { biblioteca, misas }).catch(() => new Set());
+  return new Set([...semana, ...mes]);
 }
 
 // Para el Inicio del reproductor: desde el primer domingo del mes del próximo domingo, ese domingo (aunque no
