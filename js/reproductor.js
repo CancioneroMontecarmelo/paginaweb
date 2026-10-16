@@ -320,6 +320,18 @@ async function cargarBiblioteca() {
 const MOMENTOS_INICIO = ["Entrada", "Acto penitencial", "Gloria", "Aleluya", "Ofertorio", "Santo", "Cordero de Dios",
   "Comunión", "Acción de gracias", "Salida", "Canto a María"];
 
+// Estanterías temáticas al final de Inicio (por etiqueta de la Biblioteca)
+const ESTANTES_TEMA = [
+  { titulo: "Cantos de alabanza", tags: ["Alabanza", "Adoración", "Cantos de Adoración"] },
+  { titulo: "Cantos para velorios", tags: ["Exequias", "Fieles difuntos", "Funeral"] },
+  { titulo: "Cantos para bautismo", tags: ["Bautismo", "Bautizo"] },
+  { titulo: "Casamientos", tags: ["Matrimonio"] },
+  { titulo: "Espíritu Santo", tags: ["Espíritu Santo"] },
+  { titulo: "Navidad", tags: ["Navidad", "Villancicos", "Villancico"] },
+  { titulo: "Oración", tags: ["Oración", "Adoración", "Meditativo"] }
+];
+const tieneTagTema = (c, tags) => (c.etiquetas || []).some((t) => tags.some((x) => tagNorm(t) === tagNorm(x)));
+
 let misasPublicas = null;
 const todasLasMisas = () => (misasPublicas ||= leer({ accion: "misas" }).then((r) => r.misas || [])
   .catch(() => { misasPublicas = null; return []; }));
@@ -592,6 +604,10 @@ async function pintarInicio() {
         html += deMomento(m, "Momentos de la misa", m,
           lista.filter((c) => lit.esDelMomento(c, m)).sort(ordenInicio));
       }
+    }
+    for (const e of ESTANTES_TEMA) {
+      html += deMomento(e.titulo, "Para celebrar y orar", e.titulo,
+        lista.filter((c) => tieneTagTema(c, e.tags)).sort(ordenInicio));
     }
   }
   html += seccionColaboran(ins.colaboran);
