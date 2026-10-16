@@ -6,7 +6,7 @@
 // El aviso del sábado (Web Push) llega sin contenido: se pide el texto a la parroquia y se guardan las letras del
 // cancionero del domingo (caché «mc-datos», con la misma dirección que pide el reproductor).
 
-const CACHE = 'mc-app-10';
+const CACHE = 'mc-app-11';
 const DATOS = 'mc-datos';
 const AUDIOS = 'mc-audios';
 const AVISO = '/__aviso';
