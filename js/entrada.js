@@ -243,11 +243,13 @@ export async function editarPertenencias() {
     "dlg-entrada",
     `
     <h2 id="dlg-entrada-titulo">Cambiar parroquia</h2>
-    <p class="dlg-entrada-lead">Elegí tu parroquia o movimiento para guardar en el sitio, o seguí solo en este equipo.</p>
+    <p class="dlg-entrada-lead">Elegí tu parroquia o movimiento. El correo es opcional: sin él entras igual.</p>
     <form id="form-entrada" class="dlg-entrada-form">
       <div class="dlg-entrada-sec dlg-entrada-identidad" hidden>
-        <label>Correo <input type="email" name="email" autocomplete="email" placeholder="tu@correo.com"></label>
-        <label>Nombre <input type="text" name="nombre" autocomplete="name" placeholder="Opcional"></label>
+        <label>Correo <span class="dlg-entrada-opcional">(opcional)</span>
+          <input type="email" name="email" autocomplete="email" placeholder="tu@correo.com"></label>
+        <label>Nombre <span class="dlg-entrada-opcional">(opcional)</span>
+          <input type="text" name="nombre" autocomplete="name" placeholder="Tu nombre"></label>
       </div>
       <div class="dlg-entrada-sec">
         <h3>Parroquias (por zona)</h3>
@@ -313,8 +315,8 @@ export async function editarPertenencias() {
     }
     const email = (form.email.value || "").trim().toLowerCase();
     const nombre = (form.nombre.value || "").trim();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      mostrarErr("Indicá un correo válido para anotar tu visita en las comunidades elegidas.");
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      mostrarErr("Si ponés correo, tiene que ser válido. También podés dejarlo vacío y entrar igual.");
       form.email.focus();
       return;
     }
@@ -323,8 +325,10 @@ export async function editarPertenencias() {
     btn.disabled = true;
     btn.textContent = "Guardando…";
     try {
-      for (const p of lista) {
-        await registrarVisitanteEn(p.slug, email, nombre);
+      if (email) {
+        for (const p of lista) {
+          await registrarVisitanteEn(p.slug, email, nombre);
+        }
       }
       guardarPertenencias(lista);
       const activa = elegirActiva(lista);

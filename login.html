@@ -42,8 +42,8 @@
       <form class="form-noticia caja-auth" id="form-visitante">
         <label for="vis-nombre">Tu nombre (opcional)</label>
         <input id="vis-nombre" autocomplete="name">
-        <label for="vis-email">Correo electrónico</label>
-        <input id="vis-email" type="email" autocomplete="email" required>
+        <label for="vis-email">Correo electrónico (opcional)</label>
+        <input id="vis-email" type="email" autocomplete="email">
         <div class="acciones-form">
           <button type="submit" class="btn btn-secundario">Entrar como visitante</button>
         </div>
@@ -56,7 +56,7 @@
       <p class="sesion-bar" id="sesion-quien"></p>
       <p class="msg-ok" id="sesion-aviso" hidden></p>
       <div class="acciones-form">
-        <a class="btn btn-primario" href="./noticias.html">Ir a noticias</a>
+        <a class="btn btn-primario" href="/">Ir al cancionero</a>
         <a class="btn btn-secundario" href="/editor/" id="sesion-editor" hidden>Abrir el editor</a>
         <button type="button" class="btn btn-secundario" data-coros hidden>Coros de la comunidad</button>
         <button type="button" class="btn btn-secundario" data-clave hidden>Copiar clave para el script</button>
@@ -205,7 +205,16 @@
       c.disabled = false;
     }));
 
-    function trasEntrar(s, aviso) {
+    function irAlReproductor() {
+      location.replace("/");
+    }
+
+    function trasEntrar(s, aviso, { recien = false } = {}) {
+      // Tras identificarse volvemos al cancionero (salvo clave de script o marcar colaborador).
+      if (recien && location.hash !== "#clave" && location.hash !== "#colaborador") {
+        irAlReproductor();
+        return;
+      }
       initNavSitio();
       mostrarCoros(s);
       document.querySelectorAll("[data-colaborador]").forEach((x) => {
@@ -269,7 +278,7 @@
       $("boton-google"),
       (s) => {
         mensaje("msg-google", "");
-        trasEntrar(s);
+        trasEntrar(s, "", { recien: true });
       },
       (err) => mensaje("msg-google", err.message || "No se pudo entrar con Google")
     ).catch((err) => mensaje("msg-google", err.message));
@@ -279,9 +288,15 @@
       mensaje("msg-visitante", "");
       const btn = e.target.querySelector("button");
       btn.disabled = true;
+      const email = ($("vis-email").value || "").trim();
+      const nombre = ($("vis-nombre").value || "").trim();
       try {
-        const r = await entrarVisitante($("vis-email").value, $("vis-nombre").value.trim());
-        trasEntrar(r.sesion, r.aviso);
+        if (!email) {
+          irAlReproductor();
+          return;
+        }
+        const r = await entrarVisitante(email, nombre);
+        trasEntrar(r.sesion, r.aviso, { recien: true });
       } catch (err) {
         mensaje("msg-visitante", err.message || "No se pudo entrar");
       }

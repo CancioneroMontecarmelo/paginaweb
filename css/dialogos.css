@@ -373,6 +373,12 @@
   font-size: 0.9rem;
 }
 
+.dlg-entrada-opcional {
+  font-weight: 400;
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+
 .dlg-entrada-identidad input {
   padding: 0.55rem 0.7rem;
   border: 1px solid rgba(47, 74, 56, 0.25);
