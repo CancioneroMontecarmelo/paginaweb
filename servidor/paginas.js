@@ -103,9 +103,24 @@ function tarjetaPortada(p) {
     `<a class="po-mas" href="/${escapar(p.slug)}/inicio">Página de la ${p.tipo === 'movimiento' ? 'comunidad' : 'parroquia'}</a></li>`;
 }
 
-function htmlListaPorZona(lista) {
+function htmlListaPorZona(lista, elegir) {
+  const principal = lista.find((p) => p.slug === 'montecarmelo');
+  const resto = lista.filter((p) => p.slug !== 'montecarmelo');
+  let html = '';
+  if (principal) {
+    html += `<li class="po-grupo" aria-hidden="true"><h3 class="po-comuna-titulo">Tu parroquia principal</h3></li>` + tarjetaPortada(principal);
+  }
+  if (elegir) {
+    html += `<li class="po-grupo" aria-hidden="true"><h3 class="po-comuna-titulo">Elegí una zona de Santiago</h3></li>`;
+    const zonas = ORDEN_ZONA.filter((z) => resto.some((p) => p.decanato === z));
+    html += `<li class="po-zonas">${zonas.map((d) => {
+      const n = resto.filter((p) => p.decanato === d).length;
+      return `<button type="button" class="po-zona-btn" data-zona="${escapar(d)}"><strong>Zona ${escapar(d)}</strong><span>${n} parroquias</span></button>`;
+    }).join('')}</li>`;
+    return html;
+  }
   const grupos = new Map();
-  for (const p of lista) {
+  for (const p of resto) {
     const k = p.decanato || p.comuna || 'Sin zona';
     if (!grupos.has(k)) grupos.set(k, []);
     grupos.get(k).push(p);
@@ -117,7 +132,7 @@ function htmlListaPorZona(lista) {
     if (ib >= 0) return 1;
     return a.localeCompare(b, 'es');
   });
-  return keys.map((k) => {
+  return html + keys.map((k) => {
     const titulo = ORDEN_ZONA.includes(k) || lista.some((p) => p.decanato === k) ? 'Zona ' + k : k;
     const items = grupos.get(k).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
     return `<li class="po-grupo" aria-hidden="true"><h3 class="po-comuna-titulo">${escapar(titulo)}</h3></li>` +
@@ -158,7 +173,7 @@ async function portada(ctx, c, elegir) {
       el.append(`<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`, { html: true });
       if (elegir) el.append('<meta name="robots" content="noindex, follow">', { html: true });
     } })
-    .on('[data-portada="lista"]', { element: (el) => el.setInnerContent(htmlListaPorZona(lista), { html: true }) })
+    .on('[data-portada="lista"]', { element: (el) => el.setInnerContent(htmlListaPorZona(lista, elegir), { html: true }) })
     .transform(limpia);
 }
 

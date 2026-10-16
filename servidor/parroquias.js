@@ -159,12 +159,15 @@ async function parroquia(c) {
   return { ok: true, parroquia: parroquiaPublica(await laParroquia(c)) };
 }
 
-/** Una sola ficha por nombre+comuna en listas públicas (/elegir, portada). */
+/** Una sola ficha por nombre+comuna; montecarmelo siempre gana su grupo y va primero. */
 function dedupeListaPublica(lista) {
   const grupos = new Map();
   for (const p of lista) {
-    const k = (p.nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
-      + '|' + (p.comuna || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    // Cada slug es único en su clave si es la parroquia principal (nunca se oculta por dedupe)
+    const k = p.slug === PARROQUIA_DEFECTO
+      ? '__principal__'
+      : ((p.nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+        + '|' + (p.comuna || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim());
     if (!grupos.has(k)) grupos.set(k, []);
     grupos.get(k).push(p);
   }
@@ -184,74 +187,17 @@ function dedupeListaPublica(lista) {
     });
     out.push(g[0]);
   }
-  return out.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-}
-
-/** Inserta parroquias de Santiago que faltan (tope por visita, sin fotos). */
-async function completarCatalogoSantiago(c) {
-  const MAX_AUTO = 60;
-  const { map: porNombre } = await indicePorNombreComuna(c);
-  const reservados = new Set();
-  const stmts = [];
-  for (const e of CATALOGO_SANTIAGO) {
-    if (stmts.length >= MAX_AUTO) break;
-    const nombre = texto(e.nombre, 120);
-    const comuna = texto(e.comuna, 80);
-    if (!nombre) continue;
-    const clave = claveNombreComuna(nombre, comuna);
-    if (porNombre.has(clave) || reservados.has('clave:' + clave)) continue;
-    const slug = await slugLibre(c, '', nombre + (comuna ? ' ' + comuna : ''), reservados);
-    const datos = {
-      nombre, nombreCorto: nombre.replace(/^(Parroquia|Movimiento|Basílica|Templo)\s+/i, '').slice(0, 40),
-      tipo: 'parroquia', diocesis: texto(e.diocesis, 100) || 'Arquidiócesis de Santiago',
-      decanato: texto(e.decanato, 40), sitioWeb: '', sacerdoteNombre: '',
-      direccion: '', comuna, region: texto(e.region, 80) || 'Región Metropolitana',
-      lat: typeof e.lat === 'number' ? e.lat : null, lng: typeof e.lng === 'number' ? e.lng : null,
-      lema: '', descripcion: '', correo: '', portada: '', iconos: {}, fotos: [],
-      activa: true, oculta: false, estado: 'aprobada',
-      origen: 'catalogo', configurada: false,
-      creado: ahora(), creadoPor: 'catalogo-auto'
-    };
-    stmts.push(c.db.prepare('INSERT INTO parroquias (slug, datos) VALUES (?, ?)').bind(slug, JSON.stringify(datos)));
-    reservados.add(slug);
-    reservados.add('clave:' + clave);
-    porNombre.set(clave, { slug, ...datos });
-  }
-  if (stmts.length) {
-    for (let i = 0; i < stmts.length; i += 40) await c.db.batch(stmts.slice(i, i + 40));
-    cache.delete('*lista');
-  }
-  return stmts.length;
+  out.sort((a, b) => {
+    if (a.slug === PARROQUIA_DEFECTO) return -1;
+    if (b.slug === PARROQUIA_DEFECTO) return 1;
+    return a.nombre.localeCompare(b.nombre, 'es');
+  });
+  return out;
 }
 
 export async function parroquiasActivas(c) {
   const guardada = cache.get('*lista');
   if (guardada && guardada.vence > Date.now()) return guardada.p;
-
-  // Si hay repeticiones nombre+comuna (p. ej. …-2, …-3), borrarlas de D1 al cargar /elegir o portada
-  try {
-    const { results: filas } = await c.db.prepare('SELECT slug, datos FROM parroquias').all();
-    const vistos = new Map();
-    let hayDup = false;
-    for (const r of filas) {
-      const p = parsear(r.datos, {});
-      const k = (p.nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
-        + '|' + (p.comuna || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
-      if (!k || k.startsWith('|')) continue;
-      if (vistos.has(k)) { hayDup = true; break; }
-      vistos.set(k, r.slug);
-    }
-    if (hayDup) await ejecutarUnificarDuplicados(c);
-  } catch (err) {
-    console.error('unificar al listar:', err);
-  }
-
-  // Completar las que faltan del catálogo Santiago (varias visitas si son muchas)
-  try {
-    await completarCatalogoSantiago(c);
-  } catch (err) {
-    console.error('completar catálogo Santiago:', err);
-  }
 
   const [{ results }, { results: coms }] = await Promise.all([
     c.db.prepare('SELECT slug, datos FROM parroquias ORDER BY slug').all(),
@@ -260,13 +206,18 @@ export async function parroquiasActivas(c) {
   // Las ocultas se abren con su dirección, pero no aparecen en la portada ni en el mapa
   const lista = dedupeListaPublica(results.map((r) => ({ ...parsear(r.datos, {}), slug: r.slug, comunidades: [] }))
     .filter((p) => p.activa !== false && !p.oculta)
-    .map((p) => ({
-      slug: p.slug, nombre: p.nombre || p.slug, nombreCorto: p.nombreCorto || p.nombre || p.slug, icono: iconoDe(p, '192'),
-      tipo: TIPOS.includes(p.tipo) ? p.tipo : 'parroquia', diocesis: p.diocesis || '', ...ubicacionPublica(p), foto: fotoPrincipal(p),
-      lema: p.lema || '', origen: p.origen || '', configurada: esConfigurada(p),
-      lugares: coms.filter((x) => x.parroquia === p.slug).map((x) => comunidadPublica({ ...parsear(x.datos, {}), slug: x.slug }))
-        .filter((x) => x.lat != null).map(({ slug, nombre, clase, direccion, comuna, lat, lng, foto }) => ({ slug, nombre, clase, direccion, comuna, lat, lng, foto }))
-    })));
+    .map((p) => {
+      const base = {
+        slug: p.slug, nombre: p.nombre || p.slug, nombreCorto: p.nombreCorto || p.nombre || p.slug, icono: iconoDe(p, '192'),
+        tipo: TIPOS.includes(p.tipo) ? p.tipo : 'parroquia', diocesis: p.diocesis || '', ...ubicacionPublica(p), foto: fotoPrincipal(p),
+        lema: p.lema || '', origen: p.origen || '', configurada: esConfigurada(p),
+        lugares: coms.filter((x) => x.parroquia === p.slug).map((x) => comunidadPublica({ ...parsear(x.datos, {}), slug: x.slug }))
+          .filter((x) => x.lat != null).map(({ slug, nombre, clase, direccion, comuna, lat, lng, foto }) => ({ slug, nombre, clase, direccion, comuna, lat, lng, foto }))
+      };
+      // Monte Carmelo siempre visible arriba, con zona clara
+      if (p.slug === PARROQUIA_DEFECTO && !base.decanato) base.decanato = 'Centro';
+      return base;
+    }));
   cache.set('*lista', { p: lista, vence: Date.now() + CACHE_MS });
   return lista;
 }

@@ -244,6 +244,52 @@
   border-radius: 0;
 }
 
+.po-tarjeta-principal {
+  outline: 2px solid var(--acento, #2f4a38);
+  outline-offset: 2px;
+}
+
+.po-zonas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: 0.65rem;
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.po-zona-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(47, 74, 56, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 254, 249, 0.9);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.po-zona-btn:hover {
+  border-color: rgba(47, 74, 56, 0.5);
+  background: #fff;
+}
+
+.po-zona-btn span {
+  font-size: 0.85rem;
+  color: var(--texto-suave, #5c564c);
+}
+
+.pagina-elegir .po-mapa {
+  display: none;
+}
+
 .po-comuna-titulo {
   margin: 0;
   font-family: var(--fuente-display);
